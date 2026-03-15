@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
+import 'home_shell.dart';
 import 'login_screen.dart';
 import 'onboarding_screen.dart';
 
@@ -26,13 +27,20 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1400),
     )..forward();
 
-    Future<void>.delayed(const Duration(milliseconds: 2300), () {
+    Future<void>.delayed(const Duration(milliseconds: 2300), () async {
       if (!mounted) {
         return;
       }
       final AppState appState = context.read<AppState>();
-      final Widget target =
-          appState.onboardingDone ? const LoginScreen() : const OnboardingScreen();
+      await appState.restoreSession();
+      if (!mounted) {
+        return;
+      }
+      final Widget target = appState.signedIn
+          ? const HomeShell()
+          : (appState.onboardingDone
+              ? const LoginScreen()
+              : const OnboardingScreen());
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(builder: (_) => target),
       );

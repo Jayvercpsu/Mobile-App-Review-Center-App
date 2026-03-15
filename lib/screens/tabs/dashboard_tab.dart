@@ -78,6 +78,17 @@ class _DashboardTabState extends State<DashboardTab> {
       return;
     }
 
+    if (plan.id != appState.currentPlan.id) {
+      final bool confirmed = await _confirmPlanChange(
+        context: context,
+        currentPlan: appState.currentPlan,
+        nextPlan: plan,
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     if (!plan.isPaid) {
       await _choosePlan(context: context, appState: appState, plan: plan);
       return;
@@ -85,68 +96,133 @@ class _DashboardTabState extends State<DashboardTab> {
 
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       builder: (BuildContext modalContext) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                'Complete Payment',
-                style: GoogleFonts.redHatDisplay(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AppPalette.primary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${plan.title} - ${plan.priceLabel}',
-                style: GoogleFonts.manrope(
-                  color: AppPalette.textDark,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Billing: ${plan.billingLabel}',
-                style: GoogleFonts.manrope(
-                  color: AppPalette.muted,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: FilledButton(
-                  onPressed: () async {
-                    Navigator.of(modalContext).pop();
-                    await _openPaidCheckout(
-                      context: context,
-                      appState: appState,
-                      plan: plan,
-                      billingCycle: plan.billingCycle,
-                    );
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppPalette.secondary,
-                  ),
-                  child: Text(
-                    'Pay and Activate',
-                    style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+        final double bottomPadding =
+            MediaQuery.of(modalContext).viewPadding.bottom;
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 18 + bottomPadding),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Complete Payment',
+                  style: GoogleFonts.redHatDisplay(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: AppPalette.primary,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Text(
+                  '${plan.title} - ${plan.priceLabel}',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.textDark,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Billing: ${plan.billingLabel}',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: () async {
+                      Navigator.of(modalContext).pop();
+                      await _openPaidCheckout(
+                        context: context,
+                        appState: appState,
+                        plan: plan,
+                        billingCycle: plan.billingCycle,
+                      );
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppPalette.secondary,
+                    ),
+                    child: Text(
+                      'Pay and Activate',
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
+  }
+
+  Future<bool> _confirmPlanChange({
+    required BuildContext context,
+    required PlanOption currentPlan,
+    required PlanOption nextPlan,
+  }) async {
+    final String message = currentPlan.isPaid
+        ? 'Your current plan (${currentPlan.title}) will be cancelled '
+            'and replaced with ${nextPlan.title}. Continue?'
+        : 'You are currently on ${currentPlan.title}. '
+            'Switching will replace it with ${nextPlan.title}. Continue?';
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: Text(
+                'Switch Plan?',
+                style: GoogleFonts.redHatDisplay(
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.primary,
+                ),
+              ),
+              content: Text(
+                message,
+                style: GoogleFonts.manrope(
+                  color: AppPalette.textDark,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(
+                    'Keep Current',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppPalette.secondary,
+                  ),
+                  child: Text(
+                    'Switch Plan',
+                    style: GoogleFonts.manrope(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   Future<void> _openPaidCheckout({

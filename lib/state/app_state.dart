@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_models.dart';
 import '../services/mobile_api_service.dart';
@@ -11,11 +12,14 @@ import '../services/mobile_api_service.dart';
 class AppState extends ChangeNotifier {
   AppState() {
     unawaited(loadPlans());
+    unawaited(_loadRememberPreference());
     _initConnectivity();
   }
 
   bool onboardingDone = false;
   bool signedIn = false;
+  bool rememberMe = false;
+  String? rememberedEmail;
   String userName = 'Future Topnotcher';
   String userEmail = '';
   String userSchool = '';
@@ -58,6 +62,7 @@ class AppState extends ChangeNotifier {
   bool loadingReferrals = false;
   bool hasMoreReferrals = false;
   int _referralsPage = 1;
+  bool _restoringSession = false;
 
   static const List<PlanOption> _fallbackPlans = <PlanOption>[
     PlanOption(
@@ -169,6 +174,10 @@ class AppState extends ChangeNotifier {
   ];
 
   final List<QuizRecord> records = <QuizRecord>[];
+
+  static const String _prefsRememberMe = 'remember_me';
+  static const String _prefsAuthToken = 'auth_token';
+  static const String _prefsRememberedEmail = 'remembered_email';
 
   final Map<String, List<_QuestionBlueprint>>
   _bank = <String, List<_QuestionBlueprint>>{
@@ -360,6 +369,76 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _loadRememberPreference() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      rememberMe = prefs.getBool(_prefsRememberMe) ?? false;
+      rememberedEmail = prefs.getString(_prefsRememberedEmail);
+      notifyListeners();
+    } catch (_) {
+      // Ignore preference load errors.
+    }
+  }
+
+  Future<void> setRememberMe(bool value) async {
+    rememberMe = value;
+    notifyListeners();
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefsRememberMe, value);
+      if (!value) {
+        await prefs.remove(_prefsAuthToken);
+      }
+    } catch (_) {
+      // Ignore preference persistence errors.
+    }
+  }
+
+  Future<bool> restoreSession() async {
+    if (_restoringSession) {
+      return signedIn;
+    }
+    _restoringSession = true;
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      rememberMe = prefs.getBool(_prefsRememberMe) ?? false;
+      rememberedEmail = prefs.getString(_prefsRememberedEmail);
+      final String? token = prefs.getString(_prefsAuthToken);
+      if (!rememberMe || token == null || token.isEmpty) {
+        _restoringSession = false;
+        notifyListeners();
+        return false;
+      }
+
+      _api.setAuthToken(token);
+      final ApiResult<AuthPayload> response = await _api.fetchCurrentUser();
+      if (!response.ok || response.data == null) {
+        _api.setAuthToken(null);
+        await prefs.remove(_prefsAuthToken);
+        _restoringSession = false;
+        notifyListeners();
+        return false;
+      }
+
+      _applyAuthPayload(
+        response.data!,
+        emailFallback: rememberedEmail,
+      );
+      _restoringSession = false;
+
+      await loadPlans(force: true);
+      await loadPracticeSubjects(force: true);
+      await loadDashboardMetrics(force: true);
+      await loadSubscriptionHistory(loadMore: false);
+      await loadReferrals(loadMore: false);
+      notifyListeners();
+      return true;
+    } catch (_) {
+      _restoringSession = false;
+      return false;
+    }
+  }
+
   Future<void> _initConnectivity() async {
     final Connectivity connectivity = Connectivity();
     try {
@@ -445,25 +524,15 @@ class AppState extends ChangeNotifier {
     }
 
     final AuthPayload data = response.data!;
-    userEmail = data.email.trim().isNotEmpty ? data.email.trim() : email.trim();
-    userName = data.name.trim().isNotEmpty
-        ? data.name.trim()
-        : _nameFromEmail(userEmail);
-    userSchool = data.school ?? '';
-    userBirthdate = data.birthdate;
-    userGender = data.gender;
-    userPlace = data.place ?? '';
-    userPhoneNumber = data.phoneNumber ?? '';
-    userAvatarUrl = data.avatarUrl;
-    referralCode = data.referralCode;
-    referredBy = data.referredBy;
-    selectedPlanId = data.planId;
-    if (data.tier != null) {
-      selectedTier = data.tier!;
-    }
-    subscriptionBillingCycle = data.billingCycle;
-    subscriptionEndDate = data.endDate;
-    signedIn = true;
+    _applyAuthPayload(
+      data,
+      emailFallback: email.trim(),
+      nameFallback: _nameFromEmail(email),
+    );
+    await _persistSession(
+      token: data.token,
+      email: data.email.trim().isNotEmpty ? data.email.trim() : email.trim(),
+    );
     notifyListeners();
 
     await loadPlans(force: true);
@@ -489,26 +558,14 @@ class AppState extends ChangeNotifier {
     }
 
     final AuthPayload data = response.data!;
-    userName = data.name.trim().isNotEmpty ? data.name.trim() : name.trim();
-    if (userName.isEmpty) {
-      userName = _nameFromEmail(email.trim());
-    }
-    userEmail = data.email.trim().isNotEmpty ? data.email.trim() : email.trim();
-    userSchool = data.school ?? '';
-    userBirthdate = data.birthdate;
-    userGender = data.gender;
-    userPlace = data.place ?? '';
-    userPhoneNumber = data.phoneNumber ?? '';
-    userAvatarUrl = data.avatarUrl;
-    referralCode = data.referralCode;
-    referredBy = data.referredBy;
-    selectedPlanId = data.planId;
-    if (data.tier != null) {
-      selectedTier = data.tier!;
-    }
-    subscriptionBillingCycle = data.billingCycle;
-    subscriptionEndDate = data.endDate;
-    signedIn = true;
+    final String fallbackName = name.trim().isNotEmpty
+        ? name.trim()
+        : _nameFromEmail(email.trim());
+    _applyAuthPayload(
+      data,
+      emailFallback: email.trim(),
+      nameFallback: fallbackName,
+    );
     notifyListeners();
 
     await loadPlans(force: true);
@@ -804,6 +861,7 @@ class AppState extends ChangeNotifier {
     hasMoreReferrals = false;
     _referralsPage = 1;
     _api.setAuthToken(null);
+    unawaited(_clearStoredSession());
     notifyListeners();
   }
 
@@ -932,24 +990,7 @@ class AppState extends ChangeNotifier {
     }
 
     final AuthPayload data = response.data!;
-    userEmail = data.email.trim().isNotEmpty ? data.email.trim() : userEmail;
-    userName = data.name.trim().isNotEmpty ? data.name.trim() : userName;
-    userSchool = data.school ?? '';
-    userBirthdate = data.birthdate;
-    userGender = data.gender;
-    userPlace = data.place ?? '';
-    userPhoneNumber = data.phoneNumber ?? '';
-    userAvatarUrl = data.avatarUrl;
-    referralCode = data.referralCode;
-    referredBy = data.referredBy;
-    if (data.tier != null) {
-      selectedTier = data.tier!;
-    }
-    if (data.planId != null) {
-      selectedPlanId = data.planId;
-    }
-    subscriptionBillingCycle = data.billingCycle;
-    subscriptionEndDate = data.endDate;
+    _applyAuthPayload(data, emailFallback: userEmail, nameFallback: userName);
 
     await loadPlans(force: true);
     await loadPracticeSubjects(force: true);
@@ -1136,6 +1177,65 @@ class AppState extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  void _applyAuthPayload(
+    AuthPayload data, {
+    String? emailFallback,
+    String? nameFallback,
+  }) {
+    final String trimmedEmail = data.email.trim();
+    userEmail = trimmedEmail.isNotEmpty
+        ? trimmedEmail
+        : (emailFallback ?? userEmail);
+    final String trimmedName = data.name.trim();
+    userName = trimmedName.isNotEmpty
+        ? trimmedName
+        : (nameFallback ?? userName);
+    userSchool = data.school ?? '';
+    userBirthdate = data.birthdate;
+    userGender = data.gender;
+    userPlace = data.place ?? '';
+    userPhoneNumber = data.phoneNumber ?? '';
+    userAvatarUrl = data.avatarUrl;
+    referralCode = data.referralCode;
+    referredBy = data.referredBy;
+    if (data.tier != null) {
+      selectedTier = data.tier!;
+    }
+    if (data.planId != null) {
+      selectedPlanId = data.planId;
+    }
+    subscriptionBillingCycle = data.billingCycle;
+    subscriptionEndDate = data.endDate;
+    signedIn = true;
+  }
+
+  Future<void> _persistSession({
+    required String? token,
+    required String email,
+  }) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefsRememberMe, rememberMe);
+      await prefs.setString(_prefsRememberedEmail, email);
+      if (rememberMe && token != null && token.trim().isNotEmpty) {
+        await prefs.setString(_prefsAuthToken, token.trim());
+      } else {
+        await prefs.remove(_prefsAuthToken);
+      }
+    } catch (_) {
+      // Ignore storage persistence errors.
+    }
+  }
+
+  Future<void> _clearStoredSession() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefsAuthToken);
+    } catch (_) {
+      // Ignore storage cleanup errors.
+    }
   }
 }
 

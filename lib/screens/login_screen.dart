@@ -22,6 +22,20 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final AppState appState = context.read<AppState>();
+      final String? remembered = appState.rememberedEmail;
+      if (remembered != null &&
+          remembered.isNotEmpty &&
+          _emailController.text.isEmpty) {
+        _emailController.text = remembered;
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -161,6 +175,34 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Row(
+                          children: <Widget>[
+                            Checkbox(
+                              value: context.watch<AppState>().rememberMe,
+                              onChanged: (bool? value) {
+                                context.read<AppState>().setRememberMe(
+                                      value ?? false,
+                                    );
+                              },
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Remember me',
+                                style: GoogleFonts.manrope(
+                                  color: AppPalette.muted,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
                   SizedBox(

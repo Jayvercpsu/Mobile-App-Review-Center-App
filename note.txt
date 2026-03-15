@@ -1,0 +1,20 @@
+In laravel Folder 
+
+run this command
+
+php artisan serve --host=0.0.0.0 --port=8000
+
+in flutter code 
+go to api_config.dart
+
+in this code
+
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.14.189.119:8000/api',
+  );
+
+change this http://10.14.189.119 address in your ip v4 address 
+
+to connect mobile and web run first the php artisan serve --host=0.0.0.0 --port=8000 in laravel Folder
+and flutter run in flutter code 

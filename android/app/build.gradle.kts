@@ -8,7 +8,6 @@ plugins {
 android {
     namespace = "ph.boardmaster.app_review_center"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

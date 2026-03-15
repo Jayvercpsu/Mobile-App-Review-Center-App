@@ -1,8 +1,16 @@
-In laravel Folder 
+In laravel folder
 
 run this command
 
 php artisan serve --host=0.0.0.0 --port=8000
+
+If you prefer the composer script, update the Laravel dev script to include the host and port,
+then run the composer command:
+
+1) In ReviewApp-server/composer.json, set the dev script to:
+   "npx concurrently -c \"#93c5fd,#fb7185\" \"php artisan serve --host=0.0.0.0 --port=8000\" \"npm run dev\" --names=laravel,vite --kill-others"
+2) Run:
+   composer run dev
 
 in flutter code 
 go to api_config.dart
@@ -14,7 +22,7 @@ in this code
     defaultValue: 'http://10.14.189.119:8000/api',
   );
 
-change this http://10.14.189.119 address in your ip v4 address 
+change this http://10.14.189.119 address to your IPv4 address
 
 to connect mobile and web run first the php artisan serve --host=0.0.0.0 --port=8000 in laravel Folder
 and flutter run in flutter code 

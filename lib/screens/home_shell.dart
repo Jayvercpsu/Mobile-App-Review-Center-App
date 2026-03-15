@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'tabs/dashboard_tab.dart';
 import 'tabs/practice_tab.dart';
 import 'tabs/profile_tab.dart';
+import '../state/app_state.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key, this.initialIndex = 0});
@@ -15,6 +17,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   late int _index;
+  bool? _lastOffline;
 
   @override
   void initState() {
@@ -22,14 +25,58 @@ class _HomeShellState extends State<HomeShell> {
     _index = widget.initialIndex;
   }
 
+  Future<void> _refreshOnTabSwitch() async {
+    final AppState appState = context.read<AppState>();
+
+    if (appState.signedIn) {
+      await appState.refreshCurrentUser();
+      return;
+    }
+
+    await appState.loadPlans(force: true);
+  }
+
+  void _switchTo(int index) {
+    setState(() {
+      _index = index;
+    });
+    _refreshOnTabSwitch();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool isOffline = context.watch<AppState>().isOffline;
+    if (_lastOffline != isOffline) {
+      _lastOffline = isOffline;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        final messenger = ScaffoldMessenger.of(context);
+        if (isOffline) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No internet connection. The app may not work properly.',
+              ),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        } else {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Back online.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      });
+    }
+
     final List<Widget> pages = <Widget>[
       DashboardTab(
         onOpenPractice: () {
-          setState(() {
-            _index = 1;
-          });
+          _switchTo(1);
         },
       ),
       const PracticeTab(),
@@ -46,9 +93,7 @@ class _HomeShellState extends State<HomeShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (int value) {
-          setState(() {
-            _index = value;
-          });
+          _switchTo(value);
         },
         destinations: const <NavigationDestination>[
           NavigationDestination(

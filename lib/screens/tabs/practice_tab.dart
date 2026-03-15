@@ -20,13 +20,23 @@ class PracticeTab extends StatefulWidget {
 class _PracticeTabState extends State<PracticeTab> {
   SubjectItem? _selected;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      context.read<AppState>().loadPracticeSubjects();
+    });
+  }
+
   Future<void> _openQuestionCountModal({
     required SubjectItem subject,
     required AppState appState,
   }) async {
     final int maxBySubject = subject.totalQuestions;
-    final int maxByPlan = appState.maxQuestionPerSet;
-    final int maxCount = min(maxBySubject, maxByPlan);
+    final int maxCount = maxBySubject;
 
     if (maxCount <= 0) {
       if (!mounted) {
@@ -48,6 +58,7 @@ class _PracticeTabState extends State<PracticeTab> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext modalContext) {
+        bool starting = false;
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             final int? divisions = maxCount > minCount
@@ -122,9 +133,15 @@ class _PracticeTabState extends State<PracticeTab> {
                       ),
                     ),
                     Text(
-                      appState.selectedTier == PlanTier.free
-                          ? 'Free plan limit: up to ${appState.maxQuestionPerSet} questions per set.'
-                          : 'Subscription active: up to ${appState.maxQuestionPerSet} questions per set.',
+                      'Plan limit for ${subject.code}: ${subject.maxQuestionsPerSet} unique questions per set.',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'If you request more, we will serve up to the plan limit.',
                       style: GoogleFonts.manrope(
                         color: AppPalette.muted,
                         fontSize: 12,
@@ -156,34 +173,86 @@ class _PracticeTabState extends State<PracticeTab> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: FilledButton(
-                            onPressed: () {
-                              Navigator.of(modalContext).pop();
-                              if (!mounted) {
-                                return;
-                              }
-                              final List<QuestionItem> quizQuestions = appState
-                                  .buildQuiz(
-                                    subject: subject,
-                                    count: sliderValue.round(),
-                                  );
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => QuizScreen(
-                                    subject: subject,
-                                    questions: quizQuestions,
-                                  ),
-                                ),
-                              );
-                            },
+                            onPressed: starting
+                                ? null
+                                : () async {
+                                    setModalState(() {
+                                      starting = true;
+                                    });
+                                    final ScaffoldMessengerState messenger =
+                                        ScaffoldMessenger.of(this.context);
+                                    final NavigatorState rootNavigator =
+                                        Navigator.of(this.context);
+                                    final NavigatorState sheetNavigator =
+                                        Navigator.of(modalContext);
+
+                                    final response = await appState.generateQuiz(
+                                      subject: subject,
+                                      count: sliderValue.round(),
+                                    );
+
+                                    if (!mounted) {
+                                      return;
+                                    }
+
+                                    setModalState(() {
+                                      starting = false;
+                                    });
+
+                                    if (!response.ok || response.data == null) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            response.message ??
+                                                'Unable to load quiz from server.',
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    final int requestedCount =
+                                        sliderValue.round();
+                                    final int servedCount =
+                                        response.data!.length;
+                                    if (servedCount < requestedCount) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Plan limit applied: $servedCount of $requestedCount questions served.',
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                    sheetNavigator.pop();
+                                    rootNavigator.push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => QuizScreen(
+                                          subject: subject,
+                                          questions: response.data!,
+                                        ),
+                                      ),
+                                    );
+                                  },
                             style: FilledButton.styleFrom(
                               backgroundColor: AppPalette.primary,
                             ),
-                            child: Text(
-                              'Start Test',
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
+                            child: starting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    'Start Test',
+                                    style: GoogleFonts.manrope(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
@@ -202,7 +271,64 @@ class _PracticeTabState extends State<PracticeTab> {
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
     final List<SubjectItem> subjects = appState.visibleSubjects;
-    _selected ??= subjects.first;
+
+    if (subjects.isNotEmpty &&
+        (_selected == null ||
+            !subjects.any((SubjectItem item) => item.id == _selected!.id))) {
+      _selected = subjects.first;
+    }
+
+    if (subjects.isEmpty &&
+        (appState.loadingPracticeSubjects || !appState.practiceSubjectsLoaded)) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (subjects.isEmpty && appState.practiceSubjectsError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                appState.practiceSubjectsError!,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(
+                  color: AppPalette.muted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () {
+                  context.read<AppState>().loadPracticeSubjects(force: true);
+                },
+                child: Text(
+                  'Retry',
+                  style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (subjects.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(
+            'No accessible subjects yet for your current plan.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              color: AppPalette.muted,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+    }
 
     return CustomScrollView(
       slivers: <Widget>[

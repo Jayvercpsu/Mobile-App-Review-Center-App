@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -40,6 +41,42 @@ class MobileApiService {
         'password_confirmation': password,
       },
     );
+  }
+
+  Future<ApiResult<AuthPayload>> fetchCurrentUser() async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<AuthPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _getWithFallback(path: ApiConfig.me);
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<AuthPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final AuthPayload? parsed = _toAuthPayload(decoded);
+      if (parsed == null) {
+        return ApiResult<AuthPayload>.failure(
+          'Server response is missing user data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<AuthPayload>.success(parsed);
+    } catch (_) {
+      return ApiResult<AuthPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
   }
 
   Future<ApiResult<List<PlanOption>>> fetchPlans() async {
@@ -127,6 +164,448 @@ class MobileApiService {
       return ApiResult<PlanSelectionPayload>.success(payload);
     } catch (_) {
       return ApiResult<PlanSelectionPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<CheckoutPayload>> createCheckout({
+    required int planId,
+    String? billingCycle,
+    String? reference,
+    List<String>? paymentMethodTypes,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<CheckoutPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final List<String>? cleanedMethods = paymentMethodTypes
+          ?.map((String item) => item.trim().toLowerCase())
+          .where((String item) => item.isNotEmpty)
+          .toSet()
+          .toList();
+
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.paymongoCheckout,
+        payload: <String, dynamic>{
+          'plan_id': planId,
+          if (billingCycle != null && billingCycle.trim().isNotEmpty)
+            'billing_cycle': billingCycle.trim().toLowerCase(),
+          if (reference != null && reference.trim().isNotEmpty)
+            'reference': reference.trim(),
+          if (cleanedMethods != null && cleanedMethods.isNotEmpty)
+            'payment_method_types': cleanedMethods,
+        },
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<CheckoutPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final CheckoutPayload? payload = _toCheckoutPayload(decoded);
+      if (payload == null) {
+        return ApiResult<CheckoutPayload>.failure(
+          'Checkout response is missing URL.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<CheckoutPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<CheckoutPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<List<PracticeSubjectPayload>>> fetchPracticeSubjects() async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<List<PracticeSubjectPayload>>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _getWithFallback(
+        path: ApiConfig.subjects,
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<List<PracticeSubjectPayload>>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final List<dynamic> rawSubjects;
+      if (decoded is List<dynamic>) {
+        rawSubjects = decoded;
+      } else if (decoded is Map<String, dynamic>) {
+        final dynamic nested = decoded['data'] ?? decoded['subjects'];
+        rawSubjects = nested is List<dynamic> ? nested : <dynamic>[];
+      } else {
+        rawSubjects = <dynamic>[];
+      }
+
+      final List<PracticeSubjectPayload> parsed = rawSubjects
+          .map(_toPracticeSubjectPayload)
+          .whereType<PracticeSubjectPayload>()
+          .toList();
+
+      return ApiResult<List<PracticeSubjectPayload>>.success(parsed);
+    } catch (_) {
+      return ApiResult<List<PracticeSubjectPayload>>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<DashboardMetricsPayload>> fetchDashboardMetrics() async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<DashboardMetricsPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _getWithFallback(
+        path: ApiConfig.dashboardMetrics,
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<DashboardMetricsPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final DashboardMetricsPayload? payload =
+          _toDashboardMetricsPayload(decoded);
+      if (payload == null) {
+        return ApiResult<DashboardMetricsPayload>.failure(
+          'Dashboard metrics response is missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<DashboardMetricsPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<DashboardMetricsPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<ReferralSummaryPayload>> fetchReferrals({int page = 1}) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<ReferralSummaryPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _getWithFallback(
+        path: '${ApiConfig.referrals}?page=$page',
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<ReferralSummaryPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final ReferralSummaryPayload? payload =
+          _toReferralSummaryPayload(decoded);
+      if (payload == null) {
+        return ApiResult<ReferralSummaryPayload>.failure(
+          'Referral response is missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<ReferralSummaryPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<ReferralSummaryPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<bool>> applyReferralCode({required String code}) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<bool>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.referralApply,
+        payload: <String, dynamic>{
+          'referral_code': code.trim(),
+        },
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<bool>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<bool>.success(true);
+    } catch (_) {
+      return ApiResult<bool>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<SubscriptionHistoryPayload>> fetchSubscriptionHistory({
+    int page = 1,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<SubscriptionHistoryPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _getWithFallback(
+        path: '${ApiConfig.subscriptionHistory}?page=$page',
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<SubscriptionHistoryPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final SubscriptionHistoryPayload? payload =
+          _toSubscriptionHistoryPayload(decoded);
+      if (payload == null) {
+        return ApiResult<SubscriptionHistoryPayload>.failure(
+          'Subscription history response is missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<SubscriptionHistoryPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<SubscriptionHistoryPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<List<QuestionItem>>> generateQuiz({
+    required int subjectId,
+    required int totalQuestions,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<List<QuestionItem>>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.quizGenerate,
+        payload: <String, dynamic>{
+          'subject_id': subjectId,
+          'total_questions': totalQuestions,
+        },
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<List<QuestionItem>>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final List<dynamic> rawQuestions;
+      if (decoded is List<dynamic>) {
+        rawQuestions = decoded;
+      } else if (decoded is Map<String, dynamic>) {
+        final dynamic nested = decoded['data'] ?? decoded['questions'];
+        rawQuestions = nested is List<dynamic> ? nested : <dynamic>[];
+      } else {
+        rawQuestions = <dynamic>[];
+      }
+
+      final List<QuestionItem> parsed = rawQuestions
+          .map(_toQuestionItem)
+          .whereType<QuestionItem>()
+          .toList();
+
+      if (parsed.isEmpty) {
+        return ApiResult<List<QuestionItem>>.failure(
+          'No questions available for this subject.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<List<QuestionItem>>.success(parsed);
+    } catch (_) {
+      return ApiResult<List<QuestionItem>>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<QuizSubmitPayload>> submitQuizAttempt({
+    required int subjectId,
+    required List<QuizAnswerPayload> answers,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<QuizSubmitPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.quizSubmit,
+        payload: <String, dynamic>{
+          'subject_id': subjectId,
+          'answers': answers.map((QuizAnswerPayload item) => item.toJson())
+              .toList(),
+        },
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<QuizSubmitPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final QuizSubmitPayload? payload = _toQuizSubmitPayload(decoded);
+      if (payload == null) {
+        return ApiResult<QuizSubmitPayload>.failure(
+          'Quiz submission response is missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<QuizSubmitPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<QuizSubmitPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<AuthPayload>> updateProfile({
+    required String name,
+    required String email,
+    String? school,
+    String? place,
+    String? phoneNumber,
+    DateTime? birthdate,
+    String? gender,
+    Uint8List? avatarBytes,
+    String? avatarFilename,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<AuthPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final Map<String, String> fields = <String, String>{
+        'name': name.trim(),
+        'email': email.trim(),
+      };
+      final String? normalizedSchool = _trimOrNull(school);
+      final String? normalizedPlace = _trimOrNull(place);
+      final String? normalizedPhone = _trimOrNull(phoneNumber);
+      final String? normalizedGender = _trimOrNull(gender);
+      final String? normalizedBirthdate = _formatDateForApi(birthdate);
+      if (normalizedSchool != null) {
+        fields['school'] = normalizedSchool;
+      }
+      if (normalizedPlace != null) {
+        fields['place'] = normalizedPlace;
+      }
+      if (normalizedPhone != null) {
+        fields['phone_number'] = normalizedPhone;
+      }
+      if (normalizedGender != null) {
+        fields['gender'] = normalizedGender;
+      }
+      if (normalizedBirthdate != null) {
+        fields['birthdate'] = normalizedBirthdate;
+      }
+
+      final http.Response response = avatarBytes == null
+          ? await _postWithFallback(
+              path: ApiConfig.profile,
+              payload: fields,
+            )
+          : await _postMultipartWithFallback(
+              path: ApiConfig.profile,
+              fields: fields,
+              fileField: 'avatar',
+              fileBytes: avatarBytes,
+              filename: avatarFilename ?? 'avatar.jpg',
+            );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<AuthPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final AuthPayload? parsed = _toAuthPayload(decoded);
+      if (parsed == null) {
+        return ApiResult<AuthPayload>.failure(
+          'Profile response is missing user data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<AuthPayload>.success(parsed);
+    } catch (_) {
+      return ApiResult<AuthPayload>.failure(
         'Cannot connect to web app. Check API url and backend server.',
       );
     }
@@ -220,6 +699,51 @@ class MobileApiService {
           headers: _headers(),
           body: jsonEncode(payload),
         );
+        if (response.statusCode == 404) {
+          fallbackResponse = response;
+          continue;
+        }
+        _resolvedBaseUrl = baseUrl;
+        return response;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (fallbackResponse != null) {
+      return fallbackResponse;
+    }
+    throw lastError ?? Exception('Cannot connect to any configured API host.');
+  }
+
+  Future<http.Response> _postMultipartWithFallback({
+    required String path,
+    required Map<String, String> fields,
+    required String fileField,
+    required Uint8List fileBytes,
+    required String filename,
+  }) async {
+    Object? lastError;
+    http.Response? fallbackResponse;
+
+    for (final String baseUrl in _candidateBaseUrls()) {
+      try {
+        final Uri uri = ApiConfig.uri(path, overrideBaseUrl: baseUrl);
+        final http.MultipartRequest request = http.MultipartRequest('POST', uri);
+        final Map<String, String> headers = Map<String, String>.from(_headers());
+        headers.remove('Content-Type');
+        request.headers.addAll(headers);
+        request.fields.addAll(fields);
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            fileField,
+            fileBytes,
+            filename: filename,
+          ),
+        );
+
+        final http.StreamedResponse streamed = await _client.send(request);
+        final http.Response response = await http.Response.fromStream(streamed);
         if (response.statusCode == 404) {
           fallbackResponse = response;
           continue;
@@ -371,6 +895,38 @@ class MobileApiService {
           dataMap?['end_date'] ??
           decoded['end_date'],
     );
+    final String? school = _nullableText(
+      user['school'] ?? dataMap?['school'] ?? decoded['school'],
+    );
+    final DateTime? birthdate = _parseDate(
+      user['birthdate'] ?? dataMap?['birthdate'] ?? decoded['birthdate'],
+    );
+    final String? gender = _nullableText(
+      user['gender'] ?? dataMap?['gender'] ?? decoded['gender'],
+    );
+    final String? place = _nullableText(
+      user['place'] ?? dataMap?['place'] ?? decoded['place'],
+    );
+    final String? phoneNumber = _nullableText(
+      user['phone_number'] ??
+          user['phone'] ??
+          dataMap?['phone_number'] ??
+          decoded['phone_number'],
+    );
+    String? avatarUrl = _nullableText(
+      user['avatar_url'] ?? dataMap?['avatar_url'] ?? decoded['avatar_url'],
+    );
+    if (avatarUrl != null && avatarUrl.startsWith('/')) {
+      avatarUrl = _resolveAssetUrl(avatarUrl);
+    }
+    final String? referralCode = _nullableText(
+      user['referral_code'] ??
+          dataMap?['referral_code'] ??
+          decoded['referral_code'],
+    );
+    final int? referredBy = _parseInt(
+      user['referred_by'] ?? dataMap?['referred_by'] ?? decoded['referred_by'],
+    );
 
     if (email.isEmpty && name.isEmpty) {
       return null;
@@ -384,6 +940,14 @@ class MobileApiService {
       planId: planId,
       billingCycle: billingCycle,
       endDate: endDate,
+      school: school,
+      birthdate: birthdate,
+      gender: gender,
+      place: place,
+      phoneNumber: phoneNumber,
+      avatarUrl: avatarUrl,
+      referralCode: referralCode,
+      referredBy: referredBy,
     );
   }
 
@@ -477,6 +1041,307 @@ class MobileApiService {
       billingCycle: _nullableText(map['billing_cycle']),
       endDate: _parseDate(map['end_date']),
     );
+  }
+
+  CheckoutPayload? _toCheckoutPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final dynamic nested = decoded['data'];
+    final Map<String, dynamic> map = nested is Map<String, dynamic>
+        ? nested
+        : decoded;
+
+    final String checkoutId = _firstNonEmpty(<dynamic>[
+      map['checkout_id'],
+      map['id'],
+    ]);
+    final String checkoutUrl = _firstNonEmpty(<dynamic>[
+      map['checkout_url'],
+      map['url'],
+    ]);
+    if (checkoutUrl.isEmpty) {
+      return null;
+    }
+
+    return CheckoutPayload(
+      checkoutId: checkoutId,
+      checkoutUrl: checkoutUrl,
+      status: _nullableText(map['status']),
+      billingCycle: _nullableText(map['billing_cycle']),
+    );
+  }
+
+  PracticeSubjectPayload? _toPracticeSubjectPayload(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final int? id = _parseInt(raw['id']);
+    if (id == null) {
+      return null;
+    }
+
+    final String title = _firstNonEmpty(<dynamic>[
+      raw['title'],
+      raw['name'],
+      raw['subject_name'],
+    ]);
+    if (title.isEmpty) {
+      return null;
+    }
+
+    final String rawCode = _firstNonEmpty(<dynamic>[raw['code'], title]);
+    final String cleanedCode = rawCode
+        .replaceAll(RegExp(r'[^A-Za-z0-9]'), '')
+        .toUpperCase();
+    final String code = cleanedCode.isEmpty
+        ? 'SUBJ'
+        : cleanedCode.substring(0, cleanedCode.length > 4 ? 4 : cleanedCode.length);
+    final int totalQuestions = _parseInt(
+          raw['total_questions'] ?? raw['question_count'] ?? raw['questions'],
+        ) ??
+        0;
+    int questionLimit =
+        _parseInt(raw['question_limit'] ?? raw['max_questions_per_set']) ?? 0;
+    if (questionLimit < 0) {
+      questionLimit = 0;
+    }
+    final String? colorHex = _nullableText(raw['color_hex'] ?? raw['color']);
+
+    return PracticeSubjectPayload(
+      id: id,
+      code: code,
+      title: title,
+      totalQuestions: totalQuestions < 0 ? 0 : totalQuestions,
+      questionLimit: questionLimit,
+      colorHex: colorHex,
+    );
+  }
+
+  QuestionItem? _toQuestionItem(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final int? id = _parseInt(raw['id']);
+    final String question = _firstNonEmpty(<dynamic>[
+      raw['question'],
+      raw['prompt'],
+    ]);
+    final String subjectId = _firstNonEmpty(<dynamic>[
+      raw['subject_id'],
+      raw['subject'],
+    ]);
+    if (question.isEmpty || subjectId.isEmpty) {
+      return null;
+    }
+
+    final Map<String, String> choices = _toStringMap(raw['choices']);
+    if (choices.isEmpty) {
+      return null;
+    }
+
+    String correctKey = _firstNonEmpty(<dynamic>[
+      raw['correct_key'],
+      raw['correctKey'],
+    ]).toUpperCase();
+    if (!choices.containsKey(correctKey)) {
+      correctKey = choices.keys.first;
+    }
+
+    final Map<String, String> rationales = _toStringMap(raw['rationales']);
+    final Map<String, String> normalizedRationales = <String, String>{};
+    for (final String key in choices.keys) {
+      normalizedRationales[key] =
+          rationales[key] ??
+          (key == correctKey
+              ? 'This option is correct.'
+              : 'This option does not satisfy this question.');
+    }
+
+    return QuestionItem(
+      id: id,
+      subjectId: subjectId,
+      question: question,
+      choices: choices,
+      correctKey: correctKey,
+      rationales: normalizedRationales,
+    );
+  }
+
+  QuizSubmitPayload? _toQuizSubmitPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final dynamic data = decoded['data'] ?? decoded;
+    if (data is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final int? attemptId = _parseInt(data['attempt_id']);
+    final int score = _parseInt(data['score']) ?? 0;
+    final int total = _parseInt(data['total_questions']) ?? 0;
+
+    if (attemptId == null) {
+      return null;
+    }
+
+    return QuizSubmitPayload(
+      attemptId: attemptId,
+      score: score,
+      totalQuestions: total,
+    );
+  }
+
+  DashboardMetricsPayload? _toDashboardMetricsPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final dynamic data = decoded['data'];
+    final Map<String, dynamic> map = data is Map<String, dynamic>
+        ? data
+        : decoded;
+
+    final int referralCount = _parseInt(map['referral_join_count']) ?? 0;
+    final dynamic lastAttempt = map['last_attempt'];
+    if (lastAttempt is Map<String, dynamic>) {
+      return DashboardMetricsPayload(
+        referralJoinCount: referralCount,
+        lastScore: _parseInt(lastAttempt['score']),
+        lastTotal: _parseInt(lastAttempt['total_questions']),
+        lastSubject: _nullableText(lastAttempt['subject']),
+        lastCompletedAt: _parseDate(lastAttempt['completed_at']),
+      );
+    }
+
+    return DashboardMetricsPayload(
+      referralJoinCount: referralCount,
+      lastScore: null,
+      lastTotal: null,
+      lastSubject: null,
+      lastCompletedAt: null,
+    );
+  }
+
+  ReferralSummaryPayload? _toReferralSummaryPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final dynamic data = decoded['data'];
+    final Map<String, dynamic> map = data is Map<String, dynamic>
+        ? data
+        : decoded;
+
+    final List<ReferralEntryPayload> entries =
+        _toReferralEntries(map['referrals']);
+    final PaginationPayload pagination = _toPaginationPayload(
+      decoded['pagination'] ?? map['pagination'],
+    );
+
+    return ReferralSummaryPayload(
+      referralCode: _nullableText(map['referral_code']),
+      referredByName: _nullableText(map['referred_by']?['name']),
+      referredByEmail: _nullableText(map['referred_by']?['email']),
+      joinCount: _parseInt(map['join_count']) ?? entries.length,
+      referrals: entries,
+      pagination: pagination,
+    );
+  }
+
+  List<ReferralEntryPayload> _toReferralEntries(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <ReferralEntryPayload>[];
+    }
+    return raw.map((dynamic item) {
+      if (item is! Map<String, dynamic>) {
+        return null;
+      }
+      final Map<String, dynamic>? invited =
+          item['invited_user'] is Map<String, dynamic>
+              ? item['invited_user'] as Map<String, dynamic>
+              : null;
+      final String name = _firstNonEmpty(<dynamic>[invited?['name']]);
+      final String email = _firstNonEmpty(<dynamic>[invited?['email']]);
+      return ReferralEntryPayload(
+        id: _parseInt(item['id']) ?? 0,
+        invitedName: name,
+        invitedEmail: email,
+        createdAt: _parseDate(item['created_at']),
+      );
+    }).whereType<ReferralEntryPayload>().toList();
+  }
+
+  SubscriptionHistoryPayload? _toSubscriptionHistoryPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final List<SubscriptionHistoryEntryPayload> entries =
+        _toSubscriptionEntries(decoded['data']);
+    final PaginationPayload pagination = _toPaginationPayload(
+      decoded['pagination'],
+    );
+    return SubscriptionHistoryPayload(entries: entries, pagination: pagination);
+  }
+
+  List<SubscriptionHistoryEntryPayload> _toSubscriptionEntries(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <SubscriptionHistoryEntryPayload>[];
+    }
+    return raw.map((dynamic item) {
+      if (item is! Map<String, dynamic>) {
+        return null;
+      }
+      final String planName =
+          _firstNonEmpty(<dynamic>[item['plan_name'], item['plan']]);
+      final DateTime? startDate = _parseDate(item['start_date']);
+      if (startDate == null) {
+        return null;
+      }
+      return SubscriptionHistoryEntryPayload(
+        id: _parseInt(item['id']) ?? 0,
+        planName: planName,
+        price: _parseDouble(item['price']) ?? 0,
+        billingCycle: _nullableText(item['billing_cycle']) ?? 'monthly',
+        startDate: startDate,
+        endDate: _parseDate(item['end_date']),
+        status: _nullableText(item['status']) ?? 'active',
+      );
+    }).whereType<SubscriptionHistoryEntryPayload>().toList();
+  }
+
+  PaginationPayload _toPaginationPayload(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      return const PaginationPayload();
+    }
+    final int currentPage = _parseInt(raw['current_page']) ?? 1;
+    final int lastPage = _parseInt(raw['last_page']) ?? 1;
+    final bool hasMore = raw['has_more'] == true ||
+        (raw['next_page_url'] != null && raw['next_page_url'] != '');
+    return PaginationPayload(
+      currentPage: currentPage,
+      lastPage: lastPage,
+      hasMore: hasMore,
+    );
+  }
+
+  Map<String, String> _toStringMap(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      return <String, String>{};
+    }
+
+    final Map<String, String> result = <String, String>{};
+    for (final MapEntry<String, dynamic> entry in raw.entries) {
+      final String key = entry.key.trim().toUpperCase();
+      final String value = _firstNonEmpty(<dynamic>[entry.value]);
+      if (key.isEmpty || value.isEmpty) {
+        continue;
+      }
+      result[key] = value;
+    }
+    return result;
   }
 
   String _priceLabel(Map<String, dynamic> raw) {
@@ -585,6 +1450,21 @@ class MobileApiService {
     return text.isEmpty ? null : text;
   }
 
+  String? _trimOrNull(String? value) {
+    if (value == null) {
+      return null;
+    }
+    final String trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String? _formatDateForApi(DateTime? value) {
+    if (value == null) {
+      return null;
+    }
+    return value.toIso8601String().split('T').first;
+  }
+
   DateTime? _parseDate(dynamic value) {
     final String text = _firstNonEmpty(<dynamic>[value]);
     if (text.isEmpty) {
@@ -656,6 +1536,18 @@ class MobileApiService {
   bool _looksLikeUserMap(Map<String, dynamic> map) {
     return map.containsKey('email') || map.containsKey('name');
   }
+
+  String _resolveAssetUrl(String path) {
+    final String base = (_resolvedBaseUrl ?? ApiConfig.baseUrl).trim();
+    String root = base;
+    if (root.endsWith('/api')) {
+      root = root.substring(0, root.length - 4);
+    }
+    if (root.endsWith('/')) {
+      root = root.substring(0, root.length - 1);
+    }
+    return '$root$path';
+  }
 }
 
 class AuthPayload {
@@ -667,6 +1559,14 @@ class AuthPayload {
     required this.planId,
     required this.billingCycle,
     required this.endDate,
+    required this.school,
+    required this.birthdate,
+    required this.gender,
+    required this.place,
+    required this.phoneNumber,
+    required this.avatarUrl,
+    required this.referralCode,
+    required this.referredBy,
   });
 
   final String name;
@@ -676,6 +1576,61 @@ class AuthPayload {
   final int? planId;
   final String? billingCycle;
   final DateTime? endDate;
+  final String? school;
+  final DateTime? birthdate;
+  final String? gender;
+  final String? place;
+  final String? phoneNumber;
+  final String? avatarUrl;
+  final String? referralCode;
+  final int? referredBy;
+}
+
+class PracticeSubjectPayload {
+  const PracticeSubjectPayload({
+    required this.id,
+    required this.code,
+    required this.title,
+    required this.totalQuestions,
+    required this.questionLimit,
+    required this.colorHex,
+  });
+
+  final int id;
+  final String code;
+  final String title;
+  final int totalQuestions;
+  final int questionLimit;
+  final String? colorHex;
+}
+
+class QuizAnswerPayload {
+  const QuizAnswerPayload({
+    required this.questionId,
+    required this.selectedChoice,
+  });
+
+  final int questionId;
+  final String? selectedChoice;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'question_id': questionId,
+      'selected_choice': selectedChoice,
+    };
+  }
+}
+
+class QuizSubmitPayload {
+  const QuizSubmitPayload({
+    required this.attemptId,
+    required this.score,
+    required this.totalQuestions,
+  });
+
+  final int attemptId;
+  final int score;
+  final int totalQuestions;
 }
 
 class PlanSelectionPayload {
@@ -694,6 +1649,110 @@ class PlanSelectionPayload {
   final String? planName;
   final String? billingCycle;
   final DateTime? endDate;
+}
+
+class CheckoutPayload {
+  const CheckoutPayload({
+    required this.checkoutId,
+    required this.checkoutUrl,
+    required this.status,
+    required this.billingCycle,
+  });
+
+  final String checkoutId;
+  final String checkoutUrl;
+  final String? status;
+  final String? billingCycle;
+}
+
+class DashboardMetricsPayload {
+  const DashboardMetricsPayload({
+    required this.referralJoinCount,
+    required this.lastScore,
+    required this.lastTotal,
+    required this.lastSubject,
+    required this.lastCompletedAt,
+  });
+
+  final int referralJoinCount;
+  final int? lastScore;
+  final int? lastTotal;
+  final String? lastSubject;
+  final DateTime? lastCompletedAt;
+}
+
+class ReferralSummaryPayload {
+  const ReferralSummaryPayload({
+    required this.referralCode,
+    required this.referredByName,
+    required this.referredByEmail,
+    required this.joinCount,
+    required this.referrals,
+    required this.pagination,
+  });
+
+  final String? referralCode;
+  final String? referredByName;
+  final String? referredByEmail;
+  final int joinCount;
+  final List<ReferralEntryPayload> referrals;
+  final PaginationPayload pagination;
+}
+
+class ReferralEntryPayload {
+  const ReferralEntryPayload({
+    required this.id,
+    required this.invitedName,
+    required this.invitedEmail,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String invitedName;
+  final String invitedEmail;
+  final DateTime? createdAt;
+}
+
+class SubscriptionHistoryPayload {
+  const SubscriptionHistoryPayload({
+    required this.entries,
+    required this.pagination,
+  });
+
+  final List<SubscriptionHistoryEntryPayload> entries;
+  final PaginationPayload pagination;
+}
+
+class SubscriptionHistoryEntryPayload {
+  const SubscriptionHistoryEntryPayload({
+    required this.id,
+    required this.planName,
+    required this.price,
+    required this.billingCycle,
+    required this.startDate,
+    required this.endDate,
+    required this.status,
+  });
+
+  final int id;
+  final String planName;
+  final double price;
+  final String billingCycle;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final String status;
+}
+
+class PaginationPayload {
+  const PaginationPayload({
+    this.currentPage = 1,
+    this.lastPage = 1,
+    this.hasMore = false,
+  });
+
+  final int currentPage;
+  final int lastPage;
+  final bool hasMore;
 }
 
 class ApiResult<T> {

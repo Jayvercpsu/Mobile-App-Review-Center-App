@@ -26,6 +26,7 @@ class _QuizScreenState extends State<QuizScreen> {
   late Duration _remaining;
   Timer? _timer;
   int _index = 0;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -80,20 +81,50 @@ class _QuizScreenState extends State<QuizScreen> {
     Navigator.of(context).pop();
   }
 
-  void _finish() {
+  Future<void> _finish() async {
+    if (_submitting) {
+      return;
+    }
+
+    _submitting = true;
     _timer?.cancel();
+
     final int score = widget.questions.asMap().entries.where((entry) {
       final String? selected = _answers[entry.key];
       return selected == entry.value.correctKey;
     }).length;
 
-    context.read<AppState>().saveRecord(
+    final AppState appState = context.read<AppState>();
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final NavigatorState navigator = Navigator.of(context);
+
+    appState.saveRecord(
       subject: widget.subject,
       score: score,
       total: widget.questions.length,
     );
 
-    Navigator.of(context).pushReplacement(
+    final submitResponse = await appState.submitQuizAttempt(
+      subject: widget.subject,
+      questions: widget.questions,
+      answers: Map<int, String>.from(_answers),
+    );
+
+    if (mounted && !submitResponse.ok) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            submitResponse.message ?? 'Unable to save quiz attempt to server.',
+          ),
+        ),
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    navigator.pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => ResultScreen(
           subject: widget.subject,

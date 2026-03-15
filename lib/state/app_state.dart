@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../models/app_models.dart';
 import '../services/mobile_api_service.dart';
@@ -9,19 +11,53 @@ import '../services/mobile_api_service.dart';
 class AppState extends ChangeNotifier {
   AppState() {
     unawaited(loadPlans());
+    _initConnectivity();
   }
 
   bool onboardingDone = false;
   bool signedIn = false;
   String userName = 'Future Topnotcher';
   String userEmail = '';
+  String userSchool = '';
+  DateTime? userBirthdate;
+  String? userGender;
+  String userPlace = '';
+  String userPhoneNumber = '';
+  String? userAvatarUrl;
+  String? referralCode;
+  int? referredBy;
+  String? referredByName;
+  String? referredByEmail;
+  int referralJoinedCount = 0;
+  int? lastScore;
+  int? lastScoreTotal;
+  String? lastScoreSubject;
+  DateTime? lastScoreAt;
   PlanTier selectedTier = PlanTier.free;
   int? selectedPlanId;
   String? subscriptionBillingCycle;
   DateTime? subscriptionEndDate;
   bool selectingPlan = false;
+  bool creatingCheckout = false;
+  bool updatingProfile = false;
+  bool isOffline = false;
   final MobileApiService _api = MobileApiService();
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _plansLoaded = false;
+  bool loadingPracticeSubjects = false;
+  String? practiceSubjectsError;
+  bool _practiceSubjectsLoaded = false;
+  List<SubjectItem> _practiceSubjects = <SubjectItem>[];
+  bool _metricsLoaded = false;
+  List<SubscriptionHistoryItem> _subscriptionHistory =
+      <SubscriptionHistoryItem>[];
+  bool loadingSubscriptionHistory = false;
+  bool hasMoreSubscriptionHistory = false;
+  int _subscriptionHistoryPage = 1;
+  List<ReferralEntry> _referralEntries = <ReferralEntry>[];
+  bool loadingReferrals = false;
+  bool hasMoreReferrals = false;
+  int _referralsPage = 1;
 
   static const List<PlanOption> _fallbackPlans = <PlanOption>[
     PlanOption(
@@ -61,10 +97,24 @@ class AppState extends ChangeNotifier {
       ],
     ),
   ];
+  static const List<Color> _subjectPalette = <Color>[
+    Color(0xFF9F76C0),
+    Color(0xFF70A764),
+    Color(0xFFF45A64),
+    Color(0xFF2CA6AA),
+    Color(0xFFF29C33),
+    Color(0xFFEF4DA8),
+    Color(0xFF4B8DDF),
+  ];
 
   List<PlanOption> _plans = List<PlanOption>.from(_fallbackPlans);
 
   List<PlanOption> get plans => List<PlanOption>.unmodifiable(_plans);
+  bool get practiceSubjectsLoaded => _practiceSubjectsLoaded;
+  List<SubscriptionHistoryItem> get subscriptionHistory =>
+      List<SubscriptionHistoryItem>.unmodifiable(_subscriptionHistory);
+  List<ReferralEntry> get referralEntries =>
+      List<ReferralEntry>.unmodifiable(_referralEntries);
 
   final List<SubjectItem> allSubjects = const <SubjectItem>[
     SubjectItem(
@@ -310,6 +360,36 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _initConnectivity() async {
+    final Connectivity connectivity = Connectivity();
+    try {
+      final List<ConnectivityResult> result =
+          await connectivity.checkConnectivity();
+      _setOffline(result.contains(ConnectivityResult.none));
+    } catch (_) {
+      _setOffline(false);
+    }
+
+    _connectivitySubscription = connectivity.onConnectivityChanged
+        .listen((List<ConnectivityResult> results) {
+      _setOffline(results.contains(ConnectivityResult.none));
+    });
+  }
+
+  void _setOffline(bool value) {
+    if (isOffline == value) {
+      return;
+    }
+    isOffline = value;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
+  }
+
   Future<String?> loadPlans({bool force = false}) async {
     if (_plansLoaded && !force) {
       return null;
@@ -369,6 +449,14 @@ class AppState extends ChangeNotifier {
     userName = data.name.trim().isNotEmpty
         ? data.name.trim()
         : _nameFromEmail(userEmail);
+    userSchool = data.school ?? '';
+    userBirthdate = data.birthdate;
+    userGender = data.gender;
+    userPlace = data.place ?? '';
+    userPhoneNumber = data.phoneNumber ?? '';
+    userAvatarUrl = data.avatarUrl;
+    referralCode = data.referralCode;
+    referredBy = data.referredBy;
     selectedPlanId = data.planId;
     if (data.tier != null) {
       selectedTier = data.tier!;
@@ -379,6 +467,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     await loadPlans(force: true);
+    await loadPracticeSubjects(force: true);
+    await loadDashboardMetrics(force: true);
+    await loadSubscriptionHistory(loadMore: false);
+    await loadReferrals(loadMore: false);
     return null;
   }
 
@@ -402,6 +494,14 @@ class AppState extends ChangeNotifier {
       userName = _nameFromEmail(email.trim());
     }
     userEmail = data.email.trim().isNotEmpty ? data.email.trim() : email.trim();
+    userSchool = data.school ?? '';
+    userBirthdate = data.birthdate;
+    userGender = data.gender;
+    userPlace = data.place ?? '';
+    userPhoneNumber = data.phoneNumber ?? '';
+    userAvatarUrl = data.avatarUrl;
+    referralCode = data.referralCode;
+    referredBy = data.referredBy;
     selectedPlanId = data.planId;
     if (data.tier != null) {
       selectedTier = data.tier!;
@@ -412,6 +512,259 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     await loadPlans(force: true);
+    await loadPracticeSubjects(force: true);
+    await loadDashboardMetrics(force: true);
+    await loadSubscriptionHistory(loadMore: false);
+    await loadReferrals(loadMore: false);
+    return null;
+  }
+
+  Future<String?> updateProfile({
+    required String name,
+    required String email,
+    String? school,
+    String? place,
+    String? phoneNumber,
+    DateTime? birthdate,
+    String? gender,
+    Uint8List? avatarBytes,
+    String? avatarFilename,
+  }) async {
+    updatingProfile = true;
+    notifyListeners();
+
+    final ApiResult<AuthPayload> response = await _api.updateProfile(
+      name: name,
+      email: email,
+      school: school,
+      place: place,
+      phoneNumber: phoneNumber,
+      birthdate: birthdate,
+      gender: gender,
+      avatarBytes: avatarBytes,
+      avatarFilename: avatarFilename,
+    );
+
+    updatingProfile = false;
+
+    if (!response.ok || response.data == null) {
+      notifyListeners();
+      if (response.statusCode == 401) {
+        return 'Session expired. Please login again.';
+      }
+      return response.message ?? 'Unable to update profile.';
+    }
+
+    final AuthPayload data = response.data!;
+    userName = data.name.trim().isNotEmpty ? data.name.trim() : userName;
+    userEmail = data.email.trim().isNotEmpty ? data.email.trim() : userEmail;
+    userSchool = data.school ?? '';
+    userBirthdate = data.birthdate;
+    userGender = data.gender;
+    userPlace = data.place ?? '';
+    userPhoneNumber = data.phoneNumber ?? '';
+    userAvatarUrl = data.avatarUrl;
+    referralCode = data.referralCode;
+    referredBy = data.referredBy;
+    if (data.tier != null) {
+      selectedTier = data.tier!;
+    }
+    if (data.planId != null) {
+      selectedPlanId = data.planId;
+    }
+    subscriptionBillingCycle = data.billingCycle;
+    subscriptionEndDate = data.endDate;
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> loadPracticeSubjects({bool force = false}) async {
+    if (!signedIn) {
+      return null;
+    }
+    if (_practiceSubjectsLoaded && !force) {
+      return null;
+    }
+
+    loadingPracticeSubjects = true;
+    practiceSubjectsError = null;
+    notifyListeners();
+
+    final ApiResult<List<PracticeSubjectPayload>> response = await _api
+        .fetchPracticeSubjects();
+
+    loadingPracticeSubjects = false;
+
+    if (!response.ok || response.data == null) {
+      _practiceSubjectsLoaded = false;
+      _practiceSubjects = <SubjectItem>[];
+      practiceSubjectsError =
+          response.message ?? 'Unable to load practice subjects.';
+      notifyListeners();
+      return practiceSubjectsError;
+    }
+
+    final List<PracticeSubjectPayload> payloads = response.data!;
+    _practiceSubjects = payloads.asMap().entries.map((entry) {
+      final int index = entry.key;
+      final PracticeSubjectPayload item = entry.value;
+      return SubjectItem(
+        id: item.id.toString(),
+        code: item.code,
+        title: item.title,
+        totalQuestions: item.totalQuestions,
+        maxQuestionsPerSet: item.questionLimit,
+        color: _subjectColorForPayload(item, index),
+      );
+    }).toList();
+
+    _practiceSubjectsLoaded = true;
+    practiceSubjectsError = null;
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> loadDashboardMetrics({bool force = false}) async {
+    if (!signedIn) {
+      return null;
+    }
+    if (_metricsLoaded && !force) {
+      return null;
+    }
+
+    final ApiResult<DashboardMetricsPayload> response =
+        await _api.fetchDashboardMetrics();
+    if (!response.ok || response.data == null) {
+      return response.message ?? 'Unable to load dashboard metrics.';
+    }
+
+    final DashboardMetricsPayload payload = response.data!;
+    referralJoinedCount = payload.referralJoinCount;
+    lastScore = payload.lastScore;
+    lastScoreTotal = payload.lastTotal;
+    lastScoreSubject = payload.lastSubject;
+    lastScoreAt = payload.lastCompletedAt;
+    _metricsLoaded = true;
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> loadReferrals({bool loadMore = false}) async {
+    if (!signedIn) {
+      return null;
+    }
+    if (loadingReferrals) {
+      return null;
+    }
+
+    loadingReferrals = true;
+    notifyListeners();
+
+    final int targetPage = loadMore ? _referralsPage + 1 : 1;
+    final ApiResult<ReferralSummaryPayload> response =
+        await _api.fetchReferrals(page: targetPage);
+    loadingReferrals = false;
+
+    if (!response.ok || response.data == null) {
+      notifyListeners();
+      return response.message ?? 'Unable to load referrals.';
+    }
+
+    final ReferralSummaryPayload payload = response.data!;
+    referralCode = payload.referralCode ?? referralCode;
+    referralJoinedCount = payload.joinCount;
+    referredByName = payload.referredByName;
+    referredByEmail = payload.referredByEmail;
+    if (loadMore) {
+      _referralEntries = <ReferralEntry>[
+        ..._referralEntries,
+        ...payload.referrals.map((ReferralEntryPayload item) => ReferralEntry(
+              id: item.id,
+              invitedName: item.invitedName,
+              invitedEmail: item.invitedEmail,
+              createdAt: item.createdAt,
+            )),
+      ];
+    } else {
+      _referralEntries = payload.referrals.map((ReferralEntryPayload item) {
+        return ReferralEntry(
+          id: item.id,
+          invitedName: item.invitedName,
+          invitedEmail: item.invitedEmail,
+          createdAt: item.createdAt,
+        );
+      }).toList();
+    }
+    _referralsPage = payload.pagination.currentPage;
+    hasMoreReferrals = payload.pagination.hasMore;
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> applyReferralCode(String code) async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+    final ApiResult<bool> response =
+        await _api.applyReferralCode(code: code);
+    if (!response.ok) {
+      return response.message ?? 'Unable to apply referral code.';
+    }
+
+    await loadReferrals(loadMore: false);
+    await loadDashboardMetrics(force: true);
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> loadSubscriptionHistory({bool loadMore = false}) async {
+    if (!signedIn) {
+      return null;
+    }
+    if (loadingSubscriptionHistory) {
+      return null;
+    }
+
+    loadingSubscriptionHistory = true;
+    notifyListeners();
+
+    final int targetPage = loadMore ? _subscriptionHistoryPage + 1 : 1;
+    final ApiResult<SubscriptionHistoryPayload> response =
+        await _api.fetchSubscriptionHistory(page: targetPage);
+    loadingSubscriptionHistory = false;
+
+    if (!response.ok || response.data == null) {
+      notifyListeners();
+      return response.message ?? 'Unable to load subscription history.';
+    }
+
+    final SubscriptionHistoryPayload payload = response.data!;
+    final List<SubscriptionHistoryItem> mapped = payload.entries.map(
+      (SubscriptionHistoryEntryPayload item) {
+        return SubscriptionHistoryItem(
+          id: item.id,
+          planName: item.planName,
+          price: item.price,
+          billingCycle: item.billingCycle,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          status: item.status,
+        );
+      },
+    ).toList();
+
+    if (loadMore) {
+      _subscriptionHistory = <SubscriptionHistoryItem>[
+        ..._subscriptionHistory,
+        ...mapped,
+      ];
+    } else {
+      _subscriptionHistory = mapped;
+    }
+
+    _subscriptionHistoryPage = payload.pagination.currentPage;
+    hasMoreSubscriptionHistory = payload.pagination.hasMore;
+    notifyListeners();
     return null;
   }
 
@@ -420,11 +773,39 @@ class AppState extends ChangeNotifier {
     selectedPlanId = null;
     subscriptionBillingCycle = null;
     subscriptionEndDate = null;
+    selectingPlan = false;
+    creatingCheckout = false;
+    userSchool = '';
+    userBirthdate = null;
+    userGender = null;
+    userPlace = '';
+    userPhoneNumber = '';
+    userAvatarUrl = null;
+    referralCode = null;
+    referredBy = null;
+    referredByName = null;
+    referredByEmail = null;
+    referralJoinedCount = 0;
+    lastScore = null;
+    lastScoreTotal = null;
+    lastScoreSubject = null;
+    lastScoreAt = null;
+    _practiceSubjects = <SubjectItem>[];
+    _practiceSubjectsLoaded = false;
+    loadingPracticeSubjects = false;
+    practiceSubjectsError = null;
+    _metricsLoaded = false;
+    _subscriptionHistory = <SubscriptionHistoryItem>[];
+    loadingSubscriptionHistory = false;
+    hasMoreSubscriptionHistory = false;
+    _subscriptionHistoryPage = 1;
+    _referralEntries = <ReferralEntry>[];
+    loadingReferrals = false;
+    hasMoreReferrals = false;
+    _referralsPage = 1;
     _api.setAuthToken(null);
     notifyListeners();
   }
-
-  int get referralJoinedCount => 28;
 
   PlanOption get currentPlan {
     if (selectedPlanId != null) {
@@ -455,10 +836,28 @@ class AppState extends ChangeNotifier {
   bool get hasPremiumAccess =>
       selectedTier == PlanTier.premium && !isSubscriptionExpired;
 
-  List<SubjectItem> get visibleSubjects =>
-      hasPremiumAccess ? allSubjects : allSubjects.take(3).toList();
+  List<SubjectItem> get visibleSubjects {
+    if (_practiceSubjects.isNotEmpty) {
+      return List<SubjectItem>.unmodifiable(_practiceSubjects);
+    }
+    if (signedIn) {
+      return const <SubjectItem>[];
+    }
+    return hasPremiumAccess ? allSubjects : allSubjects.take(3).toList();
+  }
 
-  int get maxQuestionPerSet => hasPremiumAccess ? 100 : 30;
+  int get maxQuestionPerSet {
+    if (_practiceSubjects.isNotEmpty) {
+      return _practiceSubjects.fold<int>(
+        1,
+        (int maxValue, SubjectItem item) => max(
+          maxValue,
+          item.maxQuestionsPerSet,
+        ),
+      );
+    }
+    return hasPremiumAccess ? 100 : 30;
+  }
 
   Future<String?> choosePlan({
     required PlanOption plan,
@@ -493,8 +892,130 @@ class AppState extends ChangeNotifier {
     subscriptionEndDate = payload.endDate;
 
     await loadPlans(force: true);
+    await loadPracticeSubjects(force: true);
+    await loadDashboardMetrics(force: true);
+    await loadSubscriptionHistory(loadMore: false);
+    await loadReferrals(loadMore: false);
     notifyListeners();
     return null;
+  }
+
+  Future<ApiResult<CheckoutPayload>> createCheckout({
+    required PlanOption plan,
+    String? billingCycle,
+  }) async {
+    creatingCheckout = true;
+    notifyListeners();
+
+    final ApiResult<CheckoutPayload> response = await _api.createCheckout(
+      planId: plan.id,
+      billingCycle: billingCycle,
+    );
+
+    creatingCheckout = false;
+    notifyListeners();
+    return response;
+  }
+
+  Future<String?> refreshCurrentUser() async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+
+    final ApiResult<AuthPayload> response = await _api.fetchCurrentUser();
+    if (!response.ok || response.data == null) {
+      if (response.statusCode == 401) {
+        logout();
+        return 'Session expired. Please login again.';
+      }
+      return response.message ?? 'Unable to refresh account data.';
+    }
+
+    final AuthPayload data = response.data!;
+    userEmail = data.email.trim().isNotEmpty ? data.email.trim() : userEmail;
+    userName = data.name.trim().isNotEmpty ? data.name.trim() : userName;
+    userSchool = data.school ?? '';
+    userBirthdate = data.birthdate;
+    userGender = data.gender;
+    userPlace = data.place ?? '';
+    userPhoneNumber = data.phoneNumber ?? '';
+    userAvatarUrl = data.avatarUrl;
+    referralCode = data.referralCode;
+    referredBy = data.referredBy;
+    if (data.tier != null) {
+      selectedTier = data.tier!;
+    }
+    if (data.planId != null) {
+      selectedPlanId = data.planId;
+    }
+    subscriptionBillingCycle = data.billingCycle;
+    subscriptionEndDate = data.endDate;
+
+    await loadPlans(force: true);
+    await loadPracticeSubjects(force: true);
+    notifyListeners();
+    return null;
+  }
+
+  Future<ApiResult<List<QuestionItem>>> generateQuiz({
+    required SubjectItem subject,
+    required int count,
+  }) async {
+    final int? subjectId = int.tryParse(subject.id);
+    if (subjectId == null) {
+      return ApiResult<List<QuestionItem>>.failure(
+        'Invalid subject selection.',
+      );
+    }
+    final int safeCount = count.clamp(
+      1,
+      max(1, subject.totalQuestions),
+    );
+
+    return _api.generateQuiz(
+      subjectId: subjectId,
+      totalQuestions: safeCount,
+    );
+  }
+
+  Future<ApiResult<QuizSubmitPayload>> submitQuizAttempt({
+    required SubjectItem subject,
+    required List<QuestionItem> questions,
+    required Map<int, String> answers,
+  }) async {
+    final int? subjectId = int.tryParse(subject.id);
+    if (subjectId == null) {
+      return ApiResult<QuizSubmitPayload>.failure(
+        'Invalid subject selection.',
+      );
+    }
+
+    final List<QuizAnswerPayload> payload = <QuizAnswerPayload>[];
+    for (int index = 0; index < questions.length; index++) {
+      final QuestionItem item = questions[index];
+      if (item.id == null) {
+        return ApiResult<QuizSubmitPayload>.failure(
+          'Cannot submit an offline quiz attempt.',
+        );
+      }
+      payload.add(
+        QuizAnswerPayload(
+          questionId: item.id!,
+          selectedChoice: answers[index],
+        ),
+      );
+    }
+
+    if (payload.isEmpty) {
+      return ApiResult<QuizSubmitPayload>.failure(
+        'No quiz answers to submit.',
+      );
+    }
+
+    return _api.submitQuizAttempt(
+      subjectId: subjectId,
+      answers: payload,
+    );
   }
 
   List<QuestionItem> buildQuiz({
@@ -529,6 +1050,7 @@ class AppState extends ChangeNotifier {
 
       result.add(
         QuestionItem(
+          id: null,
           subjectId: subject.id,
           question: '${bp.prompt}  Question ${index + 1}',
           choices: choices,
@@ -555,7 +1077,41 @@ class AppState extends ChangeNotifier {
         completedAt: DateTime.now(),
       ),
     );
+    lastScore = score;
+    lastScoreTotal = total;
+    lastScoreSubject = subject.title;
+    lastScoreAt = DateTime.now();
     notifyListeners();
+  }
+
+  Color _subjectColorForPayload(PracticeSubjectPayload item, int index) {
+    if (item.colorHex != null) {
+      final Color? parsed = _hexToColor(item.colorHex!);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+
+    if (_subjectPalette.isEmpty) {
+      return const Color(0xFF4B8DDF);
+    }
+    return _subjectPalette[index % _subjectPalette.length];
+  }
+
+  Color? _hexToColor(String hex) {
+    final String normalized = hex.trim().replaceAll('#', '');
+    if (normalized.length != 6 && normalized.length != 8) {
+      return null;
+    }
+
+    final String value = normalized.length == 6
+        ? 'FF$normalized'
+        : normalized;
+    final int? parsed = int.tryParse(value, radix: 16);
+    if (parsed == null) {
+      return null;
+    }
+    return Color(parsed);
   }
 
   String _nameFromEmail(String email) {

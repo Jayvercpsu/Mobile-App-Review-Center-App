@@ -1,16 +1,48 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_theme.dart';
+import '../../core/url_helper.dart';
 import '../../models/app_models.dart';
+import '../../screens/payment_webview.dart';
 import '../../state/app_state.dart';
 
-class DashboardTab extends StatelessWidget {
+class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key, required this.onOpenPractice});
 
   final VoidCallback onOpenPractice;
+
+  @override
+  State<DashboardTab> createState() => _DashboardTabState();
+}
+
+class _DashboardTabState extends State<DashboardTab> {
+  int? _previewPlanId;
+
+  PlanOption _resolvePreviewPlan(AppState appState) {
+    if (_previewPlanId == null) {
+      return appState.currentPlan;
+    }
+    for (final PlanOption plan in appState.plans) {
+      if (plan.id == _previewPlanId) {
+        return plan;
+      }
+    }
+    return appState.currentPlan;
+  }
+
+  void _setPreviewPlan(PlanOption plan) {
+    if (_previewPlanId == plan.id) {
+      return;
+    }
+    setState(() {
+      _previewPlanId = plan.id;
+    });
+  }
 
   Future<void> _choosePlan({
     required BuildContext context,
@@ -29,6 +61,12 @@ class DashboardTab extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(error ?? 'Plan activated: ${plan.title}')),
     );
+
+    if (error == null) {
+      setState(() {
+        _previewPlanId = plan.id;
+      });
+    }
   }
 
   Future<void> _handleChoosePlan({
@@ -36,7 +74,7 @@ class DashboardTab extends StatelessWidget {
     required AppState appState,
     required PlanOption plan,
   }) async {
-    if (appState.selectingPlan) {
+    if (appState.selectingPlan || appState.creatingCheckout) {
       return;
     }
 
@@ -45,96 +83,211 @@ class DashboardTab extends StatelessWidget {
       return;
     }
 
-    String selectedCycle = plan.billingCycle;
     await showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       builder: (BuildContext modalContext) {
-        return StatefulBuilder(
-          builder: (BuildContext sheetContext, StateSetter setModalState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Complete Payment',
-                    style: GoogleFonts.redHatDisplay(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: AppPalette.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${plan.title} • ${plan.priceLabel}',
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.textDark,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: <Widget>[
-                      ChoiceChip(
-                        label: const Text('Monthly'),
-                        selected: selectedCycle == 'monthly',
-                        onSelected: (_) {
-                          setModalState(() {
-                            selectedCycle = 'monthly';
-                          });
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('Yearly'),
-                        selected: selectedCycle == 'yearly',
-                        onSelected: (_) {
-                          setModalState(() {
-                            selectedCycle = 'yearly';
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: FilledButton(
-                      onPressed: () async {
-                        Navigator.of(modalContext).pop();
-                        await _choosePlan(
-                          context: context,
-                          appState: appState,
-                          plan: plan,
-                          billingCycle: selectedCycle,
-                        );
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppPalette.secondary,
-                      ),
-                      child: Text(
-                        'Pay and Activate',
-                        style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ),
-                ],
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'Complete Payment',
+                style: GoogleFonts.redHatDisplay(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.primary,
+                ),
               ),
-            );
-          },
+              const SizedBox(height: 6),
+              Text(
+                '${plan.title} - ${plan.priceLabel}',
+                style: GoogleFonts.manrope(
+                  color: AppPalette.textDark,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Billing: ${plan.billingLabel}',
+                style: GoogleFonts.manrope(
+                  color: AppPalette.muted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: FilledButton(
+                  onPressed: () async {
+                    Navigator.of(modalContext).pop();
+                    await _openPaidCheckout(
+                      context: context,
+                      appState: appState,
+                      plan: plan,
+                      billingCycle: plan.billingCycle,
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppPalette.secondary,
+                  ),
+                  child: Text(
+                    'Pay and Activate',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
+  Future<void> _openPaidCheckout({
+    required BuildContext context,
+    required AppState appState,
+    required PlanOption plan,
+    required String billingCycle,
+  }) async {
+    final checkoutResponse = await appState.createCheckout(
+      plan: plan,
+      billingCycle: billingCycle,
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    if (!checkoutResponse.ok || checkoutResponse.data == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            checkoutResponse.message ?? 'Unable to create payment checkout.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final Uri? checkoutUri = Uri.tryParse(checkoutResponse.data!.checkoutUrl);
+    if (checkoutUri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Checkout URL from server is invalid.')),
+      );
+      return;
+    }
+
+    if (kIsWeb) {
+      final bool opened = await openExternalUrl(checkoutUri);
+
+      if (!context.mounted) {
+        return;
+      }
+
+      if (!opened) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to open payment checkout URL.')),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Payment page opened. Finish payment, then refresh plan status.',
+          ),
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(
+            label: 'Refresh Plan',
+            onPressed: () {
+              _refreshPlanStatus(context: context, appState: appState);
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    final PaymentResult? result = await Navigator.of(context).push<PaymentResult>(
+      MaterialPageRoute<PaymentResult>(
+        builder: (_) => PaymentWebView(
+          initialUrl: checkoutUri.toString(),
+        ),
+      ),
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    if (result == PaymentResult.success) {
+      final String? refreshError = await appState.refreshCurrentUser();
+      if (!context.mounted) {
+        return;
+      }
+      if (refreshError == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Successfully chose ${plan.name}.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(refreshError)),
+        );
+      }
+      return;
+    }
+
+    if (result == PaymentResult.cancel) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment cancelled.')),
+      );
+    }
+  }
+
+  Future<void> _refreshPlanStatus({
+    required BuildContext context,
+    required AppState appState,
+  }) async {
+    final String? error = await appState.refreshCurrentUser();
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error ?? 'Plan status refreshed.')),
+    );
+
+    if (error == null) {
+      setState(() {
+        _previewPlanId = appState.currentPlan.id;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
+    final PlanOption featuresPlan = _resolvePreviewPlan(appState);
+    final DateTime? endDate = appState.subscriptionEndDate;
+    final String? formattedEndDate = endDate == null
+        ? null
+        : DateFormat('MMM d, yyyy').format(endDate);
+    final bool lockFreePlan =
+        appState.currentPlan.isPaid && !appState.isSubscriptionExpired;
+    final String lastScoreLabel = (appState.lastScore != null &&
+            appState.lastScoreTotal != null)
+        ? '${appState.lastScore}/${appState.lastScoreTotal}'
+        : (appState.records.isEmpty
+            ? '--'
+            : '${appState.records.first.score}/${appState.records.first.total}');
+    final DateFormat historyFormatter = DateFormat('MMM dd, yyyy');
+    final DateFormat referralFormatter = DateFormat('MMM dd, yyyy');
 
     return CustomScrollView(
       slivers: <Widget>[
@@ -224,6 +377,20 @@ class DashboardTab extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  if (formattedEndDate != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        appState.isSubscriptionExpired
+                            ? 'Expired on $formattedEndDate'
+                            : 'Expires on $formattedEndDate',
+                        style: GoogleFonts.manrope(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                   if (appState.isSubscriptionExpired)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -240,7 +407,7 @@ class DashboardTab extends StatelessWidget {
                     width: double.infinity,
                     height: 46,
                     child: FilledButton(
-                      onPressed: onOpenPractice,
+                      onPressed: widget.onOpenPractice,
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: AppPalette.primary,
@@ -280,12 +447,23 @@ class DashboardTab extends StatelessWidget {
               itemBuilder: (BuildContext context, int index) {
                 final PlanOption plan = appState.plans[index];
                 final bool selected = plan.id == appState.currentPlan.id;
+                final bool previewed = _previewPlanId == plan.id;
+                final bool isFreePlan = !plan.isPaid;
+                final bool lockedFreePlan = lockFreePlan && isFreePlan;
+                final bool canRenew =
+                    selected && plan.isPaid && appState.isSubscriptionExpired;
+                final bool busy =
+                    appState.selectingPlan || appState.creatingCheckout;
+                final bool disabled =
+                    busy || (selected && !canRenew) || lockedFreePlan;
+                final String buttonLabel = selected
+                    ? (canRenew ? 'Renew Plan' : 'Selected')
+                    : (lockedFreePlan
+                          ? 'Unavailable'
+                          : (plan.isPaid ? 'Pay and Choose' : 'Choose Plan'));
+
                 return GestureDetector(
-                  onTap: () => _handleChoosePlan(
-                    context: context,
-                    appState: context.read<AppState>(),
-                    plan: plan,
-                  ),
+                  onTap: lockedFreePlan ? null : () => _setPreviewPlan(plan),
                   child: AnimatedScale(
                     duration: const Duration(milliseconds: 220),
                     scale: selected ? 1.02 : 1,
@@ -296,21 +474,23 @@ class DashboardTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
                         color: Colors.white,
-                        border: Border.all(
-                          color: selected
-                              ? AppPalette.secondary
-                              : AppPalette.primary.withValues(alpha: 0.1),
-                          width: selected ? 2 : 1,
-                        ),
+                      border: Border.all(
+                        color: selected
+                            ? AppPalette.success
+                            : (previewed
+                                ? AppPalette.secondary
+                                : AppPalette.primary.withValues(alpha: 0.1)),
+                        width: selected || previewed ? 2 : 1,
+                      ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(
-                            plan.title,
-                            style: GoogleFonts.redHatDisplay(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
+                        Text(
+                          plan.name,
+                          style: GoogleFonts.redHatDisplay(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
                               color: AppPalette.primary,
                             ),
                           ),
@@ -346,19 +526,19 @@ class DashboardTab extends StatelessWidget {
                             height: 42,
                             width: double.infinity,
                             child: FilledButton(
-                              onPressed: appState.selectingPlan
+                              onPressed: disabled
                                   ? null
                                   : () => _handleChoosePlan(
-                                      context: context,
-                                      appState: context.read<AppState>(),
-                                      plan: plan,
-                                    ),
+                                        context: context,
+                                        appState: context.read<AppState>(),
+                                        plan: plan,
+                                      ),
                               style: FilledButton.styleFrom(
-                                backgroundColor: selected
+                                backgroundColor: selected && !canRenew
                                     ? AppPalette.success
                                     : AppPalette.primary,
                               ),
-                              child: appState.selectingPlan
+                              child: busy
                                   ? const SizedBox(
                                       width: 18,
                                       height: 18,
@@ -368,11 +548,7 @@ class DashboardTab extends StatelessWidget {
                                       ),
                                     )
                                   : Text(
-                                      selected
-                                          ? 'Selected'
-                                          : (plan.isPaid
-                                                ? 'Pay and Choose'
-                                                : 'Choose Plan'),
+                                      buttonLabel,
                                       style: GoogleFonts.manrope(
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -412,7 +588,7 @@ class DashboardTab extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  ...appState.currentPlan.features.map(
+                  ...featuresPlan.features.map(
                     (String feature) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Row(
@@ -467,14 +643,239 @@ class DashboardTab extends StatelessWidget {
                 Expanded(
                   child: _MetricCard(
                     title: 'Last Score',
-                    value: appState.records.isEmpty
-                        ? '--'
-                        : '${appState.records.first.score}/${appState.records.first.total}',
+                    value: lastScoreLabel,
                     icon: Icons.emoji_events_rounded,
                     color: const Color(0xFFFFF2F3),
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              'Subscription History',
+              style: GoogleFonts.redHatDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppPalette.textDark,
+              ),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppPalette.primary.withValues(alpha: 0.08),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  if (appState.subscriptionHistory.isEmpty)
+                    Text(
+                      'No subscription history yet.',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ...appState.subscriptionHistory.map(
+                    (SubscriptionHistoryItem item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.receipt_long_rounded,
+                            color: AppPalette.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  item.planName,
+                                  style: GoogleFonts.manrope(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppPalette.textDark,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'PHP ${item.price.toStringAsFixed(0)} • ${item.billingCycle.toUpperCase()}',
+                                  style: GoogleFonts.manrope(
+                                    color: AppPalette.muted,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Start: ${historyFormatter.format(item.startDate)}',
+                                  style: GoogleFonts.manrope(
+                                    color: AppPalette.muted,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                if (item.endDate != null)
+                                  Text(
+                                    'End: ${historyFormatter.format(item.endDate!)}',
+                                    style: GoogleFonts.manrope(
+                                      color: AppPalette.muted,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                Text(
+                                  'Status: ${item.status}',
+                                  style: GoogleFonts.manrope(
+                                    color: AppPalette.muted,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (appState.loadingSubscriptionHistory)
+                    const Center(child: CircularProgressIndicator()),
+                  if (!appState.loadingSubscriptionHistory &&
+                      appState.hasMoreSubscriptionHistory)
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          appState.loadSubscriptionHistory(loadMore: true);
+                        },
+                        child: Text(
+                          'Show more',
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'Referral History',
+              style: GoogleFonts.redHatDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppPalette.textDark,
+              ),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppPalette.primary.withValues(alpha: 0.08),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  if (appState.referralEntries.isEmpty)
+                    Text(
+                      'No referral history yet.',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ...appState.referralEntries.map(
+                    (ReferralEntry entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.verified_rounded,
+                            color: AppPalette.success,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  entry.invitedName,
+                                  style: GoogleFonts.manrope(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppPalette.textDark,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  entry.invitedEmail,
+                                  style: GoogleFonts.manrope(
+                                    color: AppPalette.muted,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                if (entry.createdAt != null)
+                                  Text(
+                                    referralFormatter.format(entry.createdAt!),
+                                    style: GoogleFonts.manrope(
+                                      color: AppPalette.muted,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (appState.loadingReferrals)
+                    const Center(child: CircularProgressIndicator()),
+                  if (!appState.loadingReferrals && appState.hasMoreReferrals)
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          appState.loadReferrals(loadMore: true);
+                        },
+                        child: Text(
+                          'Show more',
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

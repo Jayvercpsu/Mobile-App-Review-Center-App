@@ -1,7 +1,7 @@
 class ApiConfig {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.14.189.119:8000/api',
+    defaultValue: 'http://192.168.1.10:8000/api',
   );
   static const List<String> _fallbackBaseUrls = <String>[
     'http://10.0.2.2:8000/api',
@@ -23,8 +23,15 @@ class ApiConfig {
 
   static const String login = '/mobile/login';
   static const String register = '/mobile/register';
+  static const String me = '/mobile/me';
   static const String plans = '/mobile/plans';
+  static const String profile = '/mobile/profile';
   static const String planSelect = '/mobile/plans/select';
+  static const String dashboardMetrics = '/mobile/dashboard/metrics';
+  static const String referrals = '/mobile/referrals';
+  static const String referralApply = '/mobile/referrals/apply';
+  static const String subscriptionHistory = '/mobile/subscriptions/history';
+  static const String paymongoCheckout = '/paymongo/checkout';
   static const String subjects = '/mobile/subjects';
   static const String quizGenerate = '/mobile/quiz/generate';
   static const String quizSubmit = '/mobile/quiz/submit';

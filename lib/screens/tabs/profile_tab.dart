@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_theme.dart';
@@ -46,12 +48,25 @@ class ProfileTab extends StatelessWidget {
               child: Row(
                 children: <Widget>[
                   ClipOval(
-                    child: Image.asset(
-                      'assets/images/boardmaster-square.png',
-                      width: 58,
-                      height: 58,
-                      fit: BoxFit.cover,
-                    ),
+                    child: appState.userAvatarUrl == null
+                        ? Image.asset(
+                            'assets/images/boardmaster-square.png',
+                            width: 58,
+                            height: 58,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.network(
+                            appState.userAvatarUrl!,
+                            width: 58,
+                            height: 58,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Image.asset(
+                              'assets/images/boardmaster-square.png',
+                              width: 58,
+                              height: 58,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -79,6 +94,42 @@ class ProfileTab extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Center(
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ProfileSettingsScreen(),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: AppPalette.secondary.withValues(alpha: 0.35),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                icon: const Icon(Icons.edit_outlined),
+                label: Text(
+                  'Edit Profile',
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.secondary,
+                  ),
+                ),
               ),
             ),
           ),
@@ -149,6 +200,12 @@ class ProfileTab extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: _ReferralCard(),
           ),
         ),
         SliverToBoxAdapter(
@@ -345,6 +402,727 @@ class ProfileTab extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class ProfileSettingsScreen extends StatelessWidget {
+  const ProfileSettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+        ),
+        title: Text(
+          'Profile Settings',
+          style: GoogleFonts.redHatDisplay(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const <Widget>[
+              _ProfileSettingsCard(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReferralCard extends StatefulWidget {
+  @override
+  State<_ReferralCard> createState() => _ReferralCardState();
+}
+
+class _ReferralCardState extends State<_ReferralCard> {
+  final TextEditingController _codeController = TextEditingController();
+  bool _applying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      context.read<AppState>().loadReferrals(loadMore: false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _applyReferral(AppState appState) async {
+    final String code = _codeController.text.trim();
+    if (code.length < 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid referral code.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _applying = true;
+    });
+
+    final String? error = await appState.applyReferralCode(code);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _applying = false;
+    });
+
+    if (error == null) {
+      _codeController.clear();
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error ?? 'Referral applied successfully.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppState appState = context.watch<AppState>();
+    final DateFormat formatter = DateFormat('MMM dd, yyyy');
+    final String referralCode = appState.referralCode ?? '--';
+    final bool canApply = appState.referredBy == null;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppPalette.primary.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Referral',
+            style: GoogleFonts.redHatDisplay(
+              fontWeight: FontWeight.w800,
+              color: AppPalette.primary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Your code: $referralCode',
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.textDark,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                onPressed: referralCode == '--'
+                    ? null
+                    : () {
+                        Clipboard.setData(
+                          ClipboardData(text: referralCode),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Referral code copied.')),
+                        );
+                      },
+                icon: const Icon(Icons.copy_rounded),
+              ),
+            ],
+          ),
+          Text(
+            'Referral joins: ${appState.referralJoinedCount}',
+            style: GoogleFonts.manrope(
+              color: AppPalette.muted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (appState.referredByName != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Referred by ${appState.referredByName} (${appState.referredByEmail ?? '--'})',
+                style: GoogleFonts.manrope(
+                  color: AppPalette.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          const SizedBox(height: 12),
+          if (canApply)
+            Column(
+              children: <Widget>[
+                TextField(
+                  controller: _codeController,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'Enter referral code',
+                    prefixIcon: Icon(Icons.card_giftcard_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: FilledButton(
+                    onPressed: _applying
+                        ? null
+                        : () {
+                            _applyReferral(appState);
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppPalette.secondary,
+                    ),
+                    child: _applying
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            'Apply Code',
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          Text(
+            'Invited users',
+            style: GoogleFonts.manrope(
+              fontWeight: FontWeight.w700,
+              color: AppPalette.textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (appState.loadingReferrals)
+            const Center(child: CircularProgressIndicator()),
+          if (!appState.loadingReferrals && appState.referralEntries.isEmpty)
+            Text(
+              'No referrals yet.',
+              style: GoogleFonts.manrope(
+                color: AppPalette.muted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          if (appState.referralEntries.isNotEmpty)
+            ...appState.referralEntries.map(
+              (ReferralEntry entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Icon(Icons.check_circle, color: AppPalette.success),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            entry.invitedName,
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w700,
+                              color: AppPalette.textDark,
+                            ),
+                          ),
+                          Text(
+                            entry.invitedEmail,
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.muted,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (entry.createdAt != null)
+                            Text(
+                              formatter.format(entry.createdAt!),
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (appState.hasMoreReferrals)
+            TextButton(
+              onPressed: () {
+                appState.loadReferrals(loadMore: true);
+              },
+              child: Text(
+                'Show more',
+                style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSettingsCard extends StatefulWidget {
+  const _ProfileSettingsCard();
+
+  @override
+  State<_ProfileSettingsCard> createState() => _ProfileSettingsCardState();
+}
+
+class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _schoolController = TextEditingController();
+  final TextEditingController _placeController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _birthdateController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  DateTime? _birthdate;
+  String? _gender;
+  Uint8List? _avatarBytes;
+  String? _avatarFilename;
+  bool _saving = false;
+  bool _dirty = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(_markDirty);
+    _emailController.addListener(_markDirty);
+    _schoolController.addListener(_markDirty);
+    _placeController.addListener(_markDirty);
+    _phoneController.addListener(_markDirty);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _schoolController.dispose();
+    _placeController.dispose();
+    _phoneController.dispose();
+    _birthdateController.dispose();
+    super.dispose();
+  }
+
+  void _markDirty() {
+    if (_dirty) {
+      return;
+    }
+    setState(() {
+      _dirty = true;
+    });
+  }
+
+  void _syncFromState(AppState appState) {
+    if (_dirty) {
+      return;
+    }
+
+    _setControllerText(_nameController, appState.userName);
+    _setControllerText(_emailController, appState.userEmail);
+    _setControllerText(_schoolController, appState.userSchool);
+    _setControllerText(_placeController, appState.userPlace);
+    _setControllerText(_phoneController, appState.userPhoneNumber);
+    _gender = appState.userGender;
+
+    _birthdate = appState.userBirthdate;
+    _birthdateController.text = _birthdate == null
+        ? ''
+        : DateFormat('MMM dd, yyyy').format(_birthdate!);
+  }
+
+  void _setControllerText(TextEditingController controller, String value) {
+    if (controller.text == value) {
+      return;
+    }
+    controller.text = value;
+  }
+
+  Future<void> _pickAvatar() async {
+    final XFile? picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 900,
+      imageQuality: 85,
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    final Uint8List bytes = await picked.readAsBytes();
+    setState(() {
+      _avatarBytes = bytes;
+      _avatarFilename = picked.name.isNotEmpty
+          ? picked.name
+          : picked.path.split('/').last;
+      _dirty = true;
+    });
+  }
+
+  Future<void> _pickBirthdate(BuildContext context) async {
+    final DateTime now = DateTime.now();
+    final DateTime initial = _birthdate ?? DateTime(now.year - 18, 1, 1);
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1950, 1, 1),
+      lastDate: now,
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppPalette.primary,
+              onPrimary: Colors.white,
+              onSurface: AppPalette.textDark,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _birthdate = picked;
+      _birthdateController.text = DateFormat('MMM dd, yyyy').format(picked);
+      _dirty = true;
+    });
+  }
+
+  Future<void> _saveProfile(AppState appState) async {
+    final String name = _nameController.text.trim();
+    final String email = _emailController.text.trim();
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+    });
+
+    FocusScope.of(context).unfocus();
+
+    final String? error = await context.read<AppState>().updateProfile(
+      name: name,
+      email: email,
+      school: _trimOrNull(_schoolController.text),
+      place: _trimOrNull(_placeController.text),
+      phoneNumber: _trimOrNull(_phoneController.text),
+      birthdate: _birthdate,
+      gender: _gender,
+      avatarBytes: _avatarBytes,
+      avatarFilename: _avatarFilename,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _saving = false;
+      _dirty = error != null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error ?? 'Profile updated successfully.',
+        ),
+      ),
+    );
+  }
+
+  String? _trimOrNull(String value) {
+    final String trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppState appState = context.watch<AppState>();
+    _syncFromState(appState);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppPalette.primary.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Form(
+        key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Update your info',
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w800,
+                color: AppPalette.textDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                ClipOval(
+                  child: _avatarBytes != null
+                      ? Image.memory(
+                          _avatarBytes!,
+                          width: 68,
+                          height: 68,
+                          fit: BoxFit.cover,
+                        )
+                      : (appState.userAvatarUrl == null
+                          ? Image.asset(
+                              'assets/images/boardmaster-square.png',
+                              width: 68,
+                              height: 68,
+                              fit: BoxFit.cover,
+                            )
+                          : Image.network(
+                              appState.userAvatarUrl!,
+                              width: 68,
+                              height: 68,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                'assets/images/boardmaster-square.png',
+                                width: 68,
+                                height: 68,
+                                fit: BoxFit.cover,
+                              ),
+                            )),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Profile photo',
+                        style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w700,
+                          color: AppPalette.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      OutlinedButton(
+                        onPressed: _pickAvatar,
+                        child: const Text('Change Photo'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _nameController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Full Name',
+                prefixIcon: Icon(Icons.person_outline_rounded),
+              ),
+              validator: (String? value) {
+                final String trimmed = value?.trim() ?? '';
+                if (trimmed.length < 2) {
+                  return 'Enter your full name.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                prefixIcon: Icon(Icons.mail_outline_rounded),
+              ),
+              validator: (String? value) {
+                final String trimmed = value?.trim() ?? '';
+                final RegExp emailPattern =
+                    RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                if (!emailPattern.hasMatch(trimmed)) {
+                  return 'Enter a valid email.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              key: ValueKey<String?>(_gender),
+              initialValue: _gender,
+              decoration: const InputDecoration(
+                labelText: 'Gender',
+                prefixIcon: Icon(Icons.wc_rounded),
+              ),
+              items: const <DropdownMenuItem<String>>[
+                DropdownMenuItem(value: 'male', child: Text('Male')),
+                DropdownMenuItem(value: 'female', child: Text('Female')),
+                DropdownMenuItem(value: 'other', child: Text('Other')),
+              ],
+              onChanged: (String? value) {
+                setState(() {
+                  _gender = value;
+                  _dirty = true;
+                });
+              },
+              validator: (String? value) {
+                if (value == null || value.isEmpty) {
+                  return 'Select gender.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _schoolController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'School',
+                prefixIcon: Icon(Icons.school_outlined),
+              ),
+              validator: (String? value) {
+                final String trimmed = value?.trim() ?? '';
+                if (trimmed.isNotEmpty && trimmed.length < 2) {
+                  return 'Enter a valid school name.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _placeController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Place',
+                prefixIcon: Icon(Icons.location_on_outlined),
+              ),
+              validator: (String? value) {
+                final String trimmed = value?.trim() ?? '';
+                if (trimmed.isNotEmpty && trimmed.length < 2) {
+                  return 'Enter a valid place.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                prefixIcon: Icon(Icons.phone_outlined),
+              ),
+              validator: (String? value) {
+                final String trimmed = value?.trim() ?? '';
+                final RegExp phonePattern =
+                    RegExp(r'^[0-9+\-()\s]{7,20}$');
+                if (trimmed.isNotEmpty && !phonePattern.hasMatch(trimmed)) {
+                  return 'Enter a valid phone number.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _birthdateController,
+              readOnly: true,
+              onTap: () => _pickBirthdate(context),
+              decoration: InputDecoration(
+                labelText: 'Birthdate',
+                prefixIcon: const Icon(Icons.cake_outlined),
+                suffixIcon: _birthdate == null
+                    ? null
+                    : IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _birthdate = null;
+                            _birthdateController.text = '';
+                            _dirty = true;
+                          });
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton(
+                onPressed: _saving
+                    ? null
+                    : () {
+                        _saveProfile(appState);
+                      },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppPalette.secondary,
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        _dirty ? 'Save Changes' : 'Save Profile',
+                        style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

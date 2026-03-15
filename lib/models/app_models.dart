@@ -37,17 +37,20 @@ class SubjectItem {
     required this.title,
     required this.totalQuestions,
     required this.color,
-  });
+    int? maxQuestionsPerSet,
+  }) : maxQuestionsPerSet = maxQuestionsPerSet ?? totalQuestions;
 
   final String id;
   final String code;
   final String title;
   final int totalQuestions;
   final Color color;
+  final int maxQuestionsPerSet;
 }
 
 class QuestionItem {
   const QuestionItem({
+    this.id,
     required this.subjectId,
     required this.question,
     required this.choices,
@@ -55,6 +58,7 @@ class QuestionItem {
     required this.rationales,
   });
 
+  final int? id;
   final String subjectId;
   final String question;
   final Map<String, String> choices;
@@ -76,4 +80,38 @@ class QuizRecord {
   final int score;
   final int total;
   final DateTime completedAt;
+}
+
+class SubscriptionHistoryItem {
+  const SubscriptionHistoryItem({
+    required this.id,
+    required this.planName,
+    required this.price,
+    required this.billingCycle,
+    required this.startDate,
+    required this.endDate,
+    required this.status,
+  });
+
+  final int id;
+  final String planName;
+  final double price;
+  final String billingCycle;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final String status;
+}
+
+class ReferralEntry {
+  const ReferralEntry({
+    required this.id,
+    required this.invitedName,
+    required this.invitedEmail,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String invitedName;
+  final String invitedEmail;
+  final DateTime? createdAt;
 }

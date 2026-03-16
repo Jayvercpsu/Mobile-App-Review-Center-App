@@ -644,6 +644,7 @@ class _DashboardTabState extends State<DashboardTab> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
             child: Container(
+              key: ValueKey<int>(featuresPlan.id),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -699,7 +700,10 @@ class _DashboardTabState extends State<DashboardTab> {
                   ),
                 ],
               ),
-            ),
+            )
+                .animate(key: ValueKey<int>(featuresPlan.id))
+                .fadeIn(duration: 280.ms)
+                .slideX(begin: 0.12, end: 0, duration: 280.ms),
           ),
         ),
         SliverToBoxAdapter(

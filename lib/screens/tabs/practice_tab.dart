@@ -519,7 +519,7 @@ class _PracticeTabState extends State<PracticeTab> {
                       ),
                     );
 
-                    final ApiResult<QuizAttemptDetail> result =
+                    final result =
                         await appState.loadQuizAttemptDetails(item.id);
                     if (!mounted) {
                       return;

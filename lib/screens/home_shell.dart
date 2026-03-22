@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'tabs/dashboard_tab.dart';
 import 'tabs/practice_tab.dart';
+import 'tabs/referrals_tab.dart';
 import 'tabs/profile_tab.dart';
 import '../state/app_state.dart';
 
@@ -80,6 +81,7 @@ class _HomeShellState extends State<HomeShell> {
         },
       ),
       const PracticeTab(),
+      const ReferralsTab(),
       const ProfileTab(),
     ];
 
@@ -105,6 +107,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.fact_check_outlined),
             selectedIcon: Icon(Icons.fact_check_rounded),
             label: 'Practice',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.card_giftcard_outlined),
+            selectedIcon: Icon(Icons.card_giftcard_rounded),
+            label: 'Referrals',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),

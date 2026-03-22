@@ -383,6 +383,48 @@ class MobileApiService {
     }
   }
 
+  Future<ApiResult<ReferralRedemptionPayload>> redeemReferralOffer({
+    required int offerId,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<ReferralRedemptionPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.referralRedeem,
+        payload: <String, dynamic>{'offer_id': offerId},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<ReferralRedemptionPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final ReferralRedemptionPayload? payload =
+          _toReferralRedemptionPayload(decoded);
+      if (payload == null) {
+        return ApiResult<ReferralRedemptionPayload>.failure(
+          'Redemption response is missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<ReferralRedemptionPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<ReferralRedemptionPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
   Future<ApiResult<SubscriptionHistoryPayload>> fetchSubscriptionHistory({
     int page = 1,
   }) async {
@@ -1237,6 +1279,15 @@ class MobileApiService {
 
     final List<ReferralEntryPayload> entries =
         _toReferralEntries(map['referrals']);
+    final ReferralPointsPayload points = _toReferralPointsPayload(
+      map['points'],
+    );
+    final List<ReferralOfferPayload> offers =
+        _toReferralOffers(map['offers']);
+    final List<String> categories = _toStringList(map['categories']);
+    final List<String> brands = _toStringList(map['brands']);
+    final List<ReferralRewardPayload> activeRewards =
+        _toReferralRewards(map['active_rewards']);
     final PaginationPayload pagination = _toPaginationPayload(
       decoded['pagination'] ?? map['pagination'],
     );
@@ -1247,7 +1298,110 @@ class MobileApiService {
       referredByEmail: _nullableText(map['referred_by']?['email']),
       joinCount: _parseInt(map['join_count']) ?? entries.length,
       referrals: entries,
+      points: points,
+      offers: offers,
+      categories: categories,
+      brands: brands,
+      activeRewards: activeRewards,
       pagination: pagination,
+    );
+  }
+
+  ReferralPointsPayload _toReferralPointsPayload(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      return const ReferralPointsPayload(
+        earned: 0,
+        spent: 0,
+        available: 0,
+        perReferral: 0,
+      );
+    }
+
+    return ReferralPointsPayload(
+      earned: _parseInt(raw['earned']) ?? 0,
+      spent: _parseInt(raw['spent']) ?? 0,
+      available: _parseInt(raw['available']) ?? 0,
+      perReferral: _parseInt(raw['per_referral']) ?? 0,
+    );
+  }
+
+  List<ReferralOfferPayload> _toReferralOffers(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <ReferralOfferPayload>[];
+    }
+    return raw.map((dynamic item) {
+      if (item is! Map<String, dynamic>) {
+        return null;
+      }
+      return ReferralOfferPayload(
+        id: _parseInt(item['id']) ?? 0,
+        title: _firstNonEmpty(<dynamic>[item['title']]),
+        description: _nullableText(item['description']),
+        pointsCost: _parseInt(item['points_cost']) ?? 0,
+        subject: _nullableText(item['subject']),
+        subjectId: _parseInt(item['subject_id']),
+        questionLimit: _parseInt(item['question_limit']),
+        durationDays: _parseInt(item['access_duration_days']),
+        category: _nullableText(item['category']),
+        brand: _nullableText(item['brand']),
+        imageUrl: _nullableText(item['image_url']),
+        isFeatured: item['is_featured'] == true,
+      );
+    }).whereType<ReferralOfferPayload>().toList();
+  }
+
+  List<ReferralRewardPayload> _toReferralRewards(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <ReferralRewardPayload>[];
+    }
+    return raw.map((dynamic item) {
+      if (item is! Map<String, dynamic>) {
+        return null;
+      }
+      return ReferralRewardPayload(
+        id: _parseInt(item['id']) ?? 0,
+        offerId: _parseInt(item['offer_id']) ?? 0,
+        subjectId: _parseInt(item['subject_id']),
+        questionLimit: _parseInt(item['question_limit']),
+        expiresAt: _parseDate(item['expires_at']),
+      );
+    }).whereType<ReferralRewardPayload>().toList();
+  }
+
+  List<String> _toStringList(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <String>[];
+    }
+    return raw
+        .map((dynamic item) => _firstNonEmpty(<dynamic>[item]))
+        .where((String item) => item.isNotEmpty)
+        .toList();
+  }
+
+  ReferralRedemptionPayload? _toReferralRedemptionPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final Map<String, dynamic> data = decoded['data'] is Map<String, dynamic>
+        ? decoded['data'] as Map<String, dynamic>
+        : decoded;
+    final Map<String, dynamic> pointsRaw =
+        decoded['points'] is Map<String, dynamic>
+            ? decoded['points'] as Map<String, dynamic>
+            : <String, dynamic>{};
+
+    return ReferralRedemptionPayload(
+      id: _parseInt(data['id']) ?? 0,
+      offerId: _parseInt(data['offer_id']) ?? 0,
+      subjectId: _parseInt(data['subject_id']),
+      questionLimit: _parseInt(data['question_limit']),
+      expiresAt: _parseDate(data['expires_at']),
+      points: ReferralPointsPayload(
+        earned: _parseInt(pointsRaw['earned']) ?? 0,
+        spent: _parseInt(pointsRaw['spent']) ?? 0,
+        available: _parseInt(pointsRaw['available']) ?? 0,
+        perReferral: _parseInt(pointsRaw['per_referral']) ?? 0,
+      ),
     );
   }
 
@@ -1688,6 +1842,11 @@ class ReferralSummaryPayload {
     required this.referredByEmail,
     required this.joinCount,
     required this.referrals,
+    required this.points,
+    required this.offers,
+    required this.categories,
+    required this.brands,
+    required this.activeRewards,
     required this.pagination,
   });
 
@@ -1696,7 +1855,90 @@ class ReferralSummaryPayload {
   final String? referredByEmail;
   final int joinCount;
   final List<ReferralEntryPayload> referrals;
+  final ReferralPointsPayload points;
+  final List<ReferralOfferPayload> offers;
+  final List<String> categories;
+  final List<String> brands;
+  final List<ReferralRewardPayload> activeRewards;
   final PaginationPayload pagination;
+}
+
+class ReferralPointsPayload {
+  const ReferralPointsPayload({
+    required this.earned,
+    required this.spent,
+    required this.available,
+    required this.perReferral,
+  });
+
+  final int earned;
+  final int spent;
+  final int available;
+  final int perReferral;
+}
+
+class ReferralOfferPayload {
+  const ReferralOfferPayload({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.pointsCost,
+    required this.subject,
+    required this.subjectId,
+    required this.questionLimit,
+    required this.durationDays,
+    required this.category,
+    required this.brand,
+    required this.imageUrl,
+    required this.isFeatured,
+  });
+
+  final int id;
+  final String title;
+  final String? description;
+  final int pointsCost;
+  final String? subject;
+  final int? subjectId;
+  final int? questionLimit;
+  final int? durationDays;
+  final String? category;
+  final String? brand;
+  final String? imageUrl;
+  final bool isFeatured;
+}
+
+class ReferralRewardPayload {
+  const ReferralRewardPayload({
+    required this.id,
+    required this.offerId,
+    required this.subjectId,
+    required this.questionLimit,
+    required this.expiresAt,
+  });
+
+  final int id;
+  final int offerId;
+  final int? subjectId;
+  final int? questionLimit;
+  final DateTime? expiresAt;
+}
+
+class ReferralRedemptionPayload {
+  const ReferralRedemptionPayload({
+    required this.id,
+    required this.offerId,
+    required this.subjectId,
+    required this.questionLimit,
+    required this.expiresAt,
+    required this.points,
+  });
+
+  final int id;
+  final int offerId;
+  final int? subjectId;
+  final int? questionLimit;
+  final DateTime? expiresAt;
+  final ReferralPointsPayload points;
 }
 
 class ReferralEntryPayload {

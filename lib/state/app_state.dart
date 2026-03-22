@@ -33,6 +33,11 @@ class AppState extends ChangeNotifier {
   String? referredByName;
   String? referredByEmail;
   int referralJoinedCount = 0;
+  ReferralPoints? referralPoints;
+  List<ReferralOfferItem> _referralOffers = <ReferralOfferItem>[];
+  List<String> referralCategories = <String>[];
+  List<String> referralBrands = <String>[];
+  List<ReferralRewardItem> _activeRewards = <ReferralRewardItem>[];
   int? lastScore;
   int? lastScoreTotal;
   String? lastScoreSubject;
@@ -120,6 +125,10 @@ class AppState extends ChangeNotifier {
       List<SubscriptionHistoryItem>.unmodifiable(_subscriptionHistory);
   List<ReferralEntry> get referralEntries =>
       List<ReferralEntry>.unmodifiable(_referralEntries);
+  List<ReferralOfferItem> get referralOffers =>
+      List<ReferralOfferItem>.unmodifiable(_referralOffers);
+  List<ReferralRewardItem> get activeRewards =>
+      List<ReferralRewardItem>.unmodifiable(_activeRewards);
 
   final List<SubjectItem> allSubjects = const <SubjectItem>[
     SubjectItem(
@@ -732,6 +741,39 @@ class AppState extends ChangeNotifier {
     referralJoinedCount = payload.joinCount;
     referredByName = payload.referredByName;
     referredByEmail = payload.referredByEmail;
+    referralPoints = ReferralPoints(
+      earned: payload.points.earned,
+      spent: payload.points.spent,
+      available: payload.points.available,
+      perReferral: payload.points.perReferral,
+    );
+    referralCategories = payload.categories;
+    referralBrands = payload.brands;
+    _referralOffers = payload.offers
+        .map((ReferralOfferPayload item) => ReferralOfferItem(
+              id: item.id,
+              title: item.title,
+              description: item.description,
+              pointsCost: item.pointsCost,
+              subject: item.subject,
+              subjectId: item.subjectId,
+              questionLimit: item.questionLimit,
+              durationDays: item.durationDays,
+              category: item.category,
+              brand: item.brand,
+              imageUrl: item.imageUrl,
+              isFeatured: item.isFeatured,
+            ))
+        .toList();
+    _activeRewards = payload.activeRewards
+        .map((ReferralRewardPayload item) => ReferralRewardItem(
+              id: item.id,
+              offerId: item.offerId,
+              subjectId: item.subjectId,
+              questionLimit: item.questionLimit,
+              expiresAt: item.expiresAt,
+            ))
+        .toList();
     if (loadMore) {
       _referralEntries = <ReferralEntry>[
         ..._referralEntries,
@@ -770,6 +812,31 @@ class AppState extends ChangeNotifier {
 
     await loadReferrals(loadMore: false);
     await loadDashboardMetrics(force: true);
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> redeemReferralOffer(ReferralOfferItem offer) async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+
+    final ApiResult<ReferralRedemptionPayload> response =
+        await _api.redeemReferralOffer(offerId: offer.id);
+    if (!response.ok || response.data == null) {
+      return response.message ?? 'Unable to redeem this offer.';
+    }
+
+    final ReferralRedemptionPayload payload = response.data!;
+    referralPoints = ReferralPoints(
+      earned: payload.points.earned,
+      spent: payload.points.spent,
+      available: payload.points.available,
+      perReferral: payload.points.perReferral,
+    );
+
+    await loadReferrals(loadMore: false);
+    await loadPracticeSubjects(force: true);
     notifyListeners();
     return null;
   }
@@ -843,6 +910,11 @@ class AppState extends ChangeNotifier {
     referredByName = null;
     referredByEmail = null;
     referralJoinedCount = 0;
+    referralPoints = null;
+    _referralOffers = <ReferralOfferItem>[];
+    referralCategories = <String>[];
+    referralBrands = <String>[];
+    _activeRewards = <ReferralRewardItem>[];
     lastScore = null;
     lastScoreTotal = null;
     lastScoreSubject = null;

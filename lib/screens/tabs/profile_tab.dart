@@ -269,7 +269,8 @@ class ProfileTab extends StatelessWidget {
                   context.read<AppState>().logout();
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute<void>(
-                      builder: (_) => const LoginScreen(),
+                      builder: (_) =>
+                          const LoginScreen(showLogoutMessage: true),
                     ),
                     (Route<dynamic> route) => false,
                   );

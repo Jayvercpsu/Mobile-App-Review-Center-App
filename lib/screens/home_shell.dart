@@ -12,10 +12,12 @@ class HomeShell extends StatefulWidget {
     super.key,
     this.initialIndex = 0,
     this.initialPlanId,
+    this.showOnlineMessageOnStart = false,
   });
 
   final int initialIndex;
   final int? initialPlanId;
+  final bool showOnlineMessageOnStart;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -24,11 +26,13 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   late int _index;
   bool? _lastOffline;
+  bool _pendingOnlineMessage = false;
 
   @override
   void initState() {
     super.initState();
     _index = widget.initialIndex;
+    _pendingOnlineMessage = widget.showOnlineMessageOnStart;
   }
 
   Future<void> _refreshOnTabSwitch(int index) async {
@@ -85,6 +89,21 @@ class _HomeShellState extends State<HomeShell> {
             ),
           );
         }
+      });
+    }
+
+    if (_pendingOnlineMessage && appState.signedIn && !isOffline) {
+      _pendingOnlineMessage = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Back online.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
       });
     }
 

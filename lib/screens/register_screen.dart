@@ -62,7 +62,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const HomeShell()),
+      MaterialPageRoute<void>(
+        builder: (_) => const HomeShell(showOnlineMessageOnStart: true),
+      ),
       (Route<dynamic> route) => false,
     );
   }

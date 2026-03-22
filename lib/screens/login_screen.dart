@@ -9,7 +9,9 @@ import 'home_shell.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.showLogoutMessage = false});
+
+  final bool showLogoutMessage;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -31,6 +33,12 @@ class _LoginScreenState extends State<LoginScreen> {
           remembered.isNotEmpty &&
           _emailController.text.isEmpty) {
         _emailController.text = remembered;
+      }
+
+      if (widget.showLogoutMessage && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged out successfully.')),
+        );
       }
     });
   }
@@ -75,7 +83,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const HomeShell()),
+      MaterialPageRoute<void>(
+        builder: (_) => const HomeShell(showOnlineMessageOnStart: true),
+      ),
     );
   }
 

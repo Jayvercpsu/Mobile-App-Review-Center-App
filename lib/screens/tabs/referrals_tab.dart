@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -54,6 +54,156 @@ class _ReferralsTabState extends State<ReferralsTab> {
     );
   }
 
+  String _formatDate(DateTime value) {
+    return '${value.month}/${value.day}/${value.year}';
+  }
+
+  String _formatExpiryStatus(DateTime value) {
+    final Duration diff = value.difference(DateTime.now());
+    if (diff.inSeconds <= 0) {
+      return 'Expires today';
+    }
+    final int days = (diff.inHours / 24).ceil();
+    if (days <= 1) {
+      return 'Expires in 1 day';
+    }
+    return 'Expires in $days days';
+  }
+
+  void _showOfferDetails(
+    BuildContext context,
+    AppState appState,
+    ReferralOfferItem offer,
+    ReferralPoints points,
+    ReferralRewardItem? activeReward,
+  ) {
+    final bool alreadyRedeemed = activeReward != null;
+    final bool canRedeem = points.available >= offer.pointsCost;
+    final String? expiryText = activeReward?.expiresAt == null
+        ? null
+        : _formatExpiryStatus(activeReward!.expiresAt!);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppPalette.primary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                offer.title,
+                style: GoogleFonts.redHatDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.textDark,
+                ),
+              ),
+              const SizedBox(height: 6),
+              if (offer.description != null && offer.description!.isNotEmpty)
+                Text(
+                  offer.description!,
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Row(
+                children: <Widget>[
+                  _InfoChip(
+                    label: '${offer.pointsCost} Points',
+                    icon: Icons.card_giftcard_rounded,
+                  ),
+                  if (offer.durationDays != null &&
+                      offer.durationDays! > 0) ...[
+                    const SizedBox(width: 8),
+                    _InfoChip(
+                      label: 'Access ${offer.durationDays} days',
+                      icon: Icons.schedule_rounded,
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (offer.subject != null && offer.subject!.isNotEmpty)
+                Text(
+                  'Subject: ${offer.subject}',
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w600,
+                    color: AppPalette.textDark,
+                  ),
+                ),
+              if (offer.questionLimit != null && offer.questionLimit! > 0)
+                Text(
+                  'Question limit: ${offer.questionLimit}',
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w600,
+                    color: AppPalette.textDark,
+                  ),
+                ),
+              if (expiryText != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Redeemed - $expiryText',
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w600,
+                    color: AppPalette.muted,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: (!alreadyRedeemed && canRedeem)
+                      ? () async {
+                          Navigator.of(context).pop();
+                          await _redeemOffer(appState, offer);
+                        }
+                      : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppPalette.primary,
+                  ),
+                  child: Text(
+                    alreadyRedeemed
+                        ? 'Redeemed'
+                        : canRedeem
+                            ? 'Redeem'
+                            : 'Not enough points',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _applyReferral(AppState appState) async {
     final String code = _codeController.text.trim();
     if (code.length < 4) {
@@ -86,6 +236,9 @@ class _ReferralsTabState extends State<ReferralsTab> {
           perReferral: 0,
         );
     final List<ReferralOfferItem> offers = appState.referralOffers;
+    final Map<int, ReferralRewardItem> activeByOffer = {
+      for (final reward in appState.activeRewards) reward.offerId: reward,
+    };
     final String query = _searchQuery.trim().toLowerCase();
     final List<ReferralOfferItem> filteredOffers = query.isEmpty
         ? offers
@@ -279,6 +432,14 @@ class _ReferralsTabState extends State<ReferralsTab> {
                     color: AppPalette.textDark,
                   ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  'Expiry depends on the offer setup by admin.',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -290,16 +451,27 @@ class _ReferralsTabState extends State<ReferralsTab> {
               crossAxisCount: 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 0.86,
+              childAspectRatio: 0.62,
             ),
             delegate: SliverChildBuilderDelegate(
               (BuildContext context, int index) {
                 final ReferralOfferItem offer = recommended[index];
-                final bool canRedeem = points.available >= offer.pointsCost;
+                final ReferralRewardItem? activeReward =
+                    activeByOffer[offer.id];
+                final bool canRedeem =
+                    points.available >= offer.pointsCost && activeReward == null;
                 return _OfferCard(
                   offer: offer,
                   canRedeem: canRedeem,
+                  activeReward: activeReward,
                   onRedeem: () => _redeemOffer(appState, offer),
+                  onOpenDetails: () => _showOfferDetails(
+                    context,
+                    appState,
+                    offer,
+                    points,
+                    activeReward,
+                  ),
                 );
               },
               childCount: recommended.length,
@@ -398,7 +570,27 @@ class _ReferralsTabState extends State<ReferralsTab> {
                   ),
                   const SizedBox(height: 10),
                   ...appState.activeRewards.map(
-                    (reward) => Container(
+                    (reward) {
+                      final ReferralOfferItem offer = offers.firstWhere(
+                        (item) => item.id == reward.offerId,
+                        orElse: () => const ReferralOfferItem(
+                          id: 0,
+                          title: 'Referral Reward',
+                          description: null,
+                          pointsCost: 0,
+                          subject: null,
+                          subjectId: null,
+                          questionLimit: null,
+                          durationDays: null,
+                          category: null,
+                          brand: null,
+                          imageUrl: null,
+                          isFeatured: false,
+                        ),
+                      );
+                      final String title =
+                          offer.id == 0 ? 'Referral Reward' : offer.title;
+                      return Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -409,12 +601,12 @@ class _ReferralsTabState extends State<ReferralsTab> {
                         ),
                       ),
                       child: Row(
-                        children: <Widget>[
+                      children: <Widget>[
                           const Icon(Icons.check_circle, color: AppPalette.success),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Subject access unlocked (limit ${reward.questionLimit ?? 'No limit'})',
+                              '$title (limit ${reward.questionLimit ?? 'No limit'})',
                               style: GoogleFonts.manrope(
                                 fontWeight: FontWeight.w600,
                                 color: AppPalette.textDark,
@@ -423,7 +615,7 @@ class _ReferralsTabState extends State<ReferralsTab> {
                           ),
                           if (reward.expiresAt != null)
                             Text(
-                              '${reward.expiresAt!.month}/${reward.expiresAt!.day}/${reward.expiresAt!.year}',
+                              _formatExpiryStatus(reward.expiresAt!),
                               style: GoogleFonts.manrope(
                                 color: AppPalette.muted,
                                 fontSize: 12,
@@ -431,7 +623,8 @@ class _ReferralsTabState extends State<ReferralsTab> {
                             ),
                         ],
                       ),
-                    ),
+                    );
+                    },
                   ),
                 ],
               ),
@@ -449,86 +642,174 @@ class _OfferCard extends StatelessWidget {
   const _OfferCard({
     required this.offer,
     required this.canRedeem,
+    required this.activeReward,
     required this.onRedeem,
+    required this.onOpenDetails,
   });
 
   final ReferralOfferItem offer;
   final bool canRedeem;
+  final ReferralRewardItem? activeReward;
   final VoidCallback onRedeem;
+  final VoidCallback onOpenDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isRedeemed = activeReward != null;
+    final String? expiryLabel = isRedeemed
+        ? (activeReward?.expiresAt == null
+            ? 'Redeemed'
+            : _formatExpiryLabel(activeReward!.expiresAt!))
+        : (offer.durationDays == null || offer.durationDays == 0
+            ? null
+            : 'Access ${offer.durationDays} days');
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onOpenDetails,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppPalette.primary.withValues(alpha: 0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+                SizedBox(
+                  height: 64,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppPalette.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: offer.imageUrl == null || offer.imageUrl!.isEmpty
+                      ? const Icon(
+                          Icons.school_rounded,
+                          color: AppPalette.primary,
+                          size: 30,
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.network(
+                            offer.imageUrl!,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                offer.brand ?? 'Board Masters',
+                style: GoogleFonts.manrope(
+                  color: AppPalette.muted,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+                Text(
+                  offer.title,
+                maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.textDark,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              if (expiryLabel != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  expiryLabel,
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 6),
+              Text(
+                '${offer.pointsCost} Points',
+                style: GoogleFonts.manrope(
+                  color: AppPalette.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: canRedeem ? onRedeem : onOpenDetails,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppPalette.primary,
+                    minimumSize: const Size.fromHeight(36),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  child: Text(
+                    isRedeemed
+                        ? 'Redeemed'
+                        : canRedeem
+                            ? 'Redeem'
+                            : 'Not enough',
+                    style: GoogleFonts.manrope(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatExpiryLabel(DateTime value) {
+  final Duration diff = value.difference(DateTime.now());
+  if (diff.inSeconds <= 0) {
+    return 'Redeemed - Expires today';
+  }
+  final int days = (diff.inHours / 24).ceil();
+  if (days <= 1) {
+    return 'Redeemed - Expires in 1 day';
+  }
+  return 'Redeemed - Expires in $days days';
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.label,
+    required this.icon,
+  });
+
+  final String label;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppPalette.primary.withValues(alpha: 0.08)),
+        color: AppPalette.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppPalette.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: offer.imageUrl == null || offer.imageUrl!.isEmpty
-                  ? const Icon(
-                      Icons.school_rounded,
-                      color: AppPalette.primary,
-                      size: 30,
-                    )
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Image.network(
-                        offer.imageUrl!,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 10),
+          Icon(icon, size: 14, color: AppPalette.primary),
+          const SizedBox(width: 6),
           Text(
-            offer.brand ?? 'Board Masters',
+            label,
             style: GoogleFonts.manrope(
-              color: AppPalette.muted,
               fontWeight: FontWeight.w600,
-              fontSize: 11,
-            ),
-          ),
-          Text(
-            offer.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
-              color: AppPalette.textDark,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${offer.pointsCost} Points',
-            style: GoogleFonts.manrope(
               color: AppPalette.primary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: canRedeem ? onRedeem : null,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppPalette.primary,
-              ),
-              child: Text(
-                canRedeem ? 'Redeem' : 'Not enough',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-              ),
+              fontSize: 12,
             ),
           ),
         ],
@@ -536,3 +817,6 @@ class _OfferCard extends StatelessWidget {
     );
   }
 }
+
+
+

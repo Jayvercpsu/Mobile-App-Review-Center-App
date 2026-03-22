@@ -65,9 +65,6 @@ class _QuizScreenState extends State<QuizScreen> {
   void _select(String key) {
     setState(() {
       _answers[_index] = key;
-      if (_index < widget.questions.length - 1) {
-        _index += 1;
-      }
     });
   }
 
@@ -88,6 +85,9 @@ class _QuizScreenState extends State<QuizScreen> {
 
     _submitting = true;
     _timer?.cancel();
+    if (mounted) {
+      setState(() {});
+    }
 
     final int score = widget.questions.asMap().entries.where((entry) {
       final String? selected = _answers[entry.key];
@@ -102,6 +102,8 @@ class _QuizScreenState extends State<QuizScreen> {
       subject: widget.subject,
       score: score,
       total: widget.questions.length,
+      questions: List<QuestionItem>.from(widget.questions),
+      answers: Map<int, String>.from(_answers),
     );
 
     final submitResponse = await appState.submitQuizAttempt(
@@ -109,6 +111,8 @@ class _QuizScreenState extends State<QuizScreen> {
       questions: widget.questions,
       answers: Map<int, String>.from(_answers),
     );
+
+    await appState.loadQuizAttempts(loadMore: false);
 
     if (mounted && !submitResponse.ok) {
       messenger.showSnackBar(
@@ -155,196 +159,219 @@ class _QuizScreenState extends State<QuizScreen> {
     }
 
     final QuestionItem question = widget.questions[_index];
+    final bool hasSelection = _answers[_index] != null;
+    final bool isLast = _index == widget.questions.length - 1;
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Column(
-            children: <Widget>[
-              Row(
+        child: Stack(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Column(
                 children: <Widget>[
-                  IconButton(
-                    onPressed: _goBack,
-                    icon: const Icon(Icons.arrow_back_rounded),
-                  ),
-                  Text(
-                    widget.subject.code,
-                    style: GoogleFonts.redHatDisplay(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 31,
-                      color: AppPalette.primary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppPalette.secondary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      _timeLabel(_remaining),
-                      style: GoogleFonts.manrope(
-                        color: AppPalette.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    '${_index + 1} of ${widget.questions.length}',
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.textDark,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              LinearProgressIndicator(
-                value: (_index + 1) / widget.questions.length,
-                color: AppPalette.primary,
-                backgroundColor: AppPalette.primary.withValues(alpha: 0.13),
-                minHeight: 8,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              const SizedBox(height: 18),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: <Widget>[
+                      IconButton(
+                        onPressed: _goBack,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
                       Text(
-                        question.question,
+                        widget.subject.code,
                         style: GoogleFonts.redHatDisplay(
-                          fontSize: 29,
-                          fontWeight: FontWeight.w800,
-                          color: AppPalette.textDark,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 31,
+                          color: AppPalette.primary,
                         ),
-                      ).animate().fadeIn(duration: 320.ms),
-                      const SizedBox(height: 16),
-                      ...question.choices.entries.map((entry) {
-                        final String key = entry.key;
-                        final bool selected = _answers[_index] == key;
-
-                        Color background = Colors.white;
-                        Color border = AppPalette.primary.withValues(
-                          alpha: 0.08,
-                        );
-                        if (selected) {
-                          background = AppPalette.primary.withValues(
-                            alpha: 0.1,
-                          );
-                          border = AppPalette.primary;
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: () => _select(key),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 220),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 14,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(14),
-                                color: background,
-                                border: Border.all(color: border, width: 1.6),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(
-                                    '$key.',
-                                    style: GoogleFonts.manrope(
-                                      color: AppPalette.textDark,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 17,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      entry.value,
-                                      style: GoogleFonts.manrope(
-                                        color: AppPalette.textDark,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppPalette.secondary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          _timeLabel(_remaining),
+                          style: GoogleFonts.manrope(
+                            color: AppPalette.primary,
+                            fontWeight: FontWeight.w800,
                           ),
-                        );
-                      }),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        '${_index + 1} of ${widget.questions.length}',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.textDark,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: <Widget>[
+                  const SizedBox(height: 10),
+                  LinearProgressIndicator(
+                    value: (_index + 1) / widget.questions.length,
+                    color: AppPalette.primary,
+                    backgroundColor: AppPalette.primary.withValues(alpha: 0.13),
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  const SizedBox(height: 18),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: _goBack,
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: AppPalette.primary.withValues(alpha: 0.2),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: Text(
-                        'Back',
-                        style: GoogleFonts.manrope(
-                          color: AppPalette.primary,
-                          fontWeight: FontWeight.w800,
-                        ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            question.question,
+                            style: GoogleFonts.redHatDisplay(
+                              fontSize: 29,
+                              fontWeight: FontWeight.w800,
+                              color: AppPalette.textDark,
+                            ),
+                          ).animate().fadeIn(duration: 320.ms),
+                          const SizedBox(height: 16),
+                          ...question.choices.entries.map((entry) {
+                            final String key = entry.key;
+                            final bool selected = _answers[_index] == key;
+
+                            Color background = Colors.white;
+                            Color border = AppPalette.primary.withValues(
+                              alpha: 0.08,
+                            );
+                            if (selected) {
+                              background = AppPalette.primary.withValues(
+                                alpha: 0.12,
+                              );
+                              border = AppPalette.primary;
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () => _select(key),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 220),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    color: background,
+                                    border: Border.all(color: border, width: 1.6),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        '$key.',
+                                        style: GoogleFonts.manrope(
+                                          color: AppPalette.textDark,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 17,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          entry.value,
+                                          style: GoogleFonts.manrope(
+                                            color: AppPalette.textDark,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ),
+                                      if (selected)
+                                        const Icon(
+                                          Icons.check_circle_rounded,
+                                          color: AppPalette.primary,
+                                          size: 18,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _index == widget.questions.length - 1
-                          ? () {
-                              if (_answers[_index] == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Select an answer for the last question first.',
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-                              _finish();
-                            }
-                          : null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppPalette.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _goBack,
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: AppPalette.primary.withValues(alpha: 0.2),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Back',
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.primary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
                       ),
-                      child: Text(
-                        _index == widget.questions.length - 1
-                            ? 'Submit Answers'
-                            : 'Select option to continue',
-                        style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: hasSelection
+                              ? () {
+                                  if (isLast) {
+                                    _finish();
+                                  } else {
+                                    setState(() {
+                                      _index += 1;
+                                    });
+                                  }
+                                }
+                              : null,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppPalette.primary,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 10,
+                            ),
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                          child: Text(
+                            isLast ? 'Submit Answers' : 'Continue',
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            if (_submitting)
+              Container(
+                color: Colors.black.withValues(alpha: 0.2),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+          ],
         ),
       ),
     );

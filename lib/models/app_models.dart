@@ -73,6 +73,8 @@ class QuizRecord {
     required this.score,
     required this.total,
     required this.completedAt,
+    this.questions = const <QuestionItem>[],
+    this.answers = const <int, String>{},
   });
 
   final String subjectCode;
@@ -80,6 +82,48 @@ class QuizRecord {
   final int score;
   final int total;
   final DateTime completedAt;
+  final List<QuestionItem> questions;
+  final Map<int, String> answers;
+}
+
+class QuizAttemptItem {
+  const QuizAttemptItem({
+    required this.id,
+    required this.subjectId,
+    required this.subjectCode,
+    required this.subjectTitle,
+    required this.score,
+    required this.total,
+    required this.completedAt,
+  });
+
+  final int id;
+  final int? subjectId;
+  final String subjectCode;
+  final String subjectTitle;
+  final int score;
+  final int total;
+  final DateTime completedAt;
+}
+
+class QuizAttemptDetail {
+  const QuizAttemptDetail({
+    required this.id,
+    required this.subject,
+    required this.score,
+    required this.total,
+    required this.completedAt,
+    required this.questions,
+    required this.answers,
+  });
+
+  final int id;
+  final SubjectItem subject;
+  final int score;
+  final int total;
+  final DateTime completedAt;
+  final List<QuestionItem> questions;
+  final Map<int, String> answers;
 }
 
 class SubscriptionHistoryItem {

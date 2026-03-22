@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/app_theme.dart';
 import '../models/app_models.dart';
 import '../services/mobile_api_service.dart';
 
@@ -63,6 +64,12 @@ class AppState extends ChangeNotifier {
   bool loadingSubscriptionHistory = false;
   bool hasMoreSubscriptionHistory = false;
   int _subscriptionHistoryPage = 1;
+  List<QuizAttemptItem> _quizAttempts = <QuizAttemptItem>[];
+  bool loadingQuizAttempts = false;
+  bool hasMoreQuizAttempts = false;
+  int _quizAttemptsPage = 1;
+  final Map<int, QuizAttemptDetail> _quizAttemptDetails =
+      <int, QuizAttemptDetail>{};
   List<ReferralEntry> _referralEntries = <ReferralEntry>[];
   bool loadingReferrals = false;
   bool hasMoreReferrals = false;
@@ -123,6 +130,8 @@ class AppState extends ChangeNotifier {
   bool get practiceSubjectsLoaded => _practiceSubjectsLoaded;
   List<SubscriptionHistoryItem> get subscriptionHistory =>
       List<SubscriptionHistoryItem>.unmodifiable(_subscriptionHistory);
+  List<QuizAttemptItem> get quizAttempts =>
+      List<QuizAttemptItem>.unmodifiable(_quizAttempts);
   List<ReferralEntry> get referralEntries =>
       List<ReferralEntry>.unmodifiable(_referralEntries);
   List<ReferralOfferItem> get referralOffers =>
@@ -440,6 +449,7 @@ class AppState extends ChangeNotifier {
       await loadDashboardMetrics(force: true);
       await loadSubscriptionHistory(loadMore: false);
       await loadReferrals(loadMore: false);
+      await loadQuizAttempts(loadMore: false);
       notifyListeners();
       return true;
     } catch (_) {
@@ -549,6 +559,7 @@ class AppState extends ChangeNotifier {
     await loadDashboardMetrics(force: true);
     await loadSubscriptionHistory(loadMore: false);
     await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
     return null;
   }
 
@@ -582,6 +593,7 @@ class AppState extends ChangeNotifier {
     await loadDashboardMetrics(force: true);
     await loadSubscriptionHistory(loadMore: false);
     await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
     return null;
   }
 
@@ -811,6 +823,7 @@ class AppState extends ChangeNotifier {
     }
 
     await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
     await loadDashboardMetrics(force: true);
     notifyListeners();
     return null;
@@ -836,6 +849,7 @@ class AppState extends ChangeNotifier {
     );
 
     await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
     await loadPracticeSubjects(force: true);
     notifyListeners();
     return null;
@@ -892,6 +906,91 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  Future<String?> loadQuizAttempts({bool loadMore = false}) async {
+    if (!signedIn) {
+      return null;
+    }
+    if (loadingQuizAttempts) {
+      return null;
+    }
+
+    loadingQuizAttempts = true;
+    notifyListeners();
+
+    final int targetPage = loadMore ? _quizAttemptsPage + 1 : 1;
+    final ApiResult<QuizAttemptHistoryPayload> response =
+        await _api.fetchQuizAttempts(page: targetPage);
+    loadingQuizAttempts = false;
+
+    if (!response.ok || response.data == null) {
+      notifyListeners();
+      return response.message ?? 'Unable to load quiz attempts.';
+    }
+
+    final QuizAttemptHistoryPayload payload = response.data!;
+    final List<QuizAttemptItem> mapped = payload.attempts.map(
+      (QuizAttemptSummaryPayload item) {
+        return QuizAttemptItem(
+          id: item.id,
+          subjectId: item.subjectId,
+          subjectCode: item.subjectCode ?? 'SUBJ',
+          subjectTitle: item.subject ?? 'Subject',
+          score: item.score,
+          total: item.totalQuestions,
+          completedAt: item.createdAt ?? DateTime.now(),
+        );
+      },
+    ).toList();
+
+    if (loadMore) {
+      _quizAttempts = <QuizAttemptItem>[..._quizAttempts, ...mapped];
+    } else {
+      _quizAttempts = mapped;
+    }
+
+    _quizAttemptsPage = payload.pagination.currentPage;
+    hasMoreQuizAttempts = payload.pagination.hasMore;
+    notifyListeners();
+    return null;
+  }
+
+  Future<ApiResult<QuizAttemptDetail>> loadQuizAttemptDetails(
+    int attemptId, {
+    bool force = false,
+  }) async {
+    if (!signedIn) {
+      return ApiResult<QuizAttemptDetail>.failure('Please login first.');
+    }
+
+    if (!force && _quizAttemptDetails.containsKey(attemptId)) {
+      return ApiResult<QuizAttemptDetail>.success(
+        _quizAttemptDetails[attemptId]!,
+      );
+    }
+
+    final ApiResult<QuizAttemptDetailPayload> response =
+        await _api.fetchQuizAttemptDetails(attemptId: attemptId);
+    if (!response.ok || response.data == null) {
+      return ApiResult<QuizAttemptDetail>.failure(
+        response.message ?? 'Unable to load attempt details.',
+      );
+    }
+
+    final QuizAttemptDetailPayload payload = response.data!;
+    final SubjectItem subject = _subjectForAttempt(payload);
+    final QuizAttemptDetail detail = QuizAttemptDetail(
+      id: payload.id,
+      subject: subject,
+      score: payload.score,
+      total: payload.totalQuestions,
+      completedAt: payload.createdAt,
+      questions: payload.questions,
+      answers: payload.answers,
+    );
+    _quizAttemptDetails[attemptId] = detail;
+    return ApiResult<QuizAttemptDetail>.success(detail);
+  }
+
   void logout() {
     signedIn = false;
     selectedPlanId = null;
@@ -928,6 +1027,11 @@ class AppState extends ChangeNotifier {
     loadingSubscriptionHistory = false;
     hasMoreSubscriptionHistory = false;
     _subscriptionHistoryPage = 1;
+    _quizAttempts = <QuizAttemptItem>[];
+    loadingQuizAttempts = false;
+    hasMoreQuizAttempts = false;
+    _quizAttemptsPage = 1;
+    _quizAttemptDetails.clear();
     _referralEntries = <ReferralEntry>[];
     loadingReferrals = false;
     hasMoreReferrals = false;
@@ -1026,6 +1130,7 @@ class AppState extends ChangeNotifier {
     await loadDashboardMetrics(force: true);
     await loadSubscriptionHistory(loadMore: false);
     await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
     notifyListeners();
     return null;
   }
@@ -1175,10 +1280,41 @@ class AppState extends ChangeNotifier {
     return result;
   }
 
+  SubjectItem _subjectForAttempt(QuizAttemptDetailPayload payload) {
+    final String code = payload.subjectCode;
+    final String title = payload.subjectTitle;
+    final int? subjectId = payload.subjectId;
+
+    for (final SubjectItem item in _practiceSubjects) {
+      if (subjectId != null && int.tryParse(item.id) == subjectId) {
+        return item;
+      }
+      if (item.code == code || item.title == title) {
+        return item;
+      }
+    }
+
+    for (final SubjectItem item in allSubjects) {
+      if (item.code == code || item.title == title) {
+        return item;
+      }
+    }
+
+    return SubjectItem(
+      id: subjectId?.toString() ?? code,
+      code: code.isEmpty ? 'SUBJ' : code,
+      title: title.isEmpty ? 'Subject' : title,
+      totalQuestions: payload.totalQuestions,
+      color: AppPalette.primary,
+    );
+  }
+
   void saveRecord({
     required SubjectItem subject,
     required int score,
     required int total,
+    List<QuestionItem> questions = const <QuestionItem>[],
+    Map<int, String> answers = const <int, String>{},
   }) {
     records.insert(
       0,
@@ -1188,6 +1324,8 @@ class AppState extends ChangeNotifier {
         score: score,
         total: total,
         completedAt: DateTime.now(),
+        questions: List<QuestionItem>.from(questions),
+        answers: Map<int, String>.from(answers),
       ),
     );
     lastScore = score;

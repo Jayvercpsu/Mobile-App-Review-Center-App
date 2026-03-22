@@ -16,7 +16,6 @@ class ProfileTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
-    final DateFormat formatter = DateFormat('MMM dd, yyyy hh:mm a');
 
     return CustomScrollView(
       slivers: <Widget>[
@@ -207,116 +206,6 @@ class ProfileTab extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: _ReferralCard(),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-            child: Text(
-              'Recent Attempts',
-              style: GoogleFonts.redHatDisplay(
-                fontSize: 23,
-                fontWeight: FontWeight.w800,
-                color: AppPalette.primary,
-              ),
-            ),
-          ),
-        ),
-        if (appState.records.isEmpty)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  'No attempts yet. Start a practice set to see your results.',
-                  style: GoogleFonts.manrope(
-                    color: AppPalette.muted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        SliverList.builder(
-          itemCount: appState.records.length,
-          itemBuilder: (BuildContext context, int index) {
-            final QuizRecord item = appState.records[index];
-            final int percent = item.total == 0
-                ? 0
-                : ((item.score / item.total) * 100).round();
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppPalette.primary.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppPalette.primary.withValues(alpha: 0.12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        item.subjectCode,
-                        style: GoogleFonts.manrope(
-                          color: AppPalette.primary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            '${item.score}/${item.total}  $percent%',
-                            style: GoogleFonts.redHatDisplay(
-                              color: AppPalette.textDark,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 20,
-                            ),
-                          ),
-                          Text(
-                            item.subjectTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            formatter.format(item.completedAt),
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
         ),
         SliverToBoxAdapter(
           child: Padding(

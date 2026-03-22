@@ -466,6 +466,88 @@ class MobileApiService {
     }
   }
 
+  Future<ApiResult<QuizAttemptHistoryPayload>> fetchQuizAttempts({
+    int page = 1,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<QuizAttemptHistoryPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _getWithFallback(
+        path: '${ApiConfig.quizAttempts}?page=$page',
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<QuizAttemptHistoryPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final QuizAttemptHistoryPayload? payload =
+          _toQuizAttemptHistoryPayload(decoded);
+      if (payload == null) {
+        return ApiResult<QuizAttemptHistoryPayload>.failure(
+          'Quiz attempt history is missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<QuizAttemptHistoryPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<QuizAttemptHistoryPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<QuizAttemptDetailPayload>> fetchQuizAttemptDetails({
+    required int attemptId,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<QuizAttemptDetailPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _getWithFallback(
+        path: '${ApiConfig.quizAttempts}/$attemptId',
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<QuizAttemptDetailPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final QuizAttemptDetailPayload? payload =
+          _toQuizAttemptDetailPayload(decoded);
+      if (payload == null) {
+        return ApiResult<QuizAttemptDetailPayload>.failure(
+          'Quiz attempt details are missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<QuizAttemptDetailPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<QuizAttemptDetailPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
   Future<ApiResult<List<QuestionItem>>> generateQuiz({
     required int subjectId,
     required int totalQuestions,
@@ -1440,6 +1522,121 @@ class MobileApiService {
     return SubscriptionHistoryPayload(entries: entries, pagination: pagination);
   }
 
+  QuizAttemptHistoryPayload? _toQuizAttemptHistoryPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final List<QuizAttemptSummaryPayload> attempts =
+        _toQuizAttemptSummaries(decoded['data']);
+    final PaginationPayload pagination = _toPaginationPayload(
+      decoded['pagination'],
+    );
+    return QuizAttemptHistoryPayload(
+      attempts: attempts,
+      pagination: pagination,
+    );
+  }
+
+  List<QuizAttemptSummaryPayload> _toQuizAttemptSummaries(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <QuizAttemptSummaryPayload>[];
+    }
+    return raw.map((dynamic item) {
+      if (item is! Map<String, dynamic>) {
+        return null;
+      }
+      final int? id = _parseInt(item['id']);
+      if (id == null) {
+        return null;
+      }
+      return QuizAttemptSummaryPayload(
+        id: id,
+        subjectId: _parseInt(item['subject_id']),
+        subject: _nullableText(item['subject']),
+        subjectCode: _nullableText(item['subject_code']),
+        score: _parseInt(item['score']) ?? 0,
+        totalQuestions: _parseInt(item['total_questions']) ?? 0,
+        createdAt: _parseDate(item['created_at']),
+      );
+    }).whereType<QuizAttemptSummaryPayload>().toList();
+  }
+
+  QuizAttemptDetailPayload? _toQuizAttemptDetailPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final dynamic data = decoded['data'] ?? decoded;
+    if (data is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final Map<String, dynamic>? subjectMap =
+        data['subject'] is Map<String, dynamic>
+            ? data['subject'] as Map<String, dynamic>
+            : null;
+    final int? subjectId =
+        _parseInt(subjectMap?['id']) ?? _parseInt(data['subject_id']);
+    final String subjectTitle = _firstNonEmpty(<dynamic>[
+      subjectMap?['title'],
+      data['subject'],
+    ]);
+    final String subjectCode = _firstNonEmpty(<dynamic>[
+      subjectMap?['code'],
+      data['subject_code'],
+    ]);
+
+    final List<QuestionItem> questions = (data['questions'] is List<dynamic>)
+        ? (data['questions'] as List<dynamic>)
+            .map(_toQuestionItem)
+            .whereType<QuestionItem>()
+            .toList()
+        : <QuestionItem>[];
+
+    final Map<int, String?> answerByQuestionId = <int, String?>{};
+    if (data['answers'] is List<dynamic>) {
+      for (final dynamic item in data['answers']) {
+        if (item is! Map<String, dynamic>) {
+          continue;
+        }
+        final int? qid = _parseInt(item['question_id']);
+        if (qid == null) {
+          continue;
+        }
+        answerByQuestionId[qid] = _nullableText(item['selected_choice']);
+      }
+    }
+
+    final Map<int, String> answers = <int, String>{};
+    for (int i = 0; i < questions.length; i++) {
+      final QuestionItem question = questions[i];
+      if (question.id == null) {
+        continue;
+      }
+      final String? selected = answerByQuestionId[question.id!];
+      if (selected != null && selected.isNotEmpty) {
+        answers[i] = selected;
+      }
+    }
+
+    final int? attemptId = _parseInt(data['id']);
+    final DateTime? createdAt = _parseDate(data['created_at']);
+    if (attemptId == null || subjectTitle.isEmpty || createdAt == null) {
+      return null;
+    }
+
+    return QuizAttemptDetailPayload(
+      id: attemptId,
+      subjectId: subjectId,
+      subjectCode: subjectCode.isEmpty ? 'SUBJ' : subjectCode,
+      subjectTitle: subjectTitle,
+      score: _parseInt(data['score']) ?? 0,
+      totalQuestions: _parseInt(data['total_questions']) ?? questions.length,
+      createdAt: createdAt,
+      questions: questions,
+      answers: answers,
+    );
+  }
+
   List<SubscriptionHistoryEntryPayload> _toSubscriptionEntries(dynamic raw) {
     if (raw is! List<dynamic>) {
       return <SubscriptionHistoryEntryPayload>[];
@@ -1785,6 +1982,60 @@ class QuizSubmitPayload {
   final int attemptId;
   final int score;
   final int totalQuestions;
+}
+
+class QuizAttemptHistoryPayload {
+  const QuizAttemptHistoryPayload({
+    required this.attempts,
+    required this.pagination,
+  });
+
+  final List<QuizAttemptSummaryPayload> attempts;
+  final PaginationPayload pagination;
+}
+
+class QuizAttemptSummaryPayload {
+  const QuizAttemptSummaryPayload({
+    required this.id,
+    required this.subjectId,
+    required this.subject,
+    required this.subjectCode,
+    required this.score,
+    required this.totalQuestions,
+    required this.createdAt,
+  });
+
+  final int id;
+  final int? subjectId;
+  final String? subject;
+  final String? subjectCode;
+  final int score;
+  final int totalQuestions;
+  final DateTime? createdAt;
+}
+
+class QuizAttemptDetailPayload {
+  const QuizAttemptDetailPayload({
+    required this.id,
+    required this.subjectId,
+    required this.subjectCode,
+    required this.subjectTitle,
+    required this.score,
+    required this.totalQuestions,
+    required this.createdAt,
+    required this.questions,
+    required this.answers,
+  });
+
+  final int id;
+  final int? subjectId;
+  final String subjectCode;
+  final String subjectTitle;
+  final int score;
+  final int totalQuestions;
+  final DateTime createdAt;
+  final List<QuestionItem> questions;
+  final Map<int, String> answers;
 }
 
 class PlanSelectionPayload {

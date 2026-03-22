@@ -25,6 +25,20 @@ class RationalizationScreen extends StatelessWidget {
       return selected != entry.value.correctKey;
     }).length;
 
+    String _choiceText(QuestionItem question, String? key) {
+      if (key == null) {
+        return '';
+      }
+      return question.choices[key] ?? '';
+    }
+
+    String _rationaleText(QuestionItem question, String? key) {
+      if (key == null) {
+        return 'No rationale provided.';
+      }
+      return question.rationales[key] ?? 'No rationale provided.';
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Overall Rationalization')),
       body: SafeArea(
@@ -135,7 +149,7 @@ class RationalizationScreen extends StatelessWidget {
                     Text(
                       selected == null
                           ? 'Your answer: No answer selected'
-                          : 'Your answer: $selected. ${question.choices[selected] ?? ''}',
+                          : 'Your answer: $selected. ${_choiceText(question, selected)}',
                       style: GoogleFonts.manrope(
                         color: AppPalette.textDark,
                         fontWeight: FontWeight.w600,
@@ -159,7 +173,7 @@ class RationalizationScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'Why your answer is wrong:\n${question.rationales[selected] ?? 'No rationale provided.'}',
+                          'Why your answer is wrong:\n${_rationaleText(question, selected)}',
                           style: GoogleFonts.manrope(
                             color: AppPalette.textDark,
                             fontWeight: FontWeight.w700,

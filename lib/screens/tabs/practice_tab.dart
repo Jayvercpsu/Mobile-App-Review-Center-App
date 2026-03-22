@@ -9,6 +9,7 @@ import '../../core/app_theme.dart';
 import '../../models/app_models.dart';
 import '../../state/app_state.dart';
 import '../quiz_screen.dart';
+import '../rationalization_screen.dart';
 
 class PracticeTab extends StatefulWidget {
   const PracticeTab({super.key});
@@ -28,6 +29,7 @@ class _PracticeTabState extends State<PracticeTab> {
         return;
       }
       context.read<AppState>().loadPracticeSubjects();
+      context.read<AppState>().loadQuizAttempts(loadMore: false);
     });
   }
 
@@ -271,6 +273,17 @@ class _PracticeTabState extends State<PracticeTab> {
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
     final List<SubjectItem> subjects = appState.visibleSubjects;
+    final List<QuizAttemptItem> attempts = appState.quizAttempts;
+    final int visibleCount = attempts.length;
+    final bool canLoadMore = appState.hasMoreQuizAttempts;
+    final DateFormat formatter = DateFormat('MMM dd, yyyy hh:mm a');
+    String formatAttemptDate(DateTime value) {
+      try {
+        return formatter.format(value);
+      } catch (_) {
+        return value.toIso8601String();
+      }
+    }
 
     if (subjects.isNotEmpty &&
         (_selected == null ||
@@ -441,6 +454,208 @@ class _PracticeTabState extends State<PracticeTab> {
             }, childCount: subjects.length),
           ),
         ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+            child: Text(
+              'Recent Attempts',
+              style: GoogleFonts.redHatDisplay(
+                fontSize: 23,
+                fontWeight: FontWeight.w800,
+                color: AppPalette.primary,
+              ),
+            ),
+          ),
+        ),
+        if (attempts.isEmpty && appState.loadingQuizAttempts)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          )
+        else if (attempts.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'No attempts yet. Start a practice set to see your results.',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (attempts.isNotEmpty)
+          SliverList.builder(
+            itemCount: visibleCount,
+            itemBuilder: (BuildContext context, int index) {
+              final QuizAttemptItem item = attempts[index];
+              final int percent = item.total == 0
+                  ? 0
+                  : ((item.score / item.total) * 100).round();
+
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () async {
+                    final BuildContext rootContext = context;
+                    showDialog<void>(
+                      context: rootContext,
+                      barrierDismissible: false,
+                      builder: (_) => const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+
+                    final ApiResult<QuizAttemptDetail> result =
+                        await appState.loadQuizAttemptDetails(item.id);
+                    if (!mounted) {
+                      return;
+                    }
+                    Navigator.of(rootContext, rootNavigator: true).pop();
+
+                    if (!result.ok || result.data == null) {
+                      ScaffoldMessenger.of(rootContext).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            result.message ??
+                                'Unable to load attempt details.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final QuizAttemptDetail detail = result.data!;
+                    Navigator.of(rootContext).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => RationalizationScreen(
+                          subject: detail.subject,
+                          questions: detail.questions,
+                          answers: detail.answers,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppPalette.primary.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppPalette.primary.withValues(alpha: 0.12),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            item.subjectCode,
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.primary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                '${item.score}/${item.total}  $percent%',
+                                style: GoogleFonts.redHatDisplay(
+                                  color: AppPalette.textDark,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 20,
+                                ),
+                              ),
+                              Text(
+                                item.subjectTitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.manrope(
+                                  color: AppPalette.muted,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                formatAttemptDate(item.completedAt),
+                                style: GoogleFonts.manrope(
+                                  color: AppPalette.muted,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppPalette.muted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        if (canLoadMore)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+              child: OutlinedButton(
+                onPressed: appState.loadingQuizAttempts
+                    ? null
+                    : () {
+                        context.read<AppState>().loadQuizAttempts(
+                              loadMore: true,
+                            );
+                      },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: AppPalette.primary.withValues(alpha: 0.25),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: appState.loadingQuizAttempts
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        'View more attempts',
+                        style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w700,
+                          color: AppPalette.primary,
+                        ),
+                      ),
+              ),
+            ),
+          ),
       ],
     );
   }

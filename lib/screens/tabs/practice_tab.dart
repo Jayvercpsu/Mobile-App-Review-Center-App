@@ -647,7 +647,7 @@ class _PracticeTabState extends State<PracticeTab> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Text(
-                        'View more attempts',
+                        'Load 5 more attempts',
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w700,
                           color: AppPalette.primary,

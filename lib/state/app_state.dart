@@ -128,6 +128,8 @@ class AppState extends ChangeNotifier {
 
   List<PlanOption> get plans => List<PlanOption>.unmodifiable(_plans);
   bool get practiceSubjectsLoaded => _practiceSubjectsLoaded;
+  List<SubjectItem> get practiceSubjects =>
+      List<SubjectItem>.unmodifiable(_practiceSubjects);
   List<SubscriptionHistoryItem> get subscriptionHistory =>
       List<SubscriptionHistoryItem>.unmodifiable(_subscriptionHistory);
   List<QuizAttemptItem> get quizAttempts =>
@@ -693,6 +695,7 @@ class AppState extends ChangeNotifier {
         totalQuestions: item.totalQuestions,
         maxQuestionsPerSet: item.questionLimit,
         color: _subjectColorForPayload(item, index),
+        isAccessible: item.isAccessible,
       );
     }).toList();
 
@@ -1128,7 +1131,13 @@ class AppState extends ChangeNotifier {
 
   int get maxQuestionPerSet {
     if (_practiceSubjects.isNotEmpty) {
-      return _practiceSubjects.fold<int>(
+      final Iterable<SubjectItem> accessible = _practiceSubjects.where(
+        (SubjectItem item) => item.isAccessible && item.maxQuestionsPerSet > 0,
+      );
+      if (accessible.isEmpty) {
+        return 1;
+      }
+      return accessible.fold<int>(
         1,
         (int maxValue, SubjectItem item) => max(
           maxValue,

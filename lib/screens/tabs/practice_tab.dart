@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../models/app_models.dart';
 import '../../state/app_state.dart';
+import '../home_shell.dart';
 import '../quiz_screen.dart';
 import '../rationalization_screen.dart';
 
@@ -18,9 +19,12 @@ class PracticeTab extends StatefulWidget {
   State<PracticeTab> createState() => _PracticeTabState();
 }
 
-class _PracticeTabState extends State<PracticeTab> {
+class _PracticeTabState extends State<PracticeTab>
+    with SingleTickerProviderStateMixin {
   SubjectItem? _selected;
   final Set<int> _selectedAttemptIds = <int>{};
+  late final AnimationController _flickerController;
+  late final Animation<double> _flickerOpacity;
 
   bool get _hasSelectedAttempts => _selectedAttemptIds.isNotEmpty;
 
@@ -118,6 +122,16 @@ class _PracticeTabState extends State<PracticeTab> {
   @override
   void initState() {
     super.initState();
+    _flickerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+    _flickerOpacity = Tween<double>(begin: 0.08, end: 0.18).animate(
+      CurvedAnimation(
+        parent: _flickerController,
+        curve: Curves.easeInOut,
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -125,6 +139,12 @@ class _PracticeTabState extends State<PracticeTab> {
       context.read<AppState>().loadPracticeSubjects();
       context.read<AppState>().loadQuizAttempts(loadMore: false);
     });
+  }
+
+  @override
+  void dispose() {
+    _flickerController.dispose();
+    super.dispose();
   }
 
   Future<void> _openQuestionCountModal({
@@ -366,7 +386,11 @@ class _PracticeTabState extends State<PracticeTab> {
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
-    final List<SubjectItem> subjects = appState.visibleSubjects;
+    final List<SubjectItem> subjects = appState.practiceSubjects;
+    final Set<String> accessibleIds = subjects
+        .where((SubjectItem item) => item.isAccessible)
+        .map((SubjectItem item) => item.id)
+        .toSet();
     final List<QuizAttemptItem> attempts = appState.quizAttempts;
     final int visibleCount = attempts.length;
     final bool canLoadMore = appState.hasMoreQuizAttempts;
@@ -379,10 +403,14 @@ class _PracticeTabState extends State<PracticeTab> {
       }
     }
 
+    final List<SubjectItem> unlockedSubjects = subjects
+        .where((SubjectItem item) => accessibleIds.contains(item.id))
+        .toList();
+
     if (subjects.isNotEmpty &&
         (_selected == null ||
             !subjects.any((SubjectItem item) => item.id == _selected!.id))) {
-      _selected = subjects.first;
+      _selected = unlockedSubjects.isNotEmpty ? unlockedSubjects.first : null;
     }
 
     if (_selectedAttemptIds.isNotEmpty) {
@@ -442,7 +470,7 @@ class _PracticeTabState extends State<PracticeTab> {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Text(
-            'No accessible subjects yet for your current plan.',
+            'No subjects available yet.',
             textAlign: TextAlign.center,
             style: GoogleFonts.manrope(
               color: AppPalette.muted,
@@ -455,6 +483,13 @@ class _PracticeTabState extends State<PracticeTab> {
 
     return CustomScrollView(
       slivers: <Widget>[
+        if (appState.loadingPracticeSubjects)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: LinearProgressIndicator(),
+            ),
+          ),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -495,70 +530,165 @@ class _PracticeTabState extends State<PracticeTab> {
               int index,
             ) {
               final SubjectItem subject = subjects[index];
-              final bool selected = subject.id == _selected?.id;
+              final bool isLocked = !accessibleIds.contains(subject.id);
+              final bool selected = !isLocked && subject.id == _selected?.id;
               return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selected = subject;
-                  });
-                  _openQuestionCountModal(
-                    subject: subject,
-                    appState: context.read<AppState>(),
-                  );
+                onTap: isLocked
+                    ? () {
+                        showDialog<void>(
+                          context: context,
+                          builder: (BuildContext dialogContext) {
+                            final PlanOption currentPlan =
+                                appState.currentPlan;
+                            final List<PlanOption> paidPlans = appState.plans
+                                .where((PlanOption plan) => plan.isPaid)
+                                .toList()
+                              ..sort(
+                                (PlanOption a, PlanOption b) =>
+                                    a.price.compareTo(b.price),
+                              );
+                            final PlanOption recommendedPlan =
+                                paidPlans.isNotEmpty
+                                    ? paidPlans.first
+                                    : currentPlan;
+                            return AlertDialog(
+                              title: const Text('Upgrade required'),
+                              content: Text(
+                                'Upgrade your plan to unlock ${subject.title}.',
+                              ),
+                              actions: <Widget>[
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop(),
+                                  child: const Text('Not now'),
+                                ),
+                                FilledButton(
+                                  onPressed: () {
+                                    Navigator.of(dialogContext).pop();
+                                    Navigator.of(context).pushAndRemoveUntil(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            HomeShell(
+                                              initialIndex: 0,
+                                              initialPlanId:
+                                                  recommendedPlan.id,
+                                            ),
+                                      ),
+                                      (Route<dynamic> route) => false,
+                                    );
+                                  },
+                                  child: const Text('View Plans'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      }
+                    : () {
+                    setState(() {
+                      _selected = subject;
+                    });
+                    _openQuestionCountModal(
+                      subject: subject,
+                      appState: context.read<AppState>(),
+                    );
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 240),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: subject.color,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: selected ? Colors.white : Colors.transparent,
-                      width: 2,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 240),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isLocked
+                            ? subject.color.withValues(alpha: 0.35)
+                            : subject.color,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: selected ? Colors.white : Colors.transparent,
+                          width: 2,
+                        ),
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: subject.color.withValues(alpha: 0.35),
+                            blurRadius: selected ? 16 : 8,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Opacity(
+                        opacity: isLocked ? 0.65 : 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              subject.code,
+                              style: GoogleFonts.redHatDisplay(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              subject.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.manrope(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              NumberFormat.decimalPattern().format(
+                                subject.totalQuestions,
+                              ),
+                              style: GoogleFonts.manrope(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: subject.color.withValues(alpha: 0.35),
-                        blurRadius: selected ? 16 : 8,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        subject.code,
-                        style: GoogleFonts.redHatDisplay(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
+                    if (isLocked)
+                      Positioned.fill(
+                        child: AnimatedBuilder(
+                          animation: _flickerOpacity,
+                          builder: (BuildContext context, Widget? child) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(
+                                  alpha: _flickerOpacity.value,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: child,
+                            );
+                          },
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.lock_rounded,
+                                size: 20,
+                                color: AppPalette.primary,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subject.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        NumberFormat.decimalPattern().format(
-                          subject.totalQuestions,
-                        ),
-                        style: GoogleFonts.manrope(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               );
             }, childCount: subjects.length),

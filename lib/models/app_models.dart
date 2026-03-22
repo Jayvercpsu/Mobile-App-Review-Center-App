@@ -38,6 +38,7 @@ class SubjectItem {
     required this.totalQuestions,
     required this.color,
     int? maxQuestionsPerSet,
+    this.isAccessible = true,
   }) : maxQuestionsPerSet = maxQuestionsPerSet ?? totalQuestions;
 
   final String id;
@@ -46,6 +47,7 @@ class SubjectItem {
   final int totalQuestions;
   final Color color;
   final int maxQuestionsPerSet;
+  final bool isAccessible;
 }
 
 class QuestionItem {

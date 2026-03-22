@@ -1311,6 +1311,20 @@ class MobileApiService {
     if (questionLimit < 0) {
       questionLimit = 0;
     }
+    final dynamic accessRaw =
+        raw['is_accessible'] ?? raw['accessible'] ?? raw['has_access'];
+    bool isAccessible = false;
+    if (accessRaw is bool) {
+      isAccessible = accessRaw;
+    } else if (accessRaw is num) {
+      isAccessible = accessRaw > 0;
+    } else if (accessRaw is String) {
+      final String normalized = accessRaw.trim().toLowerCase();
+      isAccessible =
+          normalized == 'true' || normalized == '1' || normalized == 'yes';
+    } else {
+      isAccessible = questionLimit > 0;
+    }
     final String? colorHex = _nullableText(raw['color_hex'] ?? raw['color']);
 
     return PracticeSubjectPayload(
@@ -1319,6 +1333,7 @@ class MobileApiService {
       title: title,
       totalQuestions: totalQuestions < 0 ? 0 : totalQuestions,
       questionLimit: questionLimit,
+      isAccessible: isAccessible,
       colorHex: colorHex,
     );
   }
@@ -2023,6 +2038,7 @@ class PracticeSubjectPayload {
     required this.title,
     required this.totalQuestions,
     required this.questionLimit,
+    required this.isAccessible,
     required this.colorHex,
   });
 
@@ -2031,6 +2047,7 @@ class PracticeSubjectPayload {
   final String title;
   final int totalQuestions;
   final int questionLimit;
+  final bool isAccessible;
   final String? colorHex;
 }
 

@@ -8,9 +8,14 @@ import 'tabs/profile_tab.dart';
 import '../state/app_state.dart';
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, this.initialIndex = 0});
+  const HomeShell({
+    super.key,
+    this.initialIndex = 0,
+    this.initialPlanId,
+  });
 
   final int initialIndex;
+  final int? initialPlanId;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -51,15 +56,19 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isOffline = context.watch<AppState>().isOffline;
-    if (_lastOffline != isOffline) {
+    final AppState appState = context.watch<AppState>();
+    final bool isOffline = appState.isOffline;
+    final bool? previousOffline = _lastOffline;
+    if (previousOffline == null) {
+      _lastOffline = isOffline;
+    } else if (previousOffline != isOffline) {
       _lastOffline = isOffline;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           return;
         }
         final messenger = ScaffoldMessenger.of(context);
-        if (isOffline) {
+        if (isOffline && previousOffline == false) {
           messenger.showSnackBar(
             const SnackBar(
               content: Text(
@@ -68,7 +77,7 @@ class _HomeShellState extends State<HomeShell> {
               duration: Duration(seconds: 5),
             ),
           );
-        } else {
+        } else if (!isOffline && previousOffline == true && appState.signedIn) {
           messenger.showSnackBar(
             const SnackBar(
               content: Text('Back online.'),
@@ -84,6 +93,7 @@ class _HomeShellState extends State<HomeShell> {
         onOpenPractice: () {
           _switchTo(1);
         },
+        initialPlanId: widget.initialPlanId,
       ),
       const PracticeTab(),
       const ReferralsTab(),

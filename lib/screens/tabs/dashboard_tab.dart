@@ -12,9 +12,14 @@ import '../../screens/payment_webview.dart';
 import '../../state/app_state.dart';
 
 class DashboardTab extends StatefulWidget {
-  const DashboardTab({super.key, required this.onOpenPractice});
+  const DashboardTab({
+    super.key,
+    required this.onOpenPractice,
+    this.initialPlanId,
+  });
 
   final VoidCallback onOpenPractice;
+  final int? initialPlanId;
 
   @override
   State<DashboardTab> createState() => _DashboardTabState();
@@ -22,6 +27,14 @@ class DashboardTab extends StatefulWidget {
 
 class _DashboardTabState extends State<DashboardTab> {
   int? _previewPlanId;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPlanId != null) {
+      _previewPlanId = widget.initialPlanId;
+    }
+  }
 
   PlanOption _resolvePreviewPlan(AppState appState) {
     if (_previewPlanId == null) {

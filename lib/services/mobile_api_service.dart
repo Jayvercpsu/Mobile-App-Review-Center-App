@@ -548,6 +548,85 @@ class MobileApiService {
     }
   }
 
+  Future<ApiResult<int>> deleteQuizAttempts({
+    required List<int> attemptIds,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<int>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    final List<int> cleaned =
+        attemptIds.where((int id) => id > 0).toSet().toList();
+    if (cleaned.isEmpty) {
+      return ApiResult<int>.failure('No attempts selected.');
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.quizAttemptsDelete,
+        payload: <String, dynamic>{'attempt_ids': cleaned},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<int>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final int deleted = _parseInt(
+            decoded is Map<String, dynamic> ? decoded['deleted'] : null,
+          ) ??
+          cleaned.length;
+
+      return ApiResult<int>.success(deleted);
+    } catch (_) {
+      return ApiResult<int>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<int>> clearQuizAttempts() async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<int>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.quizAttemptsClear,
+        payload: <String, dynamic>{},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<int>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final int deleted = _parseInt(
+            decoded is Map<String, dynamic> ? decoded['deleted'] : null,
+          ) ??
+          0;
+      return ApiResult<int>.success(deleted);
+    } catch (_) {
+      return ApiResult<int>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
   Future<ApiResult<List<QuestionItem>>> generateQuiz({
     required int subjectId,
     required int totalQuestions,

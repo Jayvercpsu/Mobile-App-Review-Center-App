@@ -37,6 +37,8 @@ class ApiConfig {
   static const String quizGenerate = '/mobile/quiz/generate';
   static const String quizSubmit = '/mobile/quiz/submit';
   static const String quizAttempts = '/mobile/quiz/attempts';
+  static const String quizAttemptsDelete = '/mobile/quiz/attempts/delete';
+  static const String quizAttemptsClear = '/mobile/quiz/attempts/clear';
 
   static Uri uri(String path, {String? overrideBaseUrl}) {
     final String sourceBase = (overrideBaseUrl ?? baseUrl).trim();

@@ -954,6 +954,52 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  Future<String?> deleteQuizAttempts(List<int> attemptIds) async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+    if (attemptIds.isEmpty) {
+      return 'No attempts selected.';
+    }
+
+    final ApiResult<int> response =
+        await _api.deleteQuizAttempts(attemptIds: attemptIds);
+    if (!response.ok) {
+      return response.message ?? 'Unable to delete attempts.';
+    }
+
+    final Set<int> ids = attemptIds.toSet();
+    _quizAttempts = _quizAttempts
+        .where((QuizAttemptItem item) => !ids.contains(item.id))
+        .toList();
+    ids.forEach(_quizAttemptDetails.remove);
+
+    if (_quizAttempts.isEmpty && hasMoreQuizAttempts) {
+      await loadQuizAttempts(loadMore: false);
+    } else {
+      notifyListeners();
+    }
+    return null;
+  }
+
+  Future<String?> clearQuizAttempts() async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+
+    final ApiResult<int> response = await _api.clearQuizAttempts();
+    if (!response.ok) {
+      return response.message ?? 'Unable to clear attempts.';
+    }
+
+    _quizAttempts = <QuizAttemptItem>[];
+    _quizAttemptDetails.clear();
+    hasMoreQuizAttempts = false;
+    _quizAttemptsPage = 1;
+    notifyListeners();
+    return null;
+  }
+
   Future<ApiResult<QuizAttemptDetail>> loadQuizAttemptDetails(
     int attemptId, {
     bool force = false,

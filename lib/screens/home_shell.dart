@@ -26,10 +26,15 @@ class _HomeShellState extends State<HomeShell> {
     _index = widget.initialIndex;
   }
 
-  Future<void> _refreshOnTabSwitch() async {
+  Future<void> _refreshOnTabSwitch(int index) async {
     final AppState appState = context.read<AppState>();
 
     if (appState.signedIn) {
+      if (index == 2) {
+        await appState.loadReferrals(loadMore: false);
+        return;
+      }
+
       await appState.refreshCurrentUser();
       return;
     }
@@ -41,7 +46,7 @@ class _HomeShellState extends State<HomeShell> {
     setState(() {
       _index = index;
     });
-    _refreshOnTabSwitch();
+    _refreshOnTabSwitch(index);
   }
 
   @override

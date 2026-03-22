@@ -113,7 +113,7 @@ class _ReferralsTabState extends State<ReferralsTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'GigaPoints',
+                  'Referral Points',
                   style: GoogleFonts.redHatDisplay(
                     fontSize: 30,
                     fontWeight: FontWeight.w800,
@@ -216,17 +216,47 @@ class _ReferralsTabState extends State<ReferralsTab> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: _codeController,
-                  decoration: InputDecoration(
-                    hintText: 'Enter referral code',
-                    prefixIcon: const Icon(Icons.card_giftcard_rounded),
-                    suffixIcon: IconButton(
-                      onPressed: () => _applyReferral(appState),
-                      icon: const Icon(Icons.check_circle_outline_rounded),
+                if (appState.referredBy == null)
+                  TextField(
+                    controller: _codeController,
+                    decoration: InputDecoration(
+                      hintText: 'Enter a friend\'s referral code',
+                      prefixIcon: const Icon(Icons.card_giftcard_rounded),
+                      suffixIcon: IconButton(
+                        onPressed: () => _applyReferral(appState),
+                        icon: const Icon(Icons.check_circle_outline_rounded),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppPalette.primary.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        const Icon(
+                          Icons.verified_rounded,
+                          color: AppPalette.success,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Referral already applied.',
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w600,
+                              color: AppPalette.textDark,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: _searchController,

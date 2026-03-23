@@ -31,15 +31,27 @@ class MobileApiService {
     required String name,
     required String email,
     required String password,
+    String? passwordConfirmation,
+    DateTime? birthdate,
+    String? gender,
   }) async {
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'name': name.trim(),
+      'email': email.trim(),
+      'password': password,
+      'password_confirmation': passwordConfirmation ?? password,
+    };
+
+    if (birthdate != null) {
+      payload['birthdate'] = birthdate.toIso8601String().split('T').first;
+    }
+    if (gender != null && gender.trim().isNotEmpty) {
+      payload['gender'] = gender.trim().toLowerCase();
+    }
+
     return _postAuth(
       path: ApiConfig.register,
-      payload: <String, dynamic>{
-        'name': name.trim(),
-        'email': email.trim(),
-        'password': password,
-        'password_confirmation': password,
-      },
+      payload: payload,
     );
   }
 

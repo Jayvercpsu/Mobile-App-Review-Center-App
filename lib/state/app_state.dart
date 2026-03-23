@@ -569,11 +569,17 @@ class AppState extends ChangeNotifier {
     required String name,
     required String email,
     required String password,
+    String? passwordConfirmation,
+    DateTime? birthdate,
+    String? gender,
   }) async {
     final ApiResult<AuthPayload> response = await _api.register(
       name: name,
       email: email,
       password: password,
+      passwordConfirmation: passwordConfirmation,
+      birthdate: birthdate,
+      gender: gender,
     );
     if (!response.ok || response.data == null) {
       return response.message ?? 'Registration failed.';

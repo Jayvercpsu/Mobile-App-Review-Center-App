@@ -745,12 +745,14 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
 
   Future<void> _pickBirthdate(BuildContext context) async {
     final DateTime now = DateTime.now();
+    final DateTime latestAllowed =
+        DateTime(now.year - 13, now.month, now.day);
     final DateTime initial = _birthdate ?? DateTime(now.year - 18, 1, 1);
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initial,
       firstDate: DateTime(1950, 1, 1),
-      lastDate: now,
+      lastDate: latestAllowed,
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -782,6 +784,17 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
 
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
+    }
+    if (_birthdate != null) {
+      final DateTime now = DateTime.now();
+      final DateTime minAllowed =
+          DateTime(now.year - 13, now.month, now.day);
+      if (_birthdate!.isAfter(minAllowed)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be at least 13 years old.')),
+        );
+        return;
+      }
     }
 
     setState(() {

@@ -1081,7 +1081,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                         _saveProfile(appState);
                       },
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppPalette.secondary,
+                  backgroundColor: AppPalette.primary,
                 ),
                 child: _saving
                     ? const SizedBox(

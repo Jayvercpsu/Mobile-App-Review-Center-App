@@ -478,12 +478,26 @@ class _DashboardTabState extends State<DashboardTab> {
             child: Row(
               children: <Widget>[
                 ClipOval(
-                  child: Image.asset(
-                    'assets/images/boardmaster-square.png',
-                    width: 52,
-                    height: 52,
-                    fit: BoxFit.cover,
-                  ),
+                  child: appState.userAvatarUrl != null &&
+                          appState.userAvatarUrl!.trim().isNotEmpty
+                      ? Image.network(
+                          appState.userAvatarUrl!,
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            'assets/images/boardmaster-square.png',
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Image.asset(
+                          'assets/images/boardmaster-square.png',
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

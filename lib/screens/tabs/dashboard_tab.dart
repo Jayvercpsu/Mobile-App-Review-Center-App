@@ -359,6 +359,98 @@ class _DashboardTabState extends State<DashboardTab> {
     }
   }
 
+  Future<bool> _confirmCancelPlan({
+    required BuildContext context,
+    required String? formattedEndDate,
+  }) async {
+    final String message = formattedEndDate == null
+        ? 'Your premium access will end immediately and you will return to the free plan.'
+        : 'Your premium access is valid until $formattedEndDate, '
+            'but cancelling will end it immediately and return you to the free plan.';
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: Text(
+                'Cancel Plan?',
+                style: GoogleFonts.redHatDisplay(
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.primary,
+                ),
+              ),
+              content: Text(
+                message,
+                style: GoogleFonts.manrope(
+                  color: AppPalette.textDark,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(
+                    'Keep Plan',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppPalette.secondary,
+                  ),
+                  child: Text(
+                    'Cancel Plan',
+                    style: GoogleFonts.manrope(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  Future<void> _cancelPlan({
+    required BuildContext context,
+    required AppState appState,
+    required String? formattedEndDate,
+  }) async {
+    if (appState.selectingPlan || appState.creatingCheckout) {
+      return;
+    }
+
+    final bool confirmed = await _confirmCancelPlan(
+      context: context,
+      formattedEndDate: formattedEndDate,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    final String? error = await appState.cancelCurrentPlan();
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ?? 'Plan cancelled. You are now on the Free Plan.'),
+      ),
+    );
+
+    if (error == null) {
+      setState(() {
+        _previewPlanId = appState.currentPlan.id;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
@@ -367,8 +459,8 @@ class _DashboardTabState extends State<DashboardTab> {
     final String? formattedEndDate = endDate == null
         ? null
         : DateFormat('MMM d, yyyy').format(endDate);
-    final bool lockFreePlan =
-        appState.currentPlan.isPaid && !appState.isSubscriptionExpired;
+    final bool hasActivePaidPlan = appState.hasActivePaidPlan;
+    final bool lockFreePlan = hasActivePaidPlan;
     final String lastScoreLabel = (appState.lastScore != null &&
             appState.lastScoreTotal != null)
         ? '${appState.lastScore}/${appState.lastScoreTotal}'
@@ -507,152 +599,204 @@ class _DashboardTabState extends State<DashboardTab> {
                       ),
                     ),
                   ),
+                  if (hasActivePaidPlan) ...<Widget>[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: OutlinedButton(
+                        onPressed: appState.selectingPlan ||
+                                appState.creatingCheckout
+                            ? null
+                            : () => _cancelPlan(
+                                  context: context,
+                                  appState: context.read<AppState>(),
+                                  formattedEndDate: formattedEndDate,
+                                ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white.withValues(alpha: 0.12),
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
+                          shape: const StadiumBorder(),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            const Icon(Icons.cancel_rounded, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Cancel Plan',
+                              style: GoogleFonts.manrope(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
         ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-            child: Text(
-              'Choose Plan',
-              style: GoogleFonts.redHatDisplay(
-                color: AppPalette.textDark,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
+        if (!hasActivePaidPlan) ...<Widget>[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              child: Text(
+                'Choose Plan',
+                style: GoogleFonts.redHatDisplay(
+                  color: AppPalette.textDark,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: 236,
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              scrollDirection: Axis.horizontal,
-              itemCount: appState.plans.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (BuildContext context, int index) {
-                final PlanOption plan = appState.plans[index];
-                final bool selected = plan.id == appState.currentPlan.id;
-                final bool previewed = _previewPlanId == plan.id;
-                final bool isFreePlan = !plan.isPaid;
-                final bool lockedFreePlan = lockFreePlan && isFreePlan;
-                final bool canRenew =
-                    selected && plan.isPaid && appState.isSubscriptionExpired;
-                final bool busy =
-                    appState.selectingPlan || appState.creatingCheckout;
-                final bool disabled =
-                    busy || (selected && !canRenew) || lockedFreePlan;
-                final String buttonLabel = selected
-                    ? (canRenew ? 'Renew Plan' : 'Selected')
-                    : (lockedFreePlan
-                          ? 'Unavailable'
-                          : (plan.isPaid ? 'Pay and Choose' : 'Choose Plan'));
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 236,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                scrollDirection: Axis.horizontal,
+                itemCount: appState.plans.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (BuildContext context, int index) {
+                  final PlanOption plan = appState.plans[index];
+                  final bool selected = plan.id == appState.currentPlan.id;
+                  final bool previewed = _previewPlanId == plan.id;
+                  final bool isFreePlan = !plan.isPaid;
+                  final bool lockedFreePlan = lockFreePlan && isFreePlan;
+                  final bool lockedByActivePlan =
+                      hasActivePaidPlan && !selected;
+                  final bool canRenew =
+                      selected && plan.isPaid && appState.isSubscriptionExpired;
+                  final bool busy =
+                      appState.selectingPlan || appState.creatingCheckout;
+                  final bool disabled =
+                      busy ||
+                      (selected && !canRenew) ||
+                      lockedFreePlan ||
+                      lockedByActivePlan;
+                  final String buttonLabel = selected
+                      ? (canRenew ? 'Renew Plan' : 'Selected')
+                      : (lockedByActivePlan
+                          ? 'Cancel current plan first'
+                          : (lockedFreePlan
+                                ? 'Unavailable'
+                                : (plan.isPaid
+                                      ? 'Pay and Choose'
+                                      : 'Choose Plan')));
 
-                return GestureDetector(
-                  onTap: lockedFreePlan ? null : () => _setPreviewPlan(plan),
-                  child: AnimatedScale(
-                    duration: const Duration(milliseconds: 220),
-                    scale: selected ? 1.02 : 1,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 280),
-                      width: 258,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: Colors.white,
-                      border: Border.all(
-                        color: selected
-                            ? AppPalette.success
-                            : (previewed
-                                ? AppPalette.secondary
-                                : AppPalette.primary.withValues(alpha: 0.1)),
-                        width: selected || previewed ? 2 : 1,
-                      ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                        Text(
-                          plan.name,
-                          style: GoogleFonts.redHatDisplay(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                              color: AppPalette.primary,
-                            ),
+                  return GestureDetector(
+                    onTap: lockedFreePlan || lockedByActivePlan
+                        ? null
+                        : () => _setPreviewPlan(plan),
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 220),
+                      scale: selected ? 1.02 : 1,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        width: 258,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.white,
+                          border: Border.all(
+                            color: selected
+                                ? AppPalette.success
+                                : (previewed
+                                    ? AppPalette.secondary
+                                    : AppPalette.primary.withValues(alpha: 0.1)),
+                            width: selected || previewed ? 2 : 1,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            plan.priceLabel,
-                            style: GoogleFonts.redHatDisplay(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: AppPalette.secondary,
-                            ),
-                          ),
-                          Text(
-                            plan.billingLabel,
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            plan.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const Spacer(),
-                          SizedBox(
-                            height: 42,
-                            width: double.infinity,
-                            child: FilledButton(
-                              onPressed: disabled
-                                  ? null
-                                  : () => _handleChoosePlan(
-                                        context: context,
-                                        appState: context.read<AppState>(),
-                                        plan: plan,
-                                      ),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: selected && !canRenew
-                                    ? AppPalette.success
-                                    : AppPalette.primary,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              plan.name,
+                              style: GoogleFonts.redHatDisplay(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: AppPalette.primary,
                               ),
-                              child: busy
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : Text(
-                                      buttonLabel,
-                                      style: GoogleFonts.manrope(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            Text(
+                              plan.priceLabel,
+                              style: GoogleFonts.redHatDisplay(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                color: AppPalette.secondary,
+                              ),
+                            ),
+                            Text(
+                              plan.billingLabel,
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              plan.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const Spacer(),
+                            SizedBox(
+                              height: 42,
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed: disabled
+                                    ? null
+                                    : () => _handleChoosePlan(
+                                          context: context,
+                                          appState: context.read<AppState>(),
+                                          plan: plan,
+                                        ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: selected && !canRenew
+                                      ? AppPalette.success
+                                      : AppPalette.primary,
+                                ),
+                                child: busy
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Text(
+                                        buttonLabel,
+                                        style: GoogleFonts.manrope(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
-        ),
+        ],
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),

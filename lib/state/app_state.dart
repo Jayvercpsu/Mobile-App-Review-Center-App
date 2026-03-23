@@ -1119,6 +1119,8 @@ class AppState extends ChangeNotifier {
   bool get hasPremiumAccess =>
       selectedTier == PlanTier.premium && !isSubscriptionExpired;
 
+  bool get hasActivePaidPlan => currentPlan.isPaid && !isSubscriptionExpired;
+
   List<SubjectItem> get visibleSubjects {
     if (_practiceSubjects.isNotEmpty) {
       return List<SubjectItem>.unmodifiable(_practiceSubjects);
@@ -1188,6 +1190,19 @@ class AppState extends ChangeNotifier {
     await loadQuizAttempts(loadMore: false);
     notifyListeners();
     return null;
+  }
+
+  Future<String?> cancelCurrentPlan() async {
+    if (!currentPlan.isPaid) {
+      return 'You are already on the free plan.';
+    }
+
+    final PlanOption? freePlan = _findFreePlan();
+    if (freePlan == null) {
+      return 'No free plan is available to switch to.';
+    }
+
+    return choosePlan(plan: freePlan, billingCycle: freePlan.billingCycle);
   }
 
   Future<ApiResult<CheckoutPayload>> createCheckout({
@@ -1438,6 +1453,20 @@ class AppState extends ChangeNotifier {
     }
     for (final PlanOption item in _plans) {
       if (item.id == id) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  PlanOption? _findFreePlan() {
+    for (final PlanOption item in _plans) {
+      if (!item.isPaid || item.tier == PlanTier.free) {
+        return item;
+      }
+    }
+    for (final PlanOption item in _fallbackPlans) {
+      if (!item.isPaid || item.tier == PlanTier.free) {
         return item;
       }
     }

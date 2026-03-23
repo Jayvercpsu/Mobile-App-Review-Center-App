@@ -1,7 +1,7 @@
 class ApiConfig {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:8000/api',
+    defaultValue: 'http://192.168.0.157:8000/api',
   );
   static const List<String> _fallbackBaseUrls = <String>[
     'http://10.0.2.2:8000/api',

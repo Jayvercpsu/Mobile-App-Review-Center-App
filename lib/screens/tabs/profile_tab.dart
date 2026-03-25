@@ -419,9 +419,7 @@ class ProfileSettingsScreen extends StatelessWidget {
         ),
         title: Text(
           'Profile Settings',
-          style: GoogleFonts.redHatDisplay(
-            fontWeight: FontWeight.w800,
-          ),
+          style: GoogleFonts.redHatDisplay(fontWeight: FontWeight.w800),
         ),
       ),
       body: SafeArea(
@@ -429,9 +427,7 @@ class ProfileSettingsScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const <Widget>[
-              _ProfileSettingsCard(),
-            ],
+            children: const <Widget>[_ProfileSettingsCard()],
           ),
         ),
       ),
@@ -508,9 +504,7 @@ class _ReferralCardState extends State<_ReferralCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppPalette.primary.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: AppPalette.primary.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,11 +534,11 @@ class _ReferralCardState extends State<_ReferralCard> {
                 onPressed: referralCode == '--'
                     ? null
                     : () {
-                        Clipboard.setData(
-                          ClipboardData(text: referralCode),
-                        );
+                        Clipboard.setData(ClipboardData(text: referralCode));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Referral code copied.')),
+                          const SnackBar(
+                            content: Text('Referral code copied.'),
+                          ),
                         );
                       },
                 icon: const Icon(Icons.copy_rounded),
@@ -862,11 +856,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          error ?? 'Profile updated successfully.',
-        ),
-      ),
+      SnackBar(content: Text(error ?? 'Profile updated successfully.')),
     );
   }
 
@@ -885,9 +875,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppPalette.primary.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: AppPalette.primary.withValues(alpha: 0.08)),
       ),
       child: Form(
         key: _formKey,
@@ -915,24 +903,24 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                           fit: BoxFit.cover,
                         )
                       : (appState.userAvatarUrl == null
-                          ? Image.asset(
-                              'assets/images/boardmaster-square.png',
-                              width: 68,
-                              height: 68,
-                              fit: BoxFit.cover,
-                            )
-                          : Image.network(
-                              appState.userAvatarUrl!,
-                              width: 68,
-                              height: 68,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Image.asset(
+                            ? Image.asset(
                                 'assets/images/boardmaster-square.png',
                                 width: 68,
                                 height: 68,
                                 fit: BoxFit.cover,
-                              ),
-                            )),
+                              )
+                            : Image.network(
+                                appState.userAvatarUrl!,
+                                width: 68,
+                                height: 68,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  'assets/images/boardmaster-square.png',
+                                  width: 68,
+                                  height: 68,
+                                  fit: BoxFit.cover,
+                                ),
+                              )),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -983,8 +971,9 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
               ),
               validator: (String? value) {
                 final String trimmed = value?.trim() ?? '';
-                final RegExp emailPattern =
-                    RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                final RegExp emailPattern = RegExp(
+                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                );
                 if (!emailPattern.hasMatch(trimmed)) {
                   return 'Enter a valid email.';
                 }
@@ -994,7 +983,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               key: ValueKey<String?>(_gender),
-              initialValue: _gender,
+              value: _gender,
               decoration: const InputDecoration(
                 labelText: 'Gender',
                 prefixIcon: Icon(Icons.wc_rounded),
@@ -1060,8 +1049,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
               ),
               validator: (String? value) {
                 final String trimmed = value?.trim() ?? '';
-                final RegExp phonePattern =
-                    RegExp(r'^[0-9+\-()\s]{7,20}$');
+                final RegExp phonePattern = RegExp(r'^[0-9+\-()\s]{7,20}$');
                 if (trimmed.isNotEmpty && !phonePattern.hasMatch(trimmed)) {
                   return 'Enter a valid phone number.';
                 }
@@ -1114,9 +1102,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                       )
                     : Text(
                         _dirty ? 'Save Changes' : 'Save Profile',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
                       ),
               ),
             ),

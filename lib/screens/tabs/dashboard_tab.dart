@@ -84,6 +84,9 @@ class _DashboardTabState extends State<DashboardTab> {
         currentPlan: appState.currentPlan,
         nextPlan: plan,
       );
+      if (!context.mounted) {
+        return;
+      }
       if (!confirmed) {
         return;
       }
@@ -101,8 +104,9 @@ class _DashboardTabState extends State<DashboardTab> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       builder: (BuildContext modalContext) {
-        final double bottomPadding =
-            MediaQuery.of(modalContext).viewPadding.bottom;
+        final double bottomPadding = MediaQuery.of(
+          modalContext,
+        ).viewPadding.bottom;
         return SafeArea(
           top: false,
           child: Padding(
@@ -173,9 +177,9 @@ class _DashboardTabState extends State<DashboardTab> {
   }) async {
     final String message = currentPlan.isPaid
         ? 'Your current plan (${currentPlan.title}) will be cancelled '
-            'and replaced with ${nextPlan.title}. Continue?'
+              'and replaced with ${nextPlan.title}. Continue?'
         : 'You are currently on ${currentPlan.title}. '
-            'Switching will replace it with ${nextPlan.title}. Continue?';
+              'Switching will replace it with ${nextPlan.title}. Continue?';
 
     return await showDialog<bool>(
           context: context,
@@ -213,9 +217,7 @@ class _DashboardTabState extends State<DashboardTab> {
                   ),
                   child: Text(
                     'Switch Plan',
-                    style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -290,13 +292,12 @@ class _DashboardTabState extends State<DashboardTab> {
       return;
     }
 
-    final PaymentResult? result = await Navigator.of(context).push<PaymentResult>(
-      MaterialPageRoute<PaymentResult>(
-        builder: (_) => PaymentWebView(
-          initialUrl: checkoutUri.toString(),
-        ),
-      ),
-    );
+    final PaymentResult? result = await Navigator.of(context)
+        .push<PaymentResult>(
+          MaterialPageRoute<PaymentResult>(
+            builder: (_) => PaymentWebView(initialUrl: checkoutUri.toString()),
+          ),
+        );
 
     if (!context.mounted) {
       return;
@@ -312,17 +313,17 @@ class _DashboardTabState extends State<DashboardTab> {
           SnackBar(content: Text('Successfully chose ${plan.name}.')),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(refreshError)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(refreshError)));
       }
       return;
     }
 
     if (result == PaymentResult.cancel) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment cancelled.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Payment cancelled.')));
     }
   }
 
@@ -335,9 +336,9 @@ class _DashboardTabState extends State<DashboardTab> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? 'Plan status refreshed.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error ?? 'Plan status refreshed.')));
 
     if (error == null) {
       setState(() {
@@ -356,12 +357,12 @@ class _DashboardTabState extends State<DashboardTab> {
         : DateFormat('MMM d, yyyy').format(endDate);
     final bool lockFreePlan =
         appState.currentPlan.isPaid && !appState.isSubscriptionExpired;
-    final String lastScoreLabel = (appState.lastScore != null &&
-            appState.lastScoreTotal != null)
+    final String lastScoreLabel =
+        (appState.lastScore != null && appState.lastScoreTotal != null)
         ? '${appState.lastScore}/${appState.lastScoreTotal}'
         : (appState.records.isEmpty
-            ? '--'
-            : '${appState.records.first.score}/${appState.records.first.total}');
+              ? '--'
+              : '${appState.records.first.score}/${appState.records.first.total}');
     final DateFormat historyFormatter = DateFormat('MMM dd, yyyy');
     final DateFormat referralFormatter = DateFormat('MMM dd, yyyy');
 
@@ -550,23 +551,25 @@ class _DashboardTabState extends State<DashboardTab> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
                         color: Colors.white,
-                      border: Border.all(
-                        color: selected
-                            ? AppPalette.success
-                            : (previewed
-                                ? AppPalette.secondary
-                                : AppPalette.primary.withValues(alpha: 0.1)),
-                        width: selected || previewed ? 2 : 1,
-                      ),
+                        border: Border.all(
+                          color: selected
+                              ? AppPalette.success
+                              : (previewed
+                                    ? AppPalette.secondary
+                                    : AppPalette.primary.withValues(
+                                        alpha: 0.1,
+                                      )),
+                          width: selected || previewed ? 2 : 1,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                        Text(
-                          plan.name,
-                          style: GoogleFonts.redHatDisplay(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
+                          Text(
+                            plan.name,
+                            style: GoogleFonts.redHatDisplay(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
                               color: AppPalette.primary,
                             ),
                           ),
@@ -605,10 +608,10 @@ class _DashboardTabState extends State<DashboardTab> {
                               onPressed: disabled
                                   ? null
                                   : () => _handleChoosePlan(
-                                        context: context,
-                                        appState: context.read<AppState>(),
-                                        plan: plan,
-                                      ),
+                                      context: context,
+                                      appState: context.read<AppState>(),
+                                      plan: plan,
+                                    ),
                               style: FilledButton.styleFrom(
                                 backgroundColor: selected && !canRenew
                                     ? AppPalette.success
@@ -643,67 +646,70 @@ class _DashboardTabState extends State<DashboardTab> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-            child: Container(
-              key: ValueKey<int>(featuresPlan.id),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppPalette.primary.withValues(alpha: 0.08),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Included Features',
-                    style: GoogleFonts.redHatDisplay(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppPalette.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ...featuresPlan.features.map(
-                    (String feature) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
+            child:
+                Container(
+                      key: ValueKey<int>(featuresPlan.id),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppPalette.primary.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppPalette.success.withValues(alpha: 0.12),
-                            ),
-                            child: const Icon(
-                              Icons.check,
-                              size: 14,
-                              color: AppPalette.success,
+                          Text(
+                            'Included Features',
+                            style: GoogleFonts.redHatDisplay(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppPalette.primary,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              feature,
-                              style: GoogleFonts.manrope(
-                                color: AppPalette.textDark,
-                                fontWeight: FontWeight.w600,
+                          const SizedBox(height: 10),
+                          ...featuresPlan.features.map(
+                            (String feature) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: AppPalette.success.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.check,
+                                      size: 14,
+                                      color: AppPalette.success,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      feature,
+                                      style: GoogleFonts.manrope(
+                                        color: AppPalette.textDark,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-                .animate(key: ValueKey<int>(featuresPlan.id))
-                .fadeIn(duration: 280.ms)
-                .slideX(begin: 0.12, end: 0, duration: 280.ms),
+                    )
+                    .animate(key: ValueKey<int>(featuresPlan.id))
+                    .fadeIn(duration: 280.ms)
+                    .slideX(begin: 0.12, end: 0, duration: 280.ms),
           ),
         ),
         SliverToBoxAdapter(

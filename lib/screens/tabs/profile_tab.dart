@@ -702,10 +702,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                     maxScale: 4,
                     child: Center(
                       child: _avatarBytes != null
-                          ? Image.memory(
-                              _avatarBytes!,
-                              fit: BoxFit.contain,
-                            )
+                          ? Image.memory(_avatarBytes!, fit: BoxFit.contain)
                           : Image.network(
                               appState.userAvatarUrl!,
                               fit: BoxFit.contain,
@@ -739,8 +736,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
 
   Future<void> _pickBirthdate(BuildContext context) async {
     final DateTime now = DateTime.now();
-    final DateTime latestAllowed =
-        DateTime(now.year - 13, now.month, now.day);
+    final DateTime latestAllowed = DateTime(now.year - 13, now.month, now.day);
     final DateTime initial = _birthdate ?? DateTime(now.year - 18, 1, 1);
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -781,8 +777,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
     }
     if (_birthdate != null) {
       final DateTime now = DateTime.now();
-      final DateTime minAllowed =
-          DateTime(now.year - 13, now.month, now.day);
+      final DateTime minAllowed = DateTime(now.year - 13, now.month, now.day);
       if (_birthdate!.isAfter(minAllowed)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('You must be at least 13 years old.')),
@@ -857,29 +852,6 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-<<<<<<< HEAD
-                ClipOval(
-                  child: _avatarBytes != null
-                      ? Image.memory(
-                          _avatarBytes!,
-                          width: 68,
-                          height: 68,
-                          fit: BoxFit.cover,
-                        )
-                      : (appState.userAvatarUrl == null
-                            ? Image.asset(
-                                'assets/images/boardmaster-square.png',
-                                width: 68,
-                                height: 68,
-                                fit: BoxFit.cover,
-                              )
-                            : Image.network(
-                                appState.userAvatarUrl!,
-                                width: 68,
-                                height: 68,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Image.asset(
-=======
                 Stack(
                   alignment: Alignment.center,
                   children: <Widget>[
@@ -892,29 +864,24 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                               fit: BoxFit.cover,
                             )
                           : (appState.userAvatarUrl == null
-                              ? Image.asset(
->>>>>>> 7f42657c5cc46308a3e3f35136d418c6cec685fd
-                                  'assets/images/boardmaster-square.png',
-                                  width: 68,
-                                  height: 68,
-                                  fit: BoxFit.cover,
-<<<<<<< HEAD
-                                ),
-                              )),
-=======
-                                )
-                              : Image.network(
-                                  appState.userAvatarUrl!,
-                                  width: 68,
-                                  height: 68,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Image.asset(
+                                ? Image.asset(
                                     'assets/images/boardmaster-square.png',
                                     width: 68,
                                     height: 68,
                                     fit: BoxFit.cover,
-                                  ),
-                                )),
+                                  )
+                                : Image.network(
+                                    appState.userAvatarUrl!,
+                                    width: 68,
+                                    height: 68,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Image.asset(
+                                      'assets/images/boardmaster-square.png',
+                                      width: 68,
+                                      height: 68,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )),
                     ),
                     if (_avatarBytes != null || appState.userAvatarUrl != null)
                       Positioned.fill(
@@ -942,7 +909,6 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                         ),
                       ),
                   ],
->>>>>>> 7f42657c5cc46308a3e3f35136d418c6cec685fd
                 ),
                 const SizedBox(width: 12),
                 Expanded(

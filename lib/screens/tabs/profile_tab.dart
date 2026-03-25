@@ -16,7 +16,6 @@ class ProfileTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
-    final DateFormat formatter = DateFormat('MMM dd, yyyy hh:mm a');
 
     return CustomScrollView(
       slivers: <Widget>[
@@ -210,116 +209,6 @@ class ProfileTab extends StatelessWidget {
         ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-            child: Text(
-              'Recent Attempts',
-              style: GoogleFonts.redHatDisplay(
-                fontSize: 23,
-                fontWeight: FontWeight.w800,
-                color: AppPalette.primary,
-              ),
-            ),
-          ),
-        ),
-        if (appState.records.isEmpty)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  'No attempts yet. Start a practice set to see your results.',
-                  style: GoogleFonts.manrope(
-                    color: AppPalette.muted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        SliverList.builder(
-          itemCount: appState.records.length,
-          itemBuilder: (BuildContext context, int index) {
-            final QuizRecord item = appState.records[index];
-            final int percent = item.total == 0
-                ? 0
-                : ((item.score / item.total) * 100).round();
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppPalette.primary.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppPalette.primary.withValues(alpha: 0.12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        item.subjectCode,
-                        style: GoogleFonts.manrope(
-                          color: AppPalette.primary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            '${item.score}/${item.total}  $percent%',
-                            style: GoogleFonts.redHatDisplay(
-                              color: AppPalette.textDark,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 20,
-                            ),
-                          ),
-                          Text(
-                            item.subjectTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            formatter.format(item.completedAt),
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
             child: SizedBox(
               width: double.infinity,
@@ -380,7 +269,8 @@ class ProfileTab extends StatelessWidget {
                   context.read<AppState>().logout();
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute<void>(
-                      builder: (_) => const LoginScreen(),
+                      builder: (_) =>
+                          const LoginScreen(showLogoutMessage: true),
                     ),
                     (Route<dynamic> route) => false,
                   );
@@ -787,14 +677,76 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
     });
   }
 
+  void _showAvatarPreview(AppState appState) {
+    if (_avatarBytes == null && appState.userAvatarUrl == null) {
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: <Widget>[
+                Container(
+                  color: Colors.black,
+                  child: InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 4,
+                    child: Center(
+                      child: _avatarBytes != null
+                          ? Image.memory(
+                              _avatarBytes!,
+                              fit: BoxFit.contain,
+                            )
+                          : Image.network(
+                              appState.userAvatarUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                'assets/images/boardmaster-square.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: IconButton(
+                    onPressed: () => Navigator.of(dialogContext).maybePop(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: Colors.white,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withValues(alpha: 0.45),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _pickBirthdate(BuildContext context) async {
     final DateTime now = DateTime.now();
+    final DateTime latestAllowed =
+        DateTime(now.year - 13, now.month, now.day);
     final DateTime initial = _birthdate ?? DateTime(now.year - 18, 1, 1);
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initial,
       firstDate: DateTime(1950, 1, 1),
-      lastDate: now,
+      lastDate: latestAllowed,
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -826,6 +778,17 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
 
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
+    }
+    if (_birthdate != null) {
+      final DateTime now = DateTime.now();
+      final DateTime minAllowed =
+          DateTime(now.year - 13, now.month, now.day);
+      if (_birthdate!.isAfter(minAllowed)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be at least 13 years old.')),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -894,6 +857,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
+<<<<<<< HEAD
                 ClipOval(
                   child: _avatarBytes != null
                       ? Image.memory(
@@ -915,12 +879,70 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                                 height: 68,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Image.asset(
+=======
+                Stack(
+                  alignment: Alignment.center,
+                  children: <Widget>[
+                    ClipOval(
+                      child: _avatarBytes != null
+                          ? Image.memory(
+                              _avatarBytes!,
+                              width: 68,
+                              height: 68,
+                              fit: BoxFit.cover,
+                            )
+                          : (appState.userAvatarUrl == null
+                              ? Image.asset(
+>>>>>>> 7f42657c5cc46308a3e3f35136d418c6cec685fd
                                   'assets/images/boardmaster-square.png',
                                   width: 68,
                                   height: 68,
                                   fit: BoxFit.cover,
+<<<<<<< HEAD
                                 ),
                               )),
+=======
+                                )
+                              : Image.network(
+                                  appState.userAvatarUrl!,
+                                  width: 68,
+                                  height: 68,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Image.asset(
+                                    'assets/images/boardmaster-square.png',
+                                    width: 68,
+                                    height: 68,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )),
+                    ),
+                    if (_avatarBytes != null || appState.userAvatarUrl != null)
+                      Positioned.fill(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(999),
+                            onTap: () => _showAvatarPreview(appState),
+                            child: Container(
+                              alignment: Alignment.center,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.visibility_outlined,
+                                  color: Colors.white70,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+>>>>>>> 7f42657c5cc46308a3e3f35136d418c6cec685fd
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1089,7 +1111,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                         _saveProfile(appState);
                       },
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppPalette.secondary,
+                  backgroundColor: AppPalette.primary,
                 ),
                 child: _saving
                     ? const SizedBox(

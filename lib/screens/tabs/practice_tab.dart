@@ -8,7 +8,9 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../models/app_models.dart';
 import '../../state/app_state.dart';
+import '../home_shell.dart';
 import '../quiz_screen.dart';
+import '../rationalization_screen.dart';
 
 class PracticeTab extends StatefulWidget {
   const PracticeTab({super.key});
@@ -17,18 +19,132 @@ class PracticeTab extends StatefulWidget {
   State<PracticeTab> createState() => _PracticeTabState();
 }
 
-class _PracticeTabState extends State<PracticeTab> {
+class _PracticeTabState extends State<PracticeTab>
+    with SingleTickerProviderStateMixin {
   SubjectItem? _selected;
+  final Set<int> _selectedAttemptIds = <int>{};
+  late final AnimationController _flickerController;
+  late final Animation<double> _flickerOpacity;
+
+  bool get _hasSelectedAttempts => _selectedAttemptIds.isNotEmpty;
+
+  Future<void> _confirmDeleteSelected(AppState appState) async {
+    if (!_hasSelectedAttempts) {
+      return;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete attempts'),
+          content: Text(
+            'Delete ${_selectedAttemptIds.length} selected attempts?',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    final List<int> ids = _selectedAttemptIds.toList();
+    final String? error = await appState.deleteQuizAttempts(ids);
+    if (!mounted) {
+      return;
+    }
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+      return;
+    }
+
+    setState(() {
+      _selectedAttemptIds.clear();
+    });
+  }
+
+  Future<void> _confirmClearAll(AppState appState) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Clear recent attempts'),
+          content: const Text('This will remove all your recent attempts.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Clear all'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    final String? error = await appState.clearQuizAttempts();
+    if (!mounted) {
+      return;
+    }
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+      return;
+    }
+
+    setState(() {
+      _selectedAttemptIds.clear();
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    _flickerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+    _flickerOpacity = Tween<double>(begin: 0.08, end: 0.18).animate(
+      CurvedAnimation(
+        parent: _flickerController,
+        curve: Curves.easeInOut,
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
       }
       context.read<AppState>().loadPracticeSubjects();
+      context.read<AppState>().loadQuizAttempts(loadMore: false);
     });
+  }
+
+  @override
+  void dispose() {
+    _flickerController.dispose();
+    super.dispose();
   }
 
   Future<void> _openQuestionCountModal({
@@ -270,12 +386,47 @@ class _PracticeTabState extends State<PracticeTab> {
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
-    final List<SubjectItem> subjects = appState.visibleSubjects;
+    final List<SubjectItem> subjects = appState.practiceSubjects;
+    final Set<String> accessibleIds = subjects
+        .where((SubjectItem item) => item.isAccessible)
+        .map((SubjectItem item) => item.id)
+        .toSet();
+    final List<QuizAttemptItem> attempts = appState.quizAttempts;
+    final int visibleCount = attempts.length;
+    final bool canLoadMore = appState.hasMoreQuizAttempts;
+    final DateFormat formatter = DateFormat('MMM dd, yyyy hh:mm a');
+    String formatAttemptDate(DateTime value) {
+      try {
+        return formatter.format(value);
+      } catch (_) {
+        return value.toIso8601String();
+      }
+    }
+
+    final List<SubjectItem> unlockedSubjects = subjects
+        .where((SubjectItem item) => accessibleIds.contains(item.id))
+        .toList();
 
     if (subjects.isNotEmpty &&
         (_selected == null ||
             !subjects.any((SubjectItem item) => item.id == _selected!.id))) {
-      _selected = subjects.first;
+      _selected = unlockedSubjects.isNotEmpty ? unlockedSubjects.first : null;
+    }
+
+    if (_selectedAttemptIds.isNotEmpty) {
+      final Set<int> attemptIds =
+          attempts.map((QuizAttemptItem item) => item.id).toSet();
+      if (_selectedAttemptIds.any((int id) => !attemptIds.contains(id))) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _selectedAttemptIds
+                .removeWhere((int id) => !attemptIds.contains(id));
+          });
+        });
+      }
     }
 
     if (subjects.isEmpty &&
@@ -319,7 +470,7 @@ class _PracticeTabState extends State<PracticeTab> {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Text(
-            'No accessible subjects yet for your current plan.',
+            'No subjects available yet.',
             textAlign: TextAlign.center,
             style: GoogleFonts.manrope(
               color: AppPalette.muted,
@@ -332,6 +483,13 @@ class _PracticeTabState extends State<PracticeTab> {
 
     return CustomScrollView(
       slivers: <Widget>[
+        if (appState.loadingPracticeSubjects)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: LinearProgressIndicator(),
+            ),
+          ),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -372,75 +530,464 @@ class _PracticeTabState extends State<PracticeTab> {
               int index,
             ) {
               final SubjectItem subject = subjects[index];
-              final bool selected = subject.id == _selected?.id;
+              final bool isLocked = !accessibleIds.contains(subject.id);
+              final bool selected = !isLocked && subject.id == _selected?.id;
               return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selected = subject;
-                  });
-                  _openQuestionCountModal(
-                    subject: subject,
-                    appState: context.read<AppState>(),
-                  );
+                onTap: isLocked
+                    ? () {
+                        showDialog<void>(
+                          context: context,
+                          builder: (BuildContext dialogContext) {
+                            final PlanOption currentPlan =
+                                appState.currentPlan;
+                            final List<PlanOption> paidPlans = appState.plans
+                                .where((PlanOption plan) => plan.isPaid)
+                                .toList()
+                              ..sort(
+                                (PlanOption a, PlanOption b) =>
+                                    a.price.compareTo(b.price),
+                              );
+                            final PlanOption recommendedPlan =
+                                paidPlans.isNotEmpty
+                                    ? paidPlans.first
+                                    : currentPlan;
+                            return AlertDialog(
+                              title: const Text('Upgrade required'),
+                              content: Text(
+                                'Upgrade your plan to unlock ${subject.title}.',
+                              ),
+                              actions: <Widget>[
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop(),
+                                  child: const Text('Not now'),
+                                ),
+                                FilledButton(
+                                  onPressed: () {
+                                    Navigator.of(dialogContext).pop();
+                                    Navigator.of(context).pushAndRemoveUntil(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            HomeShell(
+                                              initialIndex: 0,
+                                              initialPlanId:
+                                                  recommendedPlan.id,
+                                            ),
+                                      ),
+                                      (Route<dynamic> route) => false,
+                                    );
+                                  },
+                                  child: const Text('View Plans'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      }
+                    : () {
+                    setState(() {
+                      _selected = subject;
+                    });
+                    _openQuestionCountModal(
+                      subject: subject,
+                      appState: context.read<AppState>(),
+                    );
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 240),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: subject.color,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: selected ? Colors.white : Colors.transparent,
-                      width: 2,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 240),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isLocked
+                            ? subject.color.withValues(alpha: 0.35)
+                            : subject.color,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: selected ? Colors.white : Colors.transparent,
+                          width: 2,
+                        ),
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: subject.color.withValues(alpha: 0.35),
+                            blurRadius: selected ? 16 : 8,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Opacity(
+                        opacity: isLocked ? 0.65 : 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              subject.code,
+                              style: GoogleFonts.redHatDisplay(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              subject.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.manrope(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              NumberFormat.decimalPattern().format(
+                                subject.totalQuestions,
+                              ),
+                              style: GoogleFonts.manrope(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: subject.color.withValues(alpha: 0.35),
-                        blurRadius: selected ? 16 : 8,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        subject.code,
-                        style: GoogleFonts.redHatDisplay(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
+                    if (isLocked)
+                      Positioned.fill(
+                        child: AnimatedBuilder(
+                          animation: _flickerOpacity,
+                          builder: (BuildContext context, Widget? child) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(
+                                  alpha: _flickerOpacity.value,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: child,
+                            );
+                          },
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.lock_rounded,
+                                size: 20,
+                                color: AppPalette.primary,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subject.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        NumberFormat.decimalPattern().format(
-                          subject.totalQuestions,
-                        ),
-                        style: GoogleFonts.manrope(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               );
             }, childCount: subjects.length),
           ),
         ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+            child: Text(
+              'Recent Attempts',
+              style: GoogleFonts.redHatDisplay(
+                fontSize: 23,
+                fontWeight: FontWeight.w800,
+                color: AppPalette.primary,
+              ),
+            ),
+          ),
+        ),
+        if (attempts.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Column(
+                children: <Widget>[
+                  if (_hasSelectedAttempts)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${_selectedAttemptIds.length} selected',
+                          style: GoogleFonts.manrope(
+                            color: AppPalette.muted,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: appState.loadingQuizAttempts
+                              ? null
+                              : () => _confirmClearAll(appState),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: AppPalette.primary.withValues(alpha: 0.25),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text(
+                            'Clear all',
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w700,
+                              color: AppPalette.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: !_hasSelectedAttempts ||
+                                  appState.loadingQuizAttempts
+                              ? null
+                              : () => _confirmDeleteSelected(appState),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppPalette.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text(
+                            'Delete selected',
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (attempts.isEmpty && appState.loadingQuizAttempts)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          )
+        else if (attempts.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'No attempts yet. Start a practice set to see your results.',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (attempts.isNotEmpty)
+          SliverList.builder(
+            itemCount: visibleCount,
+            itemBuilder: (BuildContext context, int index) {
+              final QuizAttemptItem item = attempts[index];
+              final int percent = item.total == 0
+                  ? 0
+                  : ((item.score / item.total) * 100).round();
+
+              final bool isSelected = _selectedAttemptIds.contains(item.id);
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 16, 6),
+                child: Row(
+                  children: <Widget>[
+                    Checkbox(
+                      value: isSelected,
+                      activeColor: AppPalette.primary,
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedAttemptIds.add(item.id);
+                          } else {
+                            _selectedAttemptIds.remove(item.id);
+                          }
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () async {
+                          final BuildContext rootContext = context;
+                          showDialog<void>(
+                            context: rootContext,
+                            barrierDismissible: false,
+                            builder: (_) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+
+                          final result =
+                              await appState.loadQuizAttemptDetails(item.id);
+                          if (!mounted) {
+                            return;
+                          }
+                          Navigator.of(rootContext, rootNavigator: true).pop();
+
+                          if (!result.ok || result.data == null) {
+                            ScaffoldMessenger.of(rootContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  result.message ??
+                                      'Unable to load attempt details.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          final QuizAttemptDetail detail = result.data!;
+                          Navigator.of(rootContext).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => RationalizationScreen(
+                                subject: detail.subject,
+                                questions: detail.questions,
+                                answers: detail.answers,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color:
+                                  AppPalette.primary.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppPalette.primary.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  item.subjectCode,
+                                  style: GoogleFonts.manrope(
+                                    color: AppPalette.primary,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      '${item.score}/${item.total}  $percent%',
+                                      style: GoogleFonts.redHatDisplay(
+                                        color: AppPalette.textDark,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                    Text(
+                                      item.subjectTitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.manrope(
+                                        color: AppPalette.muted,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      formatAttemptDate(item.completedAt),
+                                      style: GoogleFonts.manrope(
+                                        color: AppPalette.muted,
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                color: AppPalette.muted,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        if (canLoadMore)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+              child: OutlinedButton(
+                onPressed: appState.loadingQuizAttempts
+                    ? null
+                    : () {
+                        context.read<AppState>().loadQuizAttempts(
+                              loadMore: true,
+                            );
+                      },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: AppPalette.primary.withValues(alpha: 0.25),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: appState.loadingQuizAttempts
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        'Load 5 more attempts',
+                        style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w700,
+                          color: AppPalette.primary,
+                        ),
+                      ),
+              ),
+            ),
+          ),
       ],
     );
   }

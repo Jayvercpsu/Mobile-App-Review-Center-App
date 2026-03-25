@@ -3,13 +3,21 @@ import 'package:provider/provider.dart';
 
 import 'tabs/dashboard_tab.dart';
 import 'tabs/practice_tab.dart';
+import 'tabs/referrals_tab.dart';
 import 'tabs/profile_tab.dart';
 import '../state/app_state.dart';
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, this.initialIndex = 0});
+  const HomeShell({
+    super.key,
+    this.initialIndex = 0,
+    this.initialPlanId,
+    this.showOnlineMessageOnStart = false,
+  });
 
   final int initialIndex;
+  final int? initialPlanId;
+  final bool showOnlineMessageOnStart;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -18,17 +26,24 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   late int _index;
   bool? _lastOffline;
+  bool _pendingOnlineMessage = false;
 
   @override
   void initState() {
     super.initState();
     _index = widget.initialIndex;
+    _pendingOnlineMessage = widget.showOnlineMessageOnStart;
   }
 
-  Future<void> _refreshOnTabSwitch() async {
+  Future<void> _refreshOnTabSwitch(int index) async {
     final AppState appState = context.read<AppState>();
 
     if (appState.signedIn) {
+      if (index == 2) {
+        await appState.loadReferrals(loadMore: false);
+        return;
+      }
+
       await appState.refreshCurrentUser();
       return;
     }
@@ -40,20 +55,24 @@ class _HomeShellState extends State<HomeShell> {
     setState(() {
       _index = index;
     });
-    _refreshOnTabSwitch();
+    _refreshOnTabSwitch(index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isOffline = context.watch<AppState>().isOffline;
-    if (_lastOffline != isOffline) {
+    final AppState appState = context.watch<AppState>();
+    final bool isOffline = appState.isOffline;
+    final bool? previousOffline = _lastOffline;
+    if (previousOffline == null) {
+      _lastOffline = isOffline;
+    } else if (previousOffline != isOffline) {
       _lastOffline = isOffline;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           return;
         }
         final messenger = ScaffoldMessenger.of(context);
-        if (isOffline) {
+        if (isOffline && previousOffline == false) {
           messenger.showSnackBar(
             const SnackBar(
               content: Text(
@@ -62,7 +81,7 @@ class _HomeShellState extends State<HomeShell> {
               duration: Duration(seconds: 5),
             ),
           );
-        } else {
+        } else if (!isOffline && previousOffline == true && appState.signedIn) {
           messenger.showSnackBar(
             const SnackBar(
               content: Text('Back online.'),
@@ -73,13 +92,30 @@ class _HomeShellState extends State<HomeShell> {
       });
     }
 
+    if (_pendingOnlineMessage && appState.signedIn && !isOffline) {
+      _pendingOnlineMessage = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Back online.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      });
+    }
+
     final List<Widget> pages = <Widget>[
       DashboardTab(
         onOpenPractice: () {
           _switchTo(1);
         },
+        initialPlanId: widget.initialPlanId,
       ),
       const PracticeTab(),
+      const ReferralsTab(),
       const ProfileTab(),
     ];
 
@@ -105,6 +141,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.fact_check_outlined),
             selectedIcon: Icon(Icons.fact_check_rounded),
             label: 'Practice',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.card_giftcard_outlined),
+            selectedIcon: Icon(Icons.card_giftcard_rounded),
+            label: 'Referrals',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),

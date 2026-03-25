@@ -38,6 +38,7 @@ class SubjectItem {
     required this.totalQuestions,
     required this.color,
     int? maxQuestionsPerSet,
+    this.isAccessible = true,
   }) : maxQuestionsPerSet = maxQuestionsPerSet ?? totalQuestions;
 
   final String id;
@@ -46,6 +47,7 @@ class SubjectItem {
   final int totalQuestions;
   final Color color;
   final int maxQuestionsPerSet;
+  final bool isAccessible;
 }
 
 class QuestionItem {
@@ -73,6 +75,8 @@ class QuizRecord {
     required this.score,
     required this.total,
     required this.completedAt,
+    this.questions = const <QuestionItem>[],
+    this.answers = const <int, String>{},
   });
 
   final String subjectCode;
@@ -80,6 +84,48 @@ class QuizRecord {
   final int score;
   final int total;
   final DateTime completedAt;
+  final List<QuestionItem> questions;
+  final Map<int, String> answers;
+}
+
+class QuizAttemptItem {
+  const QuizAttemptItem({
+    required this.id,
+    required this.subjectId,
+    required this.subjectCode,
+    required this.subjectTitle,
+    required this.score,
+    required this.total,
+    required this.completedAt,
+  });
+
+  final int id;
+  final int? subjectId;
+  final String subjectCode;
+  final String subjectTitle;
+  final int score;
+  final int total;
+  final DateTime completedAt;
+}
+
+class QuizAttemptDetail {
+  const QuizAttemptDetail({
+    required this.id,
+    required this.subject,
+    required this.score,
+    required this.total,
+    required this.completedAt,
+    required this.questions,
+    required this.answers,
+  });
+
+  final int id;
+  final SubjectItem subject;
+  final int score;
+  final int total;
+  final DateTime completedAt;
+  final List<QuestionItem> questions;
+  final Map<int, String> answers;
 }
 
 class SubscriptionHistoryItem {
@@ -114,4 +160,64 @@ class ReferralEntry {
   final String invitedName;
   final String invitedEmail;
   final DateTime? createdAt;
+}
+
+class ReferralPoints {
+  const ReferralPoints({
+    required this.earned,
+    required this.spent,
+    required this.available,
+    required this.perReferral,
+  });
+
+  final int earned;
+  final int spent;
+  final int available;
+  final int perReferral;
+}
+
+class ReferralOfferItem {
+  const ReferralOfferItem({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.pointsCost,
+    required this.subject,
+    required this.subjectId,
+    required this.questionLimit,
+    required this.durationDays,
+    required this.category,
+    required this.brand,
+    required this.imageUrl,
+    required this.isFeatured,
+  });
+
+  final int id;
+  final String title;
+  final String? description;
+  final int pointsCost;
+  final String? subject;
+  final int? subjectId;
+  final int? questionLimit;
+  final int? durationDays;
+  final String? category;
+  final String? brand;
+  final String? imageUrl;
+  final bool isFeatured;
+}
+
+class ReferralRewardItem {
+  const ReferralRewardItem({
+    required this.id,
+    required this.offerId,
+    required this.subjectId,
+    required this.questionLimit,
+    required this.expiresAt,
+  });
+
+  final int id;
+  final int offerId;
+  final int? subjectId;
+  final int? questionLimit;
+  final DateTime? expiresAt;
 }

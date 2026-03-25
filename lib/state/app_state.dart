@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/app_theme.dart';
 import '../models/app_models.dart';
 import '../services/mobile_api_service.dart';
 
@@ -33,6 +34,11 @@ class AppState extends ChangeNotifier {
   String? referredByName;
   String? referredByEmail;
   int referralJoinedCount = 0;
+  ReferralPoints? referralPoints;
+  List<ReferralOfferItem> _referralOffers = <ReferralOfferItem>[];
+  List<String> referralCategories = <String>[];
+  List<String> referralBrands = <String>[];
+  List<ReferralRewardItem> _activeRewards = <ReferralRewardItem>[];
   int? lastScore;
   int? lastScoreTotal;
   String? lastScoreSubject;
@@ -58,6 +64,12 @@ class AppState extends ChangeNotifier {
   bool loadingSubscriptionHistory = false;
   bool hasMoreSubscriptionHistory = false;
   int _subscriptionHistoryPage = 1;
+  List<QuizAttemptItem> _quizAttempts = <QuizAttemptItem>[];
+  bool loadingQuizAttempts = false;
+  bool hasMoreQuizAttempts = false;
+  int _quizAttemptsPage = 1;
+  final Map<int, QuizAttemptDetail> _quizAttemptDetails =
+      <int, QuizAttemptDetail>{};
   List<ReferralEntry> _referralEntries = <ReferralEntry>[];
   bool loadingReferrals = false;
   bool hasMoreReferrals = false;
@@ -116,10 +128,18 @@ class AppState extends ChangeNotifier {
 
   List<PlanOption> get plans => List<PlanOption>.unmodifiable(_plans);
   bool get practiceSubjectsLoaded => _practiceSubjectsLoaded;
+  List<SubjectItem> get practiceSubjects =>
+      List<SubjectItem>.unmodifiable(_practiceSubjects);
   List<SubscriptionHistoryItem> get subscriptionHistory =>
       List<SubscriptionHistoryItem>.unmodifiable(_subscriptionHistory);
+  List<QuizAttemptItem> get quizAttempts =>
+      List<QuizAttemptItem>.unmodifiable(_quizAttempts);
   List<ReferralEntry> get referralEntries =>
       List<ReferralEntry>.unmodifiable(_referralEntries);
+  List<ReferralOfferItem> get referralOffers =>
+      List<ReferralOfferItem>.unmodifiable(_referralOffers);
+  List<ReferralRewardItem> get activeRewards =>
+      List<ReferralRewardItem>.unmodifiable(_activeRewards);
 
   final List<SubjectItem> allSubjects = const <SubjectItem>[
     SubjectItem(
@@ -431,6 +451,7 @@ class AppState extends ChangeNotifier {
       await loadDashboardMetrics(force: true);
       await loadSubscriptionHistory(loadMore: false);
       await loadReferrals(loadMore: false);
+      await loadQuizAttempts(loadMore: false);
       notifyListeners();
       return true;
     } catch (_) {
@@ -540,6 +561,7 @@ class AppState extends ChangeNotifier {
     await loadDashboardMetrics(force: true);
     await loadSubscriptionHistory(loadMore: false);
     await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
     return null;
   }
 
@@ -547,11 +569,17 @@ class AppState extends ChangeNotifier {
     required String name,
     required String email,
     required String password,
+    String? passwordConfirmation,
+    DateTime? birthdate,
+    String? gender,
   }) async {
     final ApiResult<AuthPayload> response = await _api.register(
       name: name,
       email: email,
       password: password,
+      passwordConfirmation: passwordConfirmation,
+      birthdate: birthdate,
+      gender: gender,
     );
     if (!response.ok || response.data == null) {
       return response.message ?? 'Registration failed.';
@@ -573,6 +601,7 @@ class AppState extends ChangeNotifier {
     await loadDashboardMetrics(force: true);
     await loadSubscriptionHistory(loadMore: false);
     await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
     return null;
   }
 
@@ -672,6 +701,7 @@ class AppState extends ChangeNotifier {
         totalQuestions: item.totalQuestions,
         maxQuestionsPerSet: item.questionLimit,
         color: _subjectColorForPayload(item, index),
+        isAccessible: item.isAccessible,
       );
     }).toList();
 
@@ -732,6 +762,39 @@ class AppState extends ChangeNotifier {
     referralJoinedCount = payload.joinCount;
     referredByName = payload.referredByName;
     referredByEmail = payload.referredByEmail;
+    referralPoints = ReferralPoints(
+      earned: payload.points.earned,
+      spent: payload.points.spent,
+      available: payload.points.available,
+      perReferral: payload.points.perReferral,
+    );
+    referralCategories = payload.categories;
+    referralBrands = payload.brands;
+    _referralOffers = payload.offers
+        .map((ReferralOfferPayload item) => ReferralOfferItem(
+              id: item.id,
+              title: item.title,
+              description: item.description,
+              pointsCost: item.pointsCost,
+              subject: item.subject,
+              subjectId: item.subjectId,
+              questionLimit: item.questionLimit,
+              durationDays: item.durationDays,
+              category: item.category,
+              brand: item.brand,
+              imageUrl: item.imageUrl,
+              isFeatured: item.isFeatured,
+            ))
+        .toList();
+    _activeRewards = payload.activeRewards
+        .map((ReferralRewardPayload item) => ReferralRewardItem(
+              id: item.id,
+              offerId: item.offerId,
+              subjectId: item.subjectId,
+              questionLimit: item.questionLimit,
+              expiresAt: item.expiresAt,
+            ))
+        .toList();
     if (loadMore) {
       _referralEntries = <ReferralEntry>[
         ..._referralEntries,
@@ -769,7 +832,34 @@ class AppState extends ChangeNotifier {
     }
 
     await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
     await loadDashboardMetrics(force: true);
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> redeemReferralOffer(ReferralOfferItem offer) async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+
+    final ApiResult<ReferralRedemptionPayload> response =
+        await _api.redeemReferralOffer(offerId: offer.id);
+    if (!response.ok || response.data == null) {
+      return response.message ?? 'Unable to redeem this offer.';
+    }
+
+    final ReferralRedemptionPayload payload = response.data!;
+    referralPoints = ReferralPoints(
+      earned: payload.points.earned,
+      spent: payload.points.spent,
+      available: payload.points.available,
+      perReferral: payload.points.perReferral,
+    );
+
+    await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
+    await loadPracticeSubjects(force: true);
     notifyListeners();
     return null;
   }
@@ -825,6 +915,137 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  Future<String?> loadQuizAttempts({bool loadMore = false}) async {
+    if (!signedIn) {
+      return null;
+    }
+    if (loadingQuizAttempts) {
+      return null;
+    }
+
+    loadingQuizAttempts = true;
+    notifyListeners();
+
+    final int targetPage = loadMore ? _quizAttemptsPage + 1 : 1;
+    final ApiResult<QuizAttemptHistoryPayload> response =
+        await _api.fetchQuizAttempts(page: targetPage);
+    loadingQuizAttempts = false;
+
+    if (!response.ok || response.data == null) {
+      notifyListeners();
+      return response.message ?? 'Unable to load quiz attempts.';
+    }
+
+    final QuizAttemptHistoryPayload payload = response.data!;
+    final List<QuizAttemptItem> mapped = payload.attempts.map(
+      (QuizAttemptSummaryPayload item) {
+        return QuizAttemptItem(
+          id: item.id,
+          subjectId: item.subjectId,
+          subjectCode: item.subjectCode ?? 'SUBJ',
+          subjectTitle: item.subject ?? 'Subject',
+          score: item.score,
+          total: item.totalQuestions,
+          completedAt: item.createdAt ?? DateTime.now(),
+        );
+      },
+    ).toList();
+
+    if (loadMore) {
+      _quizAttempts = <QuizAttemptItem>[..._quizAttempts, ...mapped];
+    } else {
+      _quizAttempts = mapped;
+    }
+
+    _quizAttemptsPage = payload.pagination.currentPage;
+    hasMoreQuizAttempts = payload.pagination.hasMore;
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> deleteQuizAttempts(List<int> attemptIds) async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+    if (attemptIds.isEmpty) {
+      return 'No attempts selected.';
+    }
+
+    final ApiResult<int> response =
+        await _api.deleteQuizAttempts(attemptIds: attemptIds);
+    if (!response.ok) {
+      return response.message ?? 'Unable to delete attempts.';
+    }
+
+    final Set<int> ids = attemptIds.toSet();
+    _quizAttempts = _quizAttempts
+        .where((QuizAttemptItem item) => !ids.contains(item.id))
+        .toList();
+    ids.forEach(_quizAttemptDetails.remove);
+
+    if (_quizAttempts.isEmpty && hasMoreQuizAttempts) {
+      await loadQuizAttempts(loadMore: false);
+    } else {
+      notifyListeners();
+    }
+    return null;
+  }
+
+  Future<String?> clearQuizAttempts() async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+
+    final ApiResult<int> response = await _api.clearQuizAttempts();
+    if (!response.ok) {
+      return response.message ?? 'Unable to clear attempts.';
+    }
+
+    _quizAttempts = <QuizAttemptItem>[];
+    _quizAttemptDetails.clear();
+    hasMoreQuizAttempts = false;
+    _quizAttemptsPage = 1;
+    notifyListeners();
+    return null;
+  }
+
+  Future<ApiResult<QuizAttemptDetail>> loadQuizAttemptDetails(
+    int attemptId, {
+    bool force = false,
+  }) async {
+    if (!signedIn) {
+      return ApiResult<QuizAttemptDetail>.failure('Please login first.');
+    }
+
+    if (!force && _quizAttemptDetails.containsKey(attemptId)) {
+      return ApiResult<QuizAttemptDetail>.success(
+        _quizAttemptDetails[attemptId]!,
+      );
+    }
+
+    final ApiResult<QuizAttemptDetailPayload> response =
+        await _api.fetchQuizAttemptDetails(attemptId: attemptId);
+    if (!response.ok || response.data == null) {
+      return ApiResult<QuizAttemptDetail>.failure(
+        response.message ?? 'Unable to load attempt details.',
+      );
+    }
+
+    final QuizAttemptDetailPayload payload = response.data!;
+    final SubjectItem subject = _subjectForAttempt(payload);
+    final QuizAttemptDetail detail = QuizAttemptDetail(
+      id: payload.id,
+      subject: subject,
+      score: payload.score,
+      total: payload.totalQuestions,
+      completedAt: payload.createdAt,
+      questions: payload.questions,
+      answers: payload.answers,
+    );
+    _quizAttemptDetails[attemptId] = detail;
+    return ApiResult<QuizAttemptDetail>.success(detail);
+  }
+
   void logout() {
     signedIn = false;
     selectedPlanId = null;
@@ -843,6 +1064,11 @@ class AppState extends ChangeNotifier {
     referredByName = null;
     referredByEmail = null;
     referralJoinedCount = 0;
+    referralPoints = null;
+    _referralOffers = <ReferralOfferItem>[];
+    referralCategories = <String>[];
+    referralBrands = <String>[];
+    _activeRewards = <ReferralRewardItem>[];
     lastScore = null;
     lastScoreTotal = null;
     lastScoreSubject = null;
@@ -856,6 +1082,11 @@ class AppState extends ChangeNotifier {
     loadingSubscriptionHistory = false;
     hasMoreSubscriptionHistory = false;
     _subscriptionHistoryPage = 1;
+    _quizAttempts = <QuizAttemptItem>[];
+    loadingQuizAttempts = false;
+    hasMoreQuizAttempts = false;
+    _quizAttemptsPage = 1;
+    _quizAttemptDetails.clear();
     _referralEntries = <ReferralEntry>[];
     loadingReferrals = false;
     hasMoreReferrals = false;
@@ -894,6 +1125,8 @@ class AppState extends ChangeNotifier {
   bool get hasPremiumAccess =>
       selectedTier == PlanTier.premium && !isSubscriptionExpired;
 
+  bool get hasActivePaidPlan => currentPlan.isPaid && !isSubscriptionExpired;
+
   List<SubjectItem> get visibleSubjects {
     if (_practiceSubjects.isNotEmpty) {
       return List<SubjectItem>.unmodifiable(_practiceSubjects);
@@ -906,7 +1139,13 @@ class AppState extends ChangeNotifier {
 
   int get maxQuestionPerSet {
     if (_practiceSubjects.isNotEmpty) {
-      return _practiceSubjects.fold<int>(
+      final Iterable<SubjectItem> accessible = _practiceSubjects.where(
+        (SubjectItem item) => item.isAccessible && item.maxQuestionsPerSet > 0,
+      );
+      if (accessible.isEmpty) {
+        return 1;
+      }
+      return accessible.fold<int>(
         1,
         (int maxValue, SubjectItem item) => max(
           maxValue,
@@ -954,8 +1193,22 @@ class AppState extends ChangeNotifier {
     await loadDashboardMetrics(force: true);
     await loadSubscriptionHistory(loadMore: false);
     await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
     notifyListeners();
     return null;
+  }
+
+  Future<String?> cancelCurrentPlan() async {
+    if (!currentPlan.isPaid) {
+      return 'You are already on the free plan.';
+    }
+
+    final PlanOption? freePlan = _findFreePlan();
+    if (freePlan == null) {
+      return 'No free plan is available to switch to.';
+    }
+
+    return choosePlan(plan: freePlan, billingCycle: freePlan.billingCycle);
   }
 
   Future<ApiResult<CheckoutPayload>> createCheckout({
@@ -1103,10 +1356,41 @@ class AppState extends ChangeNotifier {
     return result;
   }
 
+  SubjectItem _subjectForAttempt(QuizAttemptDetailPayload payload) {
+    final String code = payload.subjectCode;
+    final String title = payload.subjectTitle;
+    final int? subjectId = payload.subjectId;
+
+    for (final SubjectItem item in _practiceSubjects) {
+      if (subjectId != null && int.tryParse(item.id) == subjectId) {
+        return item;
+      }
+      if (item.code == code || item.title == title) {
+        return item;
+      }
+    }
+
+    for (final SubjectItem item in allSubjects) {
+      if (item.code == code || item.title == title) {
+        return item;
+      }
+    }
+
+    return SubjectItem(
+      id: subjectId?.toString() ?? code,
+      code: code.isEmpty ? 'SUBJ' : code,
+      title: title.isEmpty ? 'Subject' : title,
+      totalQuestions: payload.totalQuestions,
+      color: AppPalette.primary,
+    );
+  }
+
   void saveRecord({
     required SubjectItem subject,
     required int score,
     required int total,
+    List<QuestionItem> questions = const <QuestionItem>[],
+    Map<int, String> answers = const <int, String>{},
   }) {
     records.insert(
       0,
@@ -1116,6 +1400,8 @@ class AppState extends ChangeNotifier {
         score: score,
         total: total,
         completedAt: DateTime.now(),
+        questions: List<QuestionItem>.from(questions),
+        answers: Map<int, String>.from(answers),
       ),
     );
     lastScore = score;
@@ -1173,6 +1459,20 @@ class AppState extends ChangeNotifier {
     }
     for (final PlanOption item in _plans) {
       if (item.id == id) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  PlanOption? _findFreePlan() {
+    for (final PlanOption item in _plans) {
+      if (!item.isPaid || item.tier == PlanTier.free) {
+        return item;
+      }
+    }
+    for (final PlanOption item in _fallbackPlans) {
+      if (!item.isPaid || item.tier == PlanTier.free) {
         return item;
       }
     }

@@ -31,15 +31,27 @@ class MobileApiService {
     required String name,
     required String email,
     required String password,
+    String? passwordConfirmation,
+    DateTime? birthdate,
+    String? gender,
   }) async {
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'name': name.trim(),
+      'email': email.trim(),
+      'password': password,
+      'password_confirmation': passwordConfirmation ?? password,
+    };
+
+    if (birthdate != null) {
+      payload['birthdate'] = birthdate.toIso8601String().split('T').first;
+    }
+    if (gender != null && gender.trim().isNotEmpty) {
+      payload['gender'] = gender.trim().toLowerCase();
+    }
+
     return _postAuth(
       path: ApiConfig.register,
-      payload: <String, dynamic>{
-        'name': name.trim(),
-        'email': email.trim(),
-        'password': password,
-        'password_confirmation': password,
-      },
+      payload: payload,
     );
   }
 
@@ -383,6 +395,48 @@ class MobileApiService {
     }
   }
 
+  Future<ApiResult<ReferralRedemptionPayload>> redeemReferralOffer({
+    required int offerId,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<ReferralRedemptionPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.referralRedeem,
+        payload: <String, dynamic>{'offer_id': offerId},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<ReferralRedemptionPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final ReferralRedemptionPayload? payload =
+          _toReferralRedemptionPayload(decoded);
+      if (payload == null) {
+        return ApiResult<ReferralRedemptionPayload>.failure(
+          'Redemption response is missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<ReferralRedemptionPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<ReferralRedemptionPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
   Future<ApiResult<SubscriptionHistoryPayload>> fetchSubscriptionHistory({
     int page = 1,
   }) async {
@@ -419,6 +473,167 @@ class MobileApiService {
       return ApiResult<SubscriptionHistoryPayload>.success(payload);
     } catch (_) {
       return ApiResult<SubscriptionHistoryPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<QuizAttemptHistoryPayload>> fetchQuizAttempts({
+    int page = 1,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<QuizAttemptHistoryPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _getWithFallback(
+        path: '${ApiConfig.quizAttempts}?page=$page',
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<QuizAttemptHistoryPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final QuizAttemptHistoryPayload? payload =
+          _toQuizAttemptHistoryPayload(decoded);
+      if (payload == null) {
+        return ApiResult<QuizAttemptHistoryPayload>.failure(
+          'Quiz attempt history is missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<QuizAttemptHistoryPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<QuizAttemptHistoryPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<QuizAttemptDetailPayload>> fetchQuizAttemptDetails({
+    required int attemptId,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<QuizAttemptDetailPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _getWithFallback(
+        path: '${ApiConfig.quizAttempts}/$attemptId',
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<QuizAttemptDetailPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final QuizAttemptDetailPayload? payload =
+          _toQuizAttemptDetailPayload(decoded);
+      if (payload == null) {
+        return ApiResult<QuizAttemptDetailPayload>.failure(
+          'Quiz attempt details are missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<QuizAttemptDetailPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<QuizAttemptDetailPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<int>> deleteQuizAttempts({
+    required List<int> attemptIds,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<int>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    final List<int> cleaned =
+        attemptIds.where((int id) => id > 0).toSet().toList();
+    if (cleaned.isEmpty) {
+      return ApiResult<int>.failure('No attempts selected.');
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.quizAttemptsDelete,
+        payload: <String, dynamic>{'attempt_ids': cleaned},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<int>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final int deleted = _parseInt(
+            decoded is Map<String, dynamic> ? decoded['deleted'] : null,
+          ) ??
+          cleaned.length;
+
+      return ApiResult<int>.success(deleted);
+    } catch (_) {
+      return ApiResult<int>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<int>> clearQuizAttempts() async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<int>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.quizAttemptsClear,
+        payload: <String, dynamic>{},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<int>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final int deleted = _parseInt(
+            decoded is Map<String, dynamic> ? decoded['deleted'] : null,
+          ) ??
+          0;
+      return ApiResult<int>.success(deleted);
+    } catch (_) {
+      return ApiResult<int>.failure(
         'Cannot connect to web app. Check API url and backend server.',
       );
     }
@@ -1108,6 +1323,20 @@ class MobileApiService {
     if (questionLimit < 0) {
       questionLimit = 0;
     }
+    final dynamic accessRaw =
+        raw['is_accessible'] ?? raw['accessible'] ?? raw['has_access'];
+    bool isAccessible = false;
+    if (accessRaw is bool) {
+      isAccessible = accessRaw;
+    } else if (accessRaw is num) {
+      isAccessible = accessRaw > 0;
+    } else if (accessRaw is String) {
+      final String normalized = accessRaw.trim().toLowerCase();
+      isAccessible =
+          normalized == 'true' || normalized == '1' || normalized == 'yes';
+    } else {
+      isAccessible = questionLimit > 0;
+    }
     final String? colorHex = _nullableText(raw['color_hex'] ?? raw['color']);
 
     return PracticeSubjectPayload(
@@ -1116,6 +1345,7 @@ class MobileApiService {
       title: title,
       totalQuestions: totalQuestions < 0 ? 0 : totalQuestions,
       questionLimit: questionLimit,
+      isAccessible: isAccessible,
       colorHex: colorHex,
     );
   }
@@ -1237,6 +1467,15 @@ class MobileApiService {
 
     final List<ReferralEntryPayload> entries =
         _toReferralEntries(map['referrals']);
+    final ReferralPointsPayload points = _toReferralPointsPayload(
+      map['points'],
+    );
+    final List<ReferralOfferPayload> offers =
+        _toReferralOffers(map['offers']);
+    final List<String> categories = _toStringList(map['categories']);
+    final List<String> brands = _toStringList(map['brands']);
+    final List<ReferralRewardPayload> activeRewards =
+        _toReferralRewards(map['active_rewards']);
     final PaginationPayload pagination = _toPaginationPayload(
       decoded['pagination'] ?? map['pagination'],
     );
@@ -1247,7 +1486,110 @@ class MobileApiService {
       referredByEmail: _nullableText(map['referred_by']?['email']),
       joinCount: _parseInt(map['join_count']) ?? entries.length,
       referrals: entries,
+      points: points,
+      offers: offers,
+      categories: categories,
+      brands: brands,
+      activeRewards: activeRewards,
       pagination: pagination,
+    );
+  }
+
+  ReferralPointsPayload _toReferralPointsPayload(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      return const ReferralPointsPayload(
+        earned: 0,
+        spent: 0,
+        available: 0,
+        perReferral: 0,
+      );
+    }
+
+    return ReferralPointsPayload(
+      earned: _parseInt(raw['earned']) ?? 0,
+      spent: _parseInt(raw['spent']) ?? 0,
+      available: _parseInt(raw['available']) ?? 0,
+      perReferral: _parseInt(raw['per_referral']) ?? 0,
+    );
+  }
+
+  List<ReferralOfferPayload> _toReferralOffers(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <ReferralOfferPayload>[];
+    }
+    return raw.map((dynamic item) {
+      if (item is! Map<String, dynamic>) {
+        return null;
+      }
+      return ReferralOfferPayload(
+        id: _parseInt(item['id']) ?? 0,
+        title: _firstNonEmpty(<dynamic>[item['title']]),
+        description: _nullableText(item['description']),
+        pointsCost: _parseInt(item['points_cost']) ?? 0,
+        subject: _nullableText(item['subject']),
+        subjectId: _parseInt(item['subject_id']),
+        questionLimit: _parseInt(item['question_limit']),
+        durationDays: _parseInt(item['access_duration_days']),
+        category: _nullableText(item['category']),
+        brand: _nullableText(item['brand']),
+        imageUrl: _nullableText(item['image_url']),
+        isFeatured: item['is_featured'] == true,
+      );
+    }).whereType<ReferralOfferPayload>().toList();
+  }
+
+  List<ReferralRewardPayload> _toReferralRewards(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <ReferralRewardPayload>[];
+    }
+    return raw.map((dynamic item) {
+      if (item is! Map<String, dynamic>) {
+        return null;
+      }
+      return ReferralRewardPayload(
+        id: _parseInt(item['id']) ?? 0,
+        offerId: _parseInt(item['offer_id']) ?? 0,
+        subjectId: _parseInt(item['subject_id']),
+        questionLimit: _parseInt(item['question_limit']),
+        expiresAt: _parseDate(item['expires_at']),
+      );
+    }).whereType<ReferralRewardPayload>().toList();
+  }
+
+  List<String> _toStringList(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <String>[];
+    }
+    return raw
+        .map((dynamic item) => _firstNonEmpty(<dynamic>[item]))
+        .where((String item) => item.isNotEmpty)
+        .toList();
+  }
+
+  ReferralRedemptionPayload? _toReferralRedemptionPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final Map<String, dynamic> data = decoded['data'] is Map<String, dynamic>
+        ? decoded['data'] as Map<String, dynamic>
+        : decoded;
+    final Map<String, dynamic> pointsRaw =
+        decoded['points'] is Map<String, dynamic>
+            ? decoded['points'] as Map<String, dynamic>
+            : <String, dynamic>{};
+
+    return ReferralRedemptionPayload(
+      id: _parseInt(data['id']) ?? 0,
+      offerId: _parseInt(data['offer_id']) ?? 0,
+      subjectId: _parseInt(data['subject_id']),
+      questionLimit: _parseInt(data['question_limit']),
+      expiresAt: _parseDate(data['expires_at']),
+      points: ReferralPointsPayload(
+        earned: _parseInt(pointsRaw['earned']) ?? 0,
+        spent: _parseInt(pointsRaw['spent']) ?? 0,
+        available: _parseInt(pointsRaw['available']) ?? 0,
+        perReferral: _parseInt(pointsRaw['per_referral']) ?? 0,
+      ),
     );
   }
 
@@ -1284,6 +1626,121 @@ class MobileApiService {
       decoded['pagination'],
     );
     return SubscriptionHistoryPayload(entries: entries, pagination: pagination);
+  }
+
+  QuizAttemptHistoryPayload? _toQuizAttemptHistoryPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final List<QuizAttemptSummaryPayload> attempts =
+        _toQuizAttemptSummaries(decoded['data']);
+    final PaginationPayload pagination = _toPaginationPayload(
+      decoded['pagination'],
+    );
+    return QuizAttemptHistoryPayload(
+      attempts: attempts,
+      pagination: pagination,
+    );
+  }
+
+  List<QuizAttemptSummaryPayload> _toQuizAttemptSummaries(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return <QuizAttemptSummaryPayload>[];
+    }
+    return raw.map((dynamic item) {
+      if (item is! Map<String, dynamic>) {
+        return null;
+      }
+      final int? id = _parseInt(item['id']);
+      if (id == null) {
+        return null;
+      }
+      return QuizAttemptSummaryPayload(
+        id: id,
+        subjectId: _parseInt(item['subject_id']),
+        subject: _nullableText(item['subject']),
+        subjectCode: _nullableText(item['subject_code']),
+        score: _parseInt(item['score']) ?? 0,
+        totalQuestions: _parseInt(item['total_questions']) ?? 0,
+        createdAt: _parseDate(item['created_at']),
+      );
+    }).whereType<QuizAttemptSummaryPayload>().toList();
+  }
+
+  QuizAttemptDetailPayload? _toQuizAttemptDetailPayload(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final dynamic data = decoded['data'] ?? decoded;
+    if (data is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final Map<String, dynamic>? subjectMap =
+        data['subject'] is Map<String, dynamic>
+            ? data['subject'] as Map<String, dynamic>
+            : null;
+    final int? subjectId =
+        _parseInt(subjectMap?['id']) ?? _parseInt(data['subject_id']);
+    final String subjectTitle = _firstNonEmpty(<dynamic>[
+      subjectMap?['title'],
+      data['subject'],
+    ]);
+    final String subjectCode = _firstNonEmpty(<dynamic>[
+      subjectMap?['code'],
+      data['subject_code'],
+    ]);
+
+    final List<QuestionItem> questions = (data['questions'] is List<dynamic>)
+        ? (data['questions'] as List<dynamic>)
+            .map(_toQuestionItem)
+            .whereType<QuestionItem>()
+            .toList()
+        : <QuestionItem>[];
+
+    final Map<int, String?> answerByQuestionId = <int, String?>{};
+    if (data['answers'] is List<dynamic>) {
+      for (final dynamic item in data['answers']) {
+        if (item is! Map<String, dynamic>) {
+          continue;
+        }
+        final int? qid = _parseInt(item['question_id']);
+        if (qid == null) {
+          continue;
+        }
+        answerByQuestionId[qid] = _nullableText(item['selected_choice']);
+      }
+    }
+
+    final Map<int, String> answers = <int, String>{};
+    for (int i = 0; i < questions.length; i++) {
+      final QuestionItem question = questions[i];
+      if (question.id == null) {
+        continue;
+      }
+      final String? selected = answerByQuestionId[question.id!];
+      if (selected != null && selected.isNotEmpty) {
+        answers[i] = selected;
+      }
+    }
+
+    final int? attemptId = _parseInt(data['id']);
+    final DateTime? createdAt = _parseDate(data['created_at']);
+    if (attemptId == null || subjectTitle.isEmpty || createdAt == null) {
+      return null;
+    }
+
+    return QuizAttemptDetailPayload(
+      id: attemptId,
+      subjectId: subjectId,
+      subjectCode: subjectCode.isEmpty ? 'SUBJ' : subjectCode,
+      subjectTitle: subjectTitle,
+      score: _parseInt(data['score']) ?? 0,
+      totalQuestions: _parseInt(data['total_questions']) ?? questions.length,
+      createdAt: createdAt,
+      questions: questions,
+      answers: answers,
+    );
   }
 
   List<SubscriptionHistoryEntryPayload> _toSubscriptionEntries(dynamic raw) {
@@ -1593,6 +2050,7 @@ class PracticeSubjectPayload {
     required this.title,
     required this.totalQuestions,
     required this.questionLimit,
+    required this.isAccessible,
     required this.colorHex,
   });
 
@@ -1601,6 +2059,7 @@ class PracticeSubjectPayload {
   final String title;
   final int totalQuestions;
   final int questionLimit;
+  final bool isAccessible;
   final String? colorHex;
 }
 
@@ -1631,6 +2090,60 @@ class QuizSubmitPayload {
   final int attemptId;
   final int score;
   final int totalQuestions;
+}
+
+class QuizAttemptHistoryPayload {
+  const QuizAttemptHistoryPayload({
+    required this.attempts,
+    required this.pagination,
+  });
+
+  final List<QuizAttemptSummaryPayload> attempts;
+  final PaginationPayload pagination;
+}
+
+class QuizAttemptSummaryPayload {
+  const QuizAttemptSummaryPayload({
+    required this.id,
+    required this.subjectId,
+    required this.subject,
+    required this.subjectCode,
+    required this.score,
+    required this.totalQuestions,
+    required this.createdAt,
+  });
+
+  final int id;
+  final int? subjectId;
+  final String? subject;
+  final String? subjectCode;
+  final int score;
+  final int totalQuestions;
+  final DateTime? createdAt;
+}
+
+class QuizAttemptDetailPayload {
+  const QuizAttemptDetailPayload({
+    required this.id,
+    required this.subjectId,
+    required this.subjectCode,
+    required this.subjectTitle,
+    required this.score,
+    required this.totalQuestions,
+    required this.createdAt,
+    required this.questions,
+    required this.answers,
+  });
+
+  final int id;
+  final int? subjectId;
+  final String subjectCode;
+  final String subjectTitle;
+  final int score;
+  final int totalQuestions;
+  final DateTime createdAt;
+  final List<QuestionItem> questions;
+  final Map<int, String> answers;
 }
 
 class PlanSelectionPayload {
@@ -1688,6 +2201,11 @@ class ReferralSummaryPayload {
     required this.referredByEmail,
     required this.joinCount,
     required this.referrals,
+    required this.points,
+    required this.offers,
+    required this.categories,
+    required this.brands,
+    required this.activeRewards,
     required this.pagination,
   });
 
@@ -1696,7 +2214,90 @@ class ReferralSummaryPayload {
   final String? referredByEmail;
   final int joinCount;
   final List<ReferralEntryPayload> referrals;
+  final ReferralPointsPayload points;
+  final List<ReferralOfferPayload> offers;
+  final List<String> categories;
+  final List<String> brands;
+  final List<ReferralRewardPayload> activeRewards;
   final PaginationPayload pagination;
+}
+
+class ReferralPointsPayload {
+  const ReferralPointsPayload({
+    required this.earned,
+    required this.spent,
+    required this.available,
+    required this.perReferral,
+  });
+
+  final int earned;
+  final int spent;
+  final int available;
+  final int perReferral;
+}
+
+class ReferralOfferPayload {
+  const ReferralOfferPayload({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.pointsCost,
+    required this.subject,
+    required this.subjectId,
+    required this.questionLimit,
+    required this.durationDays,
+    required this.category,
+    required this.brand,
+    required this.imageUrl,
+    required this.isFeatured,
+  });
+
+  final int id;
+  final String title;
+  final String? description;
+  final int pointsCost;
+  final String? subject;
+  final int? subjectId;
+  final int? questionLimit;
+  final int? durationDays;
+  final String? category;
+  final String? brand;
+  final String? imageUrl;
+  final bool isFeatured;
+}
+
+class ReferralRewardPayload {
+  const ReferralRewardPayload({
+    required this.id,
+    required this.offerId,
+    required this.subjectId,
+    required this.questionLimit,
+    required this.expiresAt,
+  });
+
+  final int id;
+  final int offerId;
+  final int? subjectId;
+  final int? questionLimit;
+  final DateTime? expiresAt;
+}
+
+class ReferralRedemptionPayload {
+  const ReferralRedemptionPayload({
+    required this.id,
+    required this.offerId,
+    required this.subjectId,
+    required this.questionLimit,
+    required this.expiresAt,
+    required this.points,
+  });
+
+  final int id;
+  final int offerId;
+  final int? subjectId;
+  final int? questionLimit;
+  final DateTime? expiresAt;
+  final ReferralPointsPayload points;
 }
 
 class ReferralEntryPayload {

@@ -25,6 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _loading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _agreedToTerms = false;
   double _passwordStrength = 0;
   String _passwordStrengthLabel = 'Too weak';
   Color _passwordStrengthColor = AppPalette.secondary;
@@ -157,6 +158,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return;
     }
+    if (!_agreedToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please agree to the Terms & Conditions and Policy first.',
+          ),
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -196,15 +207,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
+      appBar: AppBar(title: const Text('Signup')),
+      body: Stack(
+        children: <Widget>[
+          Positioned(
+            top: -160,
+            left: -50,
+            child: Container(
+              width: 330,
+              height: 330,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: <Color>[
+                    AppPalette.primary.withValues(alpha: 0.2),
+                    AppPalette.secondary.withValues(alpha: 0.1),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
               Text(
-                'Join Board Master',
+                'Signup',
                 style: GoogleFonts.redHatDisplay(
                   fontSize: 30,
                   fontWeight: FontWeight.w800,
@@ -213,7 +243,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Start your review journey with smart quizzes and analytics.',
+                'Philippine Nurses Licensure Exam (PNLE) Review',
                 style: GoogleFonts.manrope(
                   color: AppPalette.muted,
                   fontWeight: FontWeight.w600,
@@ -225,7 +255,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: const TextStyle(color: AppPalette.textDark),
                 cursorColor: AppPalette.primary,
                 decoration: const InputDecoration(
-                  labelText: 'Full Name',
+                  labelText: 'Full Name (First + Last Name)',
                   prefixIcon: Icon(Icons.person_outline_rounded),
                 ),
               ),
@@ -385,11 +415,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Checkbox(
+                    value: _agreedToTerms,
+                    activeColor: AppPalette.primary,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        _agreedToTerms = value ?? false;
+                      });
+                    },
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _agreedToTerms = !_agreedToTerms;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 13),
+                        child: Text(
+                          'By registering, you agree to the Terms & Conditions and Policy.',
+                          style: GoogleFonts.manrope(
+                            color: AppPalette.muted,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: FilledButton(
-                  onPressed: _loading ? null : _register,
+                  onPressed: (_loading || !_agreedToTerms) ? null : _register,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppPalette.primary,
                     shape: RoundedRectangleBorder(
@@ -406,7 +471,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         )
                       : Text(
-                          'Create Account',
+                          'REGISTER NOW',
                           style: GoogleFonts.manrope(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
@@ -414,9 +479,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                 ),
               ),
-            ],
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Text(
+                    'Already have an account?',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: Text(
+                      'Login',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

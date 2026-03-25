@@ -1214,6 +1214,7 @@ class AppState extends ChangeNotifier {
   Future<ApiResult<CheckoutPayload>> createCheckout({
     required PlanOption plan,
     String? billingCycle,
+    List<String>? paymentMethodTypes,
   }) async {
     creatingCheckout = true;
     notifyListeners();
@@ -1221,6 +1222,7 @@ class AppState extends ChangeNotifier {
     final ApiResult<CheckoutPayload> response = await _api.createCheckout(
       planId: plan.id,
       billingCycle: billingCycle,
+      paymentMethodTypes: paymentMethodTypes,
     );
 
     creatingCheckout = false;

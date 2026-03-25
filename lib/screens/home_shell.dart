@@ -25,6 +25,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   late int _index;
+  late final PageController _pageController;
   bool? _lastOffline;
   bool _pendingOnlineMessage = false;
 
@@ -32,7 +33,14 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     _index = widget.initialIndex;
+    _pageController = PageController(initialPage: _index);
     _pendingOnlineMessage = widget.showOnlineMessageOnStart;
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshOnTabSwitch(int index) async {
@@ -52,10 +60,20 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _switchTo(int index) {
+    if (index == _index) {
+      return;
+    }
     setState(() {
       _index = index;
     });
-    _refreshOnTabSwitch(index);
+
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeInOutCubic,
+      );
+    }
   }
 
   @override
@@ -121,8 +139,17 @@ class _HomeShellState extends State<HomeShell> {
 
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(
-          index: _index,
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: (int value) {
+            if (_index != value) {
+              setState(() {
+                _index = value;
+              });
+            }
+            _refreshOnTabSwitch(value);
+          },
+          physics: const BouncingScrollPhysics(),
           children: pages,
         ),
       ),

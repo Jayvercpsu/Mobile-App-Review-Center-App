@@ -34,3 +34,5 @@ flutter:
   assets:
     - assets/images/boardmaster.png
     - assets/images/boardmaster-square.png
+    - assets/images/gcash.png
+    - assets/images/maya.jpg

@@ -12,10 +12,16 @@ import '../state/app_state.dart';
 import 'result_screen.dart';
 
 class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key, required this.subject, required this.questions});
+  const QuizScreen({
+    super.key,
+    required this.subject,
+    required this.questions,
+    this.secondsPerQuestion = 60,
+  });
 
   final SubjectItem subject;
   final List<QuestionItem> questions;
+  final int secondsPerQuestion;
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -31,7 +37,15 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState() {
     super.initState();
-    _remaining = Duration(seconds: max(180, widget.questions.length * 35));
+    final int safeSecondsPerQuestion = widget.secondsPerQuestion < 15
+        ? 15
+        : widget.secondsPerQuestion;
+    _remaining = Duration(
+      seconds: max(
+        safeSecondsPerQuestion,
+        widget.questions.length * safeSecondsPerQuestion,
+      ),
+    );
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       if (!mounted) {
         timer.cancel();
@@ -60,6 +74,18 @@ class _QuizScreenState extends State<QuizScreen> {
     final String minutes = (value.inMinutes % 60).toString().padLeft(2, '0');
     final String seconds = (value.inSeconds % 60).toString().padLeft(2, '0');
     return '$hours:$minutes:$seconds';
+  }
+
+  String _questionTimeLabel() {
+    final int seconds = widget.secondsPerQuestion;
+    if (seconds <= 0) {
+      return '1 minute';
+    }
+    if (seconds % 60 == 0) {
+      final int minutes = seconds ~/ 60;
+      return minutes == 1 ? '1 minute' : '$minutes minutes';
+    }
+    return '$seconds seconds';
   }
 
   void _select(String key) {
@@ -220,6 +246,14 @@ class _QuizScreenState extends State<QuizScreen> {
                     minHeight: 8,
                     borderRadius: BorderRadius.circular(8),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${widget.questions.length} items, ${_questionTimeLabel()} each question',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 18),
                   Expanded(
                     child: SingleChildScrollView(
@@ -348,7 +382,7 @@ class _QuizScreenState extends State<QuizScreen> {
                             minimumSize: const Size.fromHeight(48),
                           ),
                           child: Text(
-                            isLast ? 'Submit Answers' : 'Continue',
+                            isLast ? 'Submit Answers' : 'Next QUESTION',
                             textAlign: TextAlign.center,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,

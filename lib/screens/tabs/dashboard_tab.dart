@@ -27,6 +27,37 @@ class DashboardTab extends StatefulWidget {
 
 class _DashboardTabState extends State<DashboardTab> {
   int? _previewPlanId;
+  static const List<String> _planAConcepts = <String>[
+    'Anatomy and Physiology',
+    'Theoretical Foundation in Nursing & Health Ethics (Bioethics)',
+    'Health Assessment',
+    'Fundamentals of Nursing Practice, Nursing Informatics, Nutrition & Diet Therapy',
+    'Microbiology & Parasitology',
+    'Pharmacology and Nursing Therapeutics',
+    'Care of Maternal & Child (Well Clients)',
+    'Care of Maternal & Child (At-risk or with Problems: Acute & Chronic)',
+    'Nursing Research',
+    'Medical Surgical Nursing 101',
+    'Medical Surgical Nursing 102',
+    'Medical Surgical Nursing 103',
+    'Geriatric Nursing',
+    'Mental Health Disorders / Psychiatric Nursing',
+    'Community Health Nursing',
+    'Nursing Leadership and Management',
+  ];
+  static const List<String> _planBCoverage = <String>[
+    'Mock Board Exam (All Access)',
+    'Nursing Practice I - Community Health Nursing',
+    'Nursing Practice II - Care of Healthy / At Risk Mother and Child',
+    'Nursing Practice III - Physiologic & Psychosocial Alterations (Part A)',
+    'Nursing Practice IV - Physiologic & Psychosocial Alterations (Part B)',
+    'Nursing Practice V - Physiologic & Psychosocial Alterations (Part C)',
+    'Includes all Plan A Nursing Concepts',
+  ];
+  static const List<String> _freeTrialCoverage = <String>[
+    '3 days FREE trial (Limited Access: Nursing Concepts only)',
+    'Upgrade anytime for full subject access and Mock Board Exam sets',
+  ];
 
   @override
   void initState() {
@@ -55,6 +86,45 @@ class _DashboardTabState extends State<DashboardTab> {
     setState(() {
       _previewPlanId = plan.id;
     });
+  }
+
+  bool _isPlanB(PlanOption plan) {
+    final String normalized =
+        '${plan.name} ${plan.title} ${plan.description}'.toLowerCase();
+    return normalized.contains('plan b') ||
+        normalized.contains('mock board') ||
+        normalized.contains('full access') ||
+        plan.price >= 1000;
+  }
+
+  String _planDisplayTitle(PlanOption plan) {
+    if (!plan.isPaid || plan.tier == PlanTier.free) {
+      return 'FREE TRIAL (3 DAYS)';
+    }
+    if (_isPlanB(plan)) {
+      return 'PLAN B: MOCK BOARD EXAM + ALL NURSING CONCEPTS';
+    }
+    return 'PLAN A: ALL NURSING CONCEPTS';
+  }
+
+  String _planDisplayDescription(PlanOption plan) {
+    if (!plan.isPaid || plan.tier == PlanTier.free) {
+      return 'A. Free Trial (Limited Access)';
+    }
+    if (_isPlanB(plan)) {
+      return 'C. FULL ACCESS including All Concepts / All Subjects and Mock Board Exam';
+    }
+    return 'B. All Concepts / All Subjects Only';
+  }
+
+  List<String> _planDisplayFeatures(PlanOption plan) {
+    if (!plan.isPaid || plan.tier == PlanTier.free) {
+      return _freeTrialCoverage;
+    }
+    if (_isPlanB(plan)) {
+      return _planBCoverage;
+    }
+    return _planAConcepts;
   }
 
   Future<void> _choosePlan({
@@ -120,62 +190,178 @@ class _DashboardTabState extends State<DashboardTab> {
         final double bottomPadding = MediaQuery.of(
           modalContext,
         ).viewPadding.bottom;
+        final String displayTitle = _planDisplayTitle(plan);
+
+        Future<void> openCheckoutForMethod(List<String>? methods) async {
+          Navigator.of(modalContext).pop();
+          await _openPaidCheckout(
+            context: context,
+            appState: appState,
+            plan: plan,
+            billingCycle: plan.billingCycle,
+            paymentMethodTypes: methods,
+          );
+        }
+
+        Widget paymentLogoTile({
+          required String assetPath,
+          required String label,
+          required List<String> methods,
+        }) {
+          return Expanded(
+            child: InkWell(
+              onTap: () async {
+                await openCheckoutForMethod(methods);
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: 112,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppPalette.primary.withValues(alpha: 0.14),
+                  ),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    Expanded(
+                      child: Image.asset(
+                        assetPath,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.payments_rounded,
+                          size: 38,
+                          color: AppPalette.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      label,
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.textDark,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
         return SafeArea(
           top: false,
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 14, 16, 18 + bottomPadding),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Complete Payment',
-                  style: GoogleFonts.redHatDisplay(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: AppPalette.primary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${plan.title} - ${plan.priceLabel}',
-                  style: GoogleFonts.manrope(
-                    color: AppPalette.textDark,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Billing: ${plan.billingLabel}',
-                  style: GoogleFonts.manrope(
-                    color: AppPalette.muted,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: FilledButton(
-                    onPressed: () async {
-                      Navigator.of(modalContext).pop();
-                      await _openPaidCheckout(
-                        context: context,
-                        appState: appState,
-                        plan: plan,
-                        billingCycle: plan.billingCycle,
-                      );
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppPalette.secondary,
-                    ),
-                    child: Text(
-                      'Pay and Activate',
-                      style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'PAYMENT OPTIONS',
+                    style: GoogleFonts.redHatDisplay(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: AppPalette.primary,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'Philippine Nurses Licensure Exam (PNLE) Review',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$displayTitle - ${plan.priceLabel}',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.textDark,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    'Billing: ${plan.billingLabel}',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      paymentLogoTile(
+                        assetPath: 'assets/images/gcash.png',
+                        label: 'GCASH',
+                        methods: const <String>['gcash'],
+                      ),
+                      const SizedBox(width: 10),
+                      paymentLogoTile(
+                        assetPath: 'assets/images/maya.jpg',
+                        label: 'MAYA',
+                        methods: const <String>['paymaya'],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            await openCheckoutForMethod(const <String>['card']);
+                          },
+                          child: Text(
+                            'DEBIT CARD',
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            await openCheckoutForMethod(const <String>['card']);
+                          },
+                          child: Text(
+                            'CREDIT CARD',
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: () async {
+                        await openCheckoutForMethod(null);
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppPalette.secondary,
+                      ),
+                      child: Text(
+                        'PAY NOW',
+                        style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -245,10 +431,12 @@ class _DashboardTabState extends State<DashboardTab> {
     required AppState appState,
     required PlanOption plan,
     required String billingCycle,
+    List<String>? paymentMethodTypes,
   }) async {
     final checkoutResponse = await appState.createCheckout(
       plan: plan,
       billingCycle: billingCycle,
+      paymentMethodTypes: paymentMethodTypes,
     );
 
     if (!context.mounted) {
@@ -462,6 +650,8 @@ class _DashboardTabState extends State<DashboardTab> {
         : DateFormat('MMM d, yyyy').format(endDate);
     final bool lockFreePlan =
         appState.currentPlan.isPaid && !appState.isSubscriptionExpired;
+    final bool hasActivePaidPlan = appState.hasActivePaidPlan;
+    final List<String> featureItems = _planDisplayFeatures(featuresPlan);
     final String lastScoreLabel = (appState.lastScore != null &&
             appState.lastScoreTotal != null)
         ? '${appState.lastScore}/${appState.lastScoreTotal}'
@@ -487,14 +677,14 @@ class _DashboardTabState extends State<DashboardTab> {
                           height: 52,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Image.asset(
-                            'assets/images/boardmaster-square.png',
+                            'assets/images/boardmaster.png',
                             width: 52,
                             height: 52,
                             fit: BoxFit.cover,
                           ),
                         )
                       : Image.asset(
-                          'assets/images/boardmaster-square.png',
+                          'assets/images/boardmaster.png',
                           width: 52,
                           height: 52,
                           fit: BoxFit.cover,
@@ -506,15 +696,15 @@ class _DashboardTabState extends State<DashboardTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Hi ${appState.userName}!',
+                        'Board Master Review',
                         style: GoogleFonts.redHatDisplay(
-                          fontSize: 24,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
                           color: AppPalette.primary,
                         ),
                       ),
                       Text(
-                        'Review smarter and boost your board confidence.',
+                        'Philippine Nurses Licensure Exam (PNLE) Review',
                         style: GoogleFonts.manrope(
                           color: AppPalette.muted,
                           fontWeight: FontWeight.w600,
@@ -550,7 +740,7 @@ class _DashboardTabState extends State<DashboardTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Current Plan',
+                    'SUBSCRIPTION',
                     style: GoogleFonts.manrope(
                       color: Colors.white.withValues(alpha: 0.92),
                       fontWeight: FontWeight.w600,
@@ -558,11 +748,13 @@ class _DashboardTabState extends State<DashboardTab> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    appState.currentPlan.title,
+                    _planDisplayTitle(appState.currentPlan),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.redHatDisplay(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
-                      fontSize: 26,
+                      fontSize: 22,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -609,7 +801,7 @@ class _DashboardTabState extends State<DashboardTab> {
                         foregroundColor: AppPalette.primary,
                       ),
                       child: Text(
-                        'Start Practice',
+                        'click to START THE TEST NOW',
                         style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
                       ),
                     ),
@@ -662,21 +854,34 @@ class _DashboardTabState extends State<DashboardTab> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-              child: Text(
-                'Choose Plan',
-                style: GoogleFonts.redHatDisplay(
-                  color: AppPalette.textDark,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Explore your OPTIONS.',
+                    style: GoogleFonts.redHatDisplay(
+                      color: AppPalette.textDark,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '3 days FREE trial available for Nursing Concepts (limited access).',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 236,
+              height: 248,
               child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
                 scrollDirection: Axis.horizontal,
                 itemCount: appState.plans.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
@@ -685,6 +890,8 @@ class _DashboardTabState extends State<DashboardTab> {
                   final bool selected = plan.id == appState.currentPlan.id;
                   final bool previewed = _previewPlanId == plan.id;
                   final bool isFreePlan = !plan.isPaid;
+                  final String displayTitle = _planDisplayTitle(plan);
+                  final String displayDescription = _planDisplayDescription(plan);
                   final bool lockedFreePlan = lockFreePlan && isFreePlan;
                   final bool lockedByActivePlan =
                       hasActivePaidPlan && !selected;
@@ -704,7 +911,7 @@ class _DashboardTabState extends State<DashboardTab> {
                           : (lockedFreePlan
                                 ? 'Unavailable'
                                 : (plan.isPaid
-                                      ? 'Pay and Choose'
+                                      ? 'PAY NOW'
                                       : 'Choose Plan')));
 
                 return GestureDetector(
@@ -732,9 +939,11 @@ class _DashboardTabState extends State<DashboardTab> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                         Text(
-                          plan.name,
+                          displayTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.redHatDisplay(
-                            fontSize: 22,
+                            fontSize: 18,
                             fontWeight: FontWeight.w800,
                               color: AppPalette.primary,
                             ),
@@ -757,13 +966,13 @@ class _DashboardTabState extends State<DashboardTab> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            plan.description,
-                            maxLines: 2,
+                            displayDescription,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.manrope(
                               color: AppPalette.muted,
                               fontWeight: FontWeight.w600,
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                           const Spacer(),
@@ -809,6 +1018,7 @@ class _DashboardTabState extends State<DashboardTab> {
             ),
           ),
         ),
+        ],
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
@@ -827,7 +1037,7 @@ class _DashboardTabState extends State<DashboardTab> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'Included Features',
+                            'Subscription Coverage',
                             style: GoogleFonts.redHatDisplay(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
@@ -835,7 +1045,7 @@ class _DashboardTabState extends State<DashboardTab> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          ...featuresPlan.features.map(
+                          ...featureItems.map(
                             (String feature) => Padding(
                               padding: const EdgeInsets.only(bottom: 10),
                               child: Row(

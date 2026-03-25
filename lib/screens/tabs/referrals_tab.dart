@@ -54,10 +54,6 @@ class _ReferralsTabState extends State<ReferralsTab> {
     );
   }
 
-  String _formatDate(DateTime value) {
-    return '${value.month}/${value.day}/${value.year}';
-  }
-
   String _formatExpiryStatus(DateTime value) {
     final Duration diff = value.difference(DateTime.now());
     if (diff.inSeconds <= 0) {

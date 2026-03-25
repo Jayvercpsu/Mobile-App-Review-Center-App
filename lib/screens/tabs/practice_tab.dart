@@ -168,6 +168,8 @@ class _PracticeTabState extends State<PracticeTab>
 
     final int minCount = maxCount >= 10 ? 10 : 1;
     double chosenCount = max(minCount, min(20, maxCount)).toDouble();
+    int chosenSecondsPerQuestion = 60;
+    const List<int> secondOptions = <int>[30, 45, 60, 90, 120];
 
     await showModalBottomSheet<void>(
       context: context,
@@ -199,16 +201,16 @@ class _PracticeTabState extends State<PracticeTab>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      '${subject.code} Question Count',
+                      subject.title,
                       style: GoogleFonts.redHatDisplay(
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: AppPalette.primary,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Choose how many questions to test now.',
+                      'Number of items and time allotted for each question.',
                       style: GoogleFonts.manrope(
                         color: AppPalette.muted,
                         fontWeight: FontWeight.w600,
@@ -216,7 +218,7 @@ class _PracticeTabState extends State<PracticeTab>
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Total for this test: ${sliderValue.round()}',
+                      'Number of items: ${sliderValue.round()}',
                       style: GoogleFonts.manrope(
                         color: AppPalette.textDark,
                         fontWeight: FontWeight.w800,
@@ -264,10 +266,68 @@ class _PracticeTabState extends State<PracticeTab>
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Time allotted for each question',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.primary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: secondOptions.map((int seconds) {
+                        final bool selected = chosenSecondsPerQuestion == seconds;
+                        final String label = switch (seconds) {
+                          30 => '30 sec',
+                          45 => '45 sec',
+                          60 => '1 min',
+                          90 => '1m 30s',
+                          120 => '2 mins',
+                          _ => '$seconds sec',
+                        };
+                        return ChoiceChip(
+                          selected: selected,
+                          onSelected: (bool value) {
+                            if (!value) {
+                              return;
+                            }
+                            setModalState(() {
+                              chosenSecondsPerQuestion = seconds;
+                            });
+                          },
+                          label: Text(
+                            label,
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w700,
+                              color: selected
+                                  ? Colors.white
+                                  : AppPalette.textDark,
+                            ),
+                          ),
+                          selectedColor: AppPalette.primary,
+                          backgroundColor: AppPalette.primary.withValues(
+                            alpha: 0.08,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: selected
+                                  ? AppPalette.primary
+                                  : AppPalette.primary.withValues(alpha: 0.2),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                     const SizedBox(height: 14),
-                    Row(
+                    Column(
                       children: <Widget>[
-                        Expanded(
+                        SizedBox(
+                          width: double.infinity,
                           child: OutlinedButton(
                             onPressed: () => Navigator.of(modalContext).pop(),
                             style: OutlinedButton.styleFrom(
@@ -286,8 +346,9 @@ class _PracticeTabState extends State<PracticeTab>
                             ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
                           child: FilledButton(
                             onPressed: starting
                                 ? null
@@ -347,12 +408,22 @@ class _PracticeTabState extends State<PracticeTab>
                                         builder: (_) => QuizScreen(
                                           subject: subject,
                                           questions: response.data!,
+                                          secondsPerQuestion:
+                                              chosenSecondsPerQuestion,
                                         ),
                                       ),
                                     );
                                   },
                             style: FilledButton.styleFrom(
                               backgroundColor: AppPalette.primary,
+                              minimumSize: const Size.fromHeight(50),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                             ),
                             child: starting
                                 ? const SizedBox(
@@ -363,10 +434,15 @@ class _PracticeTabState extends State<PracticeTab>
                                       color: Colors.white,
                                     ),
                                   )
-                                : Text(
-                                    'Start Test',
-                                    style: GoogleFonts.manrope(
-                                      fontWeight: FontWeight.w800,
+                                : FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'click to START THE TEST NOW',
+                                      maxLines: 1,
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.manrope(
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                     ),
                                   ),
                           ),
@@ -497,7 +573,7 @@ class _PracticeTabState extends State<PracticeTab>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Practice Tests',
+                  'Explore your OPTIONS.',
                   style: GoogleFonts.redHatDisplay(
                     fontSize: 31,
                     fontWeight: FontWeight.w800,
@@ -506,7 +582,7 @@ class _PracticeTabState extends State<PracticeTab>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Tap any subject card to choose total questions in a modal.',
+                  'Philippine Nurses Licensure Exam (PNLE) Review',
                   style: GoogleFonts.manrope(
                     color: AppPalette.muted,
                     fontWeight: FontWeight.w600,
@@ -836,9 +912,8 @@ class _PracticeTabState extends State<PracticeTab>
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () async {
-                          final BuildContext rootContext = context;
                           showDialog<void>(
-                            context: rootContext,
+                            context: context,
                             barrierDismissible: false,
                             builder: (_) => const Center(
                               child: CircularProgressIndicator(),
@@ -847,13 +922,13 @@ class _PracticeTabState extends State<PracticeTab>
 
                           final result =
                               await appState.loadQuizAttemptDetails(item.id);
-                          if (!mounted) {
+                          if (!context.mounted) {
                             return;
                           }
-                          Navigator.of(rootContext, rootNavigator: true).pop();
+                          Navigator.of(context, rootNavigator: true).pop();
 
                           if (!result.ok || result.data == null) {
-                            ScaffoldMessenger.of(rootContext).showSnackBar(
+                            ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
                                   result.message ??
@@ -865,7 +940,7 @@ class _PracticeTabState extends State<PracticeTab>
                           }
 
                           final QuizAttemptDetail detail = result.data!;
-                          Navigator.of(rootContext).push(
+                          Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => RationalizationScreen(
                                 subject: detail.subject,

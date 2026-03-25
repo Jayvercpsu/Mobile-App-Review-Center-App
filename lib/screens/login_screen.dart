@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ).animate().fadeIn(duration: 500.ms).scale(),
                   const SizedBox(height: 20),
                   Text(
-                        'Welcome Back',
+                        'Welcome to',
                         style: GoogleFonts.redHatDisplay(
                           fontSize: 34,
                           fontWeight: FontWeight.w800,
@@ -145,7 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       .slideX(begin: -0.06, end: 0),
                   const SizedBox(height: 8),
                   Text(
-                    'Log in to continue your board exam preparation.',
+                    'BOARDMASTERS REVIEW CENTER\n'
+                    '"Your ultimate partner to SUCCEED in\n'
+                    'PHILIPPINE NURSES LICENSURE EXAM (PNLE)"',
                     style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -212,6 +214,24 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                       ),
+                      TextButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Forgot password support will be available soon.',
+                              ),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Forgot Password?',
+                          style: GoogleFonts.manrope(
+                            color: AppPalette.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -265,7 +285,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       child: Text(
-                        'Create Account',
+                        'Don\'t have an ACCOUNT? Click to REGISTER',
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w700,
                           color: AppPalette.primary,

@@ -2,7 +2,11 @@ In laravel folder
 
 run this command
 
-php artisan serve --host=0.0.0.0 --port=8000
+for backend run this 
+- php artisan serve --host=0.0.0.0 --port=8000
+
+for frontend 
+- npm run dev
 
 If you prefer the composer script, update the Laravel dev script to include the host and port,
 then run the composer command:
@@ -13,16 +17,11 @@ then run the composer command:
    composer run dev
 
 in flutter code 
-go to api_config.dart
+go to .env
 
-in this code
+change the ip address
 
-  static const String _configuredBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.14.189.119:8000/api',
-  );
+API_BASE_URL=http://10.239.202.119:8000/api
 
-change this http://10.14.189.119 address to your IPv4 address
-
-to connect mobile and web run first the php artisan serve --host=0.0.0.0 --port=8000 in laravel Folder
-and flutter run in flutter code 
+into ur actual ip address in ur pc/laptop
+ 

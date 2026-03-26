@@ -49,10 +49,7 @@ class MobileApiService {
       payload['gender'] = gender.trim().toLowerCase();
     }
 
-    return _postAuth(
-      path: ApiConfig.register,
-      payload: payload,
-    );
+    return _postAuth(path: ApiConfig.register, payload: payload);
   }
 
   Future<ApiResult<AuthPayload>> fetchCurrentUser() async {
@@ -239,7 +236,8 @@ class MobileApiService {
     }
   }
 
-  Future<ApiResult<List<PracticeSubjectPayload>>> fetchPracticeSubjects() async {
+  Future<ApiResult<List<PracticeSubjectPayload>>>
+  fetchPracticeSubjects() async {
     if (_token == null || _token!.isEmpty) {
       return ApiResult<List<PracticeSubjectPayload>>.failure(
         'You are not authenticated.',
@@ -306,8 +304,9 @@ class MobileApiService {
         );
       }
 
-      final DashboardMetricsPayload? payload =
-          _toDashboardMetricsPayload(decoded);
+      final DashboardMetricsPayload? payload = _toDashboardMetricsPayload(
+        decoded,
+      );
       if (payload == null) {
         return ApiResult<DashboardMetricsPayload>.failure(
           'Dashboard metrics response is missing data.',
@@ -323,7 +322,9 @@ class MobileApiService {
     }
   }
 
-  Future<ApiResult<ReferralSummaryPayload>> fetchReferrals({int page = 1}) async {
+  Future<ApiResult<ReferralSummaryPayload>> fetchReferrals({
+    int page = 1,
+  }) async {
     if (_token == null || _token!.isEmpty) {
       return ApiResult<ReferralSummaryPayload>.failure(
         'You are not authenticated.',
@@ -345,8 +346,9 @@ class MobileApiService {
         );
       }
 
-      final ReferralSummaryPayload? payload =
-          _toReferralSummaryPayload(decoded);
+      final ReferralSummaryPayload? payload = _toReferralSummaryPayload(
+        decoded,
+      );
       if (payload == null) {
         return ApiResult<ReferralSummaryPayload>.failure(
           'Referral response is missing data.',
@@ -373,9 +375,7 @@ class MobileApiService {
     try {
       final http.Response response = await _postWithFallback(
         path: ApiConfig.referralApply,
-        payload: <String, dynamic>{
-          'referral_code': code.trim(),
-        },
+        payload: <String, dynamic>{'referral_code': code.trim()},
       );
       final dynamic decoded = _decodeJson(response.body);
 
@@ -420,8 +420,9 @@ class MobileApiService {
         );
       }
 
-      final ReferralRedemptionPayload? payload =
-          _toReferralRedemptionPayload(decoded);
+      final ReferralRedemptionPayload? payload = _toReferralRedemptionPayload(
+        decoded,
+      );
       if (payload == null) {
         return ApiResult<ReferralRedemptionPayload>.failure(
           'Redemption response is missing data.',
@@ -461,8 +462,9 @@ class MobileApiService {
         );
       }
 
-      final SubscriptionHistoryPayload? payload =
-          _toSubscriptionHistoryPayload(decoded);
+      final SubscriptionHistoryPayload? payload = _toSubscriptionHistoryPayload(
+        decoded,
+      );
       if (payload == null) {
         return ApiResult<SubscriptionHistoryPayload>.failure(
           'Subscription history response is missing data.',
@@ -502,8 +504,9 @@ class MobileApiService {
         );
       }
 
-      final QuizAttemptHistoryPayload? payload =
-          _toQuizAttemptHistoryPayload(decoded);
+      final QuizAttemptHistoryPayload? payload = _toQuizAttemptHistoryPayload(
+        decoded,
+      );
       if (payload == null) {
         return ApiResult<QuizAttemptHistoryPayload>.failure(
           'Quiz attempt history is missing data.',
@@ -543,8 +546,9 @@ class MobileApiService {
         );
       }
 
-      final QuizAttemptDetailPayload? payload =
-          _toQuizAttemptDetailPayload(decoded);
+      final QuizAttemptDetailPayload? payload = _toQuizAttemptDetailPayload(
+        decoded,
+      );
       if (payload == null) {
         return ApiResult<QuizAttemptDetailPayload>.failure(
           'Quiz attempt details are missing data.',
@@ -570,8 +574,10 @@ class MobileApiService {
       );
     }
 
-    final List<int> cleaned =
-        attemptIds.where((int id) => id > 0).toSet().toList();
+    final List<int> cleaned = attemptIds
+        .where((int id) => id > 0)
+        .toSet()
+        .toList();
     if (cleaned.isEmpty) {
       return ApiResult<int>.failure('No attempts selected.');
     }
@@ -585,13 +591,11 @@ class MobileApiService {
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final String message = _extractErrorMessage(decoded);
-        return ApiResult<int>.failure(
-          message,
-          statusCode: response.statusCode,
-        );
+        return ApiResult<int>.failure(message, statusCode: response.statusCode);
       }
 
-      final int deleted = _parseInt(
+      final int deleted =
+          _parseInt(
             decoded is Map<String, dynamic> ? decoded['deleted'] : null,
           ) ??
           cleaned.length;
@@ -621,13 +625,11 @@ class MobileApiService {
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final String message = _extractErrorMessage(decoded);
-        return ApiResult<int>.failure(
-          message,
-          statusCode: response.statusCode,
-        );
+        return ApiResult<int>.failure(message, statusCode: response.statusCode);
       }
 
-      final int deleted = _parseInt(
+      final int deleted =
+          _parseInt(
             decoded is Map<String, dynamic> ? decoded['deleted'] : null,
           ) ??
           0;
@@ -714,7 +716,8 @@ class MobileApiService {
         path: ApiConfig.quizSubmit,
         payload: <String, dynamic>{
           'subject_id': subjectId,
-          'answers': answers.map((QuizAnswerPayload item) => item.toJson())
+          'answers': answers
+              .map((QuizAnswerPayload item) => item.toJson())
               .toList(),
         },
       );
@@ -789,10 +792,7 @@ class MobileApiService {
       }
 
       final http.Response response = avatarBytes == null
-          ? await _postWithFallback(
-              path: ApiConfig.profile,
-              payload: fields,
-            )
+          ? await _postWithFallback(path: ApiConfig.profile, payload: fields)
           : await _postMultipartWithFallback(
               path: ApiConfig.profile,
               fields: fields,
@@ -944,8 +944,13 @@ class MobileApiService {
     for (final String baseUrl in _candidateBaseUrls()) {
       try {
         final Uri uri = ApiConfig.uri(path, overrideBaseUrl: baseUrl);
-        final http.MultipartRequest request = http.MultipartRequest('POST', uri);
-        final Map<String, String> headers = Map<String, String>.from(_headers());
+        final http.MultipartRequest request = http.MultipartRequest(
+          'POST',
+          uri,
+        );
+        final Map<String, String> headers = Map<String, String>.from(
+          _headers(),
+        );
         headers.remove('Content-Type');
         request.headers.addAll(headers);
         request.fields.addAll(fields);
@@ -1191,9 +1196,25 @@ class MobileApiService {
     final String title = _firstNonEmpty(<dynamic>[
       raw['title'],
       raw['display_title'],
+      raw['group_label'],
       raw['name'],
       raw['display_name'],
       tier == PlanTier.free ? 'Free Plan' : 'Subscription',
+    ]);
+    final String planGroup = _firstNonEmpty(<dynamic>[
+      raw['plan_group'],
+      raw['group_key'],
+      tier == PlanTier.free ? 'free_trial' : 'premium',
+    ]).toLowerCase();
+    final String groupLabel = _firstNonEmpty(<dynamic>[
+      raw['group_label'],
+      raw['title'],
+      title,
+    ]);
+    final String subPlanLabel = _firstNonEmpty(<dynamic>[
+      raw['sub_plan_label'],
+      raw['subplan_label'],
+      raw['name'],
     ]);
 
     final double price = _parseDouble(raw['price']) ?? 0;
@@ -1210,6 +1231,8 @@ class MobileApiService {
       raw['interval'],
       tier == PlanTier.free ? 'Forever free' : 'per month',
     ]);
+    final int durationDays = _parseInt(raw['duration_days']) ?? 0;
+    final int sortOrder = _parseInt(raw['sort_order']) ?? 0;
     final String description = _firstNonEmpty(<dynamic>[raw['description']]);
 
     final List<String> features = _toFeatureList(raw['features']);
@@ -1219,10 +1242,15 @@ class MobileApiService {
       name: name.isEmpty ? title : name,
       tier: tier,
       title: title,
+      planGroup: planGroup,
+      groupLabel: groupLabel.isEmpty ? title : groupLabel,
+      subPlanLabel: subPlanLabel.isEmpty ? name : subPlanLabel,
       price: price,
       priceLabel: priceLabel,
       billingCycle: billingCycle,
       billingLabel: billingLabel,
+      durationDays: durationDays,
+      sortOrder: sortOrder,
       description: description,
       features: features.isEmpty
           ? <String>[
@@ -1313,8 +1341,12 @@ class MobileApiService {
         .toUpperCase();
     final String code = cleanedCode.isEmpty
         ? 'SUBJ'
-        : cleanedCode.substring(0, cleanedCode.length > 4 ? 4 : cleanedCode.length);
-    final int totalQuestions = _parseInt(
+        : cleanedCode.substring(
+            0,
+            cleanedCode.length > 4 ? 4 : cleanedCode.length,
+          );
+    final int totalQuestions =
+        _parseInt(
           raw['total_questions'] ?? raw['question_count'] ?? raw['questions'],
         ) ??
         0;
@@ -1338,11 +1370,24 @@ class MobileApiService {
       isAccessible = questionLimit > 0;
     }
     final String? colorHex = _nullableText(raw['color_hex'] ?? raw['color']);
+    final String groupKey = _firstNonEmpty(<dynamic>[
+      raw['group_key'],
+      raw['group'],
+      'nursing_concepts',
+    ]).toLowerCase();
+    final String groupLabel = _firstNonEmpty(<dynamic>[
+      raw['group_label'],
+      groupKey == 'mock_board_exam'
+          ? 'Mock Board Exam'
+          : 'All Nursing Concepts',
+    ]);
 
     return PracticeSubjectPayload(
       id: id,
       code: code,
       title: title,
+      groupKey: groupKey,
+      groupLabel: groupLabel,
       totalQuestions: totalQuestions < 0 ? 0 : totalQuestions,
       questionLimit: questionLimit,
       isAccessible: isAccessible,
@@ -1465,17 +1510,18 @@ class MobileApiService {
         ? data
         : decoded;
 
-    final List<ReferralEntryPayload> entries =
-        _toReferralEntries(map['referrals']);
+    final List<ReferralEntryPayload> entries = _toReferralEntries(
+      map['referrals'],
+    );
     final ReferralPointsPayload points = _toReferralPointsPayload(
       map['points'],
     );
-    final List<ReferralOfferPayload> offers =
-        _toReferralOffers(map['offers']);
+    final List<ReferralOfferPayload> offers = _toReferralOffers(map['offers']);
     final List<String> categories = _toStringList(map['categories']);
     final List<String> brands = _toStringList(map['brands']);
-    final List<ReferralRewardPayload> activeRewards =
-        _toReferralRewards(map['active_rewards']);
+    final List<ReferralRewardPayload> activeRewards = _toReferralRewards(
+      map['active_rewards'],
+    );
     final PaginationPayload pagination = _toPaginationPayload(
       decoded['pagination'] ?? map['pagination'],
     );
@@ -1517,43 +1563,49 @@ class MobileApiService {
     if (raw is! List<dynamic>) {
       return <ReferralOfferPayload>[];
     }
-    return raw.map((dynamic item) {
-      if (item is! Map<String, dynamic>) {
-        return null;
-      }
-      return ReferralOfferPayload(
-        id: _parseInt(item['id']) ?? 0,
-        title: _firstNonEmpty(<dynamic>[item['title']]),
-        description: _nullableText(item['description']),
-        pointsCost: _parseInt(item['points_cost']) ?? 0,
-        subject: _nullableText(item['subject']),
-        subjectId: _parseInt(item['subject_id']),
-        questionLimit: _parseInt(item['question_limit']),
-        durationDays: _parseInt(item['access_duration_days']),
-        category: _nullableText(item['category']),
-        brand: _nullableText(item['brand']),
-        imageUrl: _nullableText(item['image_url']),
-        isFeatured: item['is_featured'] == true,
-      );
-    }).whereType<ReferralOfferPayload>().toList();
+    return raw
+        .map((dynamic item) {
+          if (item is! Map<String, dynamic>) {
+            return null;
+          }
+          return ReferralOfferPayload(
+            id: _parseInt(item['id']) ?? 0,
+            title: _firstNonEmpty(<dynamic>[item['title']]),
+            description: _nullableText(item['description']),
+            pointsCost: _parseInt(item['points_cost']) ?? 0,
+            subject: _nullableText(item['subject']),
+            subjectId: _parseInt(item['subject_id']),
+            questionLimit: _parseInt(item['question_limit']),
+            durationDays: _parseInt(item['access_duration_days']),
+            category: _nullableText(item['category']),
+            brand: _nullableText(item['brand']),
+            imageUrl: _nullableText(item['image_url']),
+            isFeatured: item['is_featured'] == true,
+          );
+        })
+        .whereType<ReferralOfferPayload>()
+        .toList();
   }
 
   List<ReferralRewardPayload> _toReferralRewards(dynamic raw) {
     if (raw is! List<dynamic>) {
       return <ReferralRewardPayload>[];
     }
-    return raw.map((dynamic item) {
-      if (item is! Map<String, dynamic>) {
-        return null;
-      }
-      return ReferralRewardPayload(
-        id: _parseInt(item['id']) ?? 0,
-        offerId: _parseInt(item['offer_id']) ?? 0,
-        subjectId: _parseInt(item['subject_id']),
-        questionLimit: _parseInt(item['question_limit']),
-        expiresAt: _parseDate(item['expires_at']),
-      );
-    }).whereType<ReferralRewardPayload>().toList();
+    return raw
+        .map((dynamic item) {
+          if (item is! Map<String, dynamic>) {
+            return null;
+          }
+          return ReferralRewardPayload(
+            id: _parseInt(item['id']) ?? 0,
+            offerId: _parseInt(item['offer_id']) ?? 0,
+            subjectId: _parseInt(item['subject_id']),
+            questionLimit: _parseInt(item['question_limit']),
+            expiresAt: _parseDate(item['expires_at']),
+          );
+        })
+        .whereType<ReferralRewardPayload>()
+        .toList();
   }
 
   List<String> _toStringList(dynamic raw) {
@@ -1575,8 +1627,8 @@ class MobileApiService {
         : decoded;
     final Map<String, dynamic> pointsRaw =
         decoded['points'] is Map<String, dynamic>
-            ? decoded['points'] as Map<String, dynamic>
-            : <String, dynamic>{};
+        ? decoded['points'] as Map<String, dynamic>
+        : <String, dynamic>{};
 
     return ReferralRedemptionPayload(
       id: _parseInt(data['id']) ?? 0,
@@ -1597,23 +1649,26 @@ class MobileApiService {
     if (raw is! List<dynamic>) {
       return <ReferralEntryPayload>[];
     }
-    return raw.map((dynamic item) {
-      if (item is! Map<String, dynamic>) {
-        return null;
-      }
-      final Map<String, dynamic>? invited =
-          item['invited_user'] is Map<String, dynamic>
+    return raw
+        .map((dynamic item) {
+          if (item is! Map<String, dynamic>) {
+            return null;
+          }
+          final Map<String, dynamic>? invited =
+              item['invited_user'] is Map<String, dynamic>
               ? item['invited_user'] as Map<String, dynamic>
               : null;
-      final String name = _firstNonEmpty(<dynamic>[invited?['name']]);
-      final String email = _firstNonEmpty(<dynamic>[invited?['email']]);
-      return ReferralEntryPayload(
-        id: _parseInt(item['id']) ?? 0,
-        invitedName: name,
-        invitedEmail: email,
-        createdAt: _parseDate(item['created_at']),
-      );
-    }).whereType<ReferralEntryPayload>().toList();
+          final String name = _firstNonEmpty(<dynamic>[invited?['name']]);
+          final String email = _firstNonEmpty(<dynamic>[invited?['email']]);
+          return ReferralEntryPayload(
+            id: _parseInt(item['id']) ?? 0,
+            invitedName: name,
+            invitedEmail: email,
+            createdAt: _parseDate(item['created_at']),
+          );
+        })
+        .whereType<ReferralEntryPayload>()
+        .toList();
   }
 
   SubscriptionHistoryPayload? _toSubscriptionHistoryPayload(dynamic decoded) {
@@ -1632,8 +1687,9 @@ class MobileApiService {
     if (decoded is! Map<String, dynamic>) {
       return null;
     }
-    final List<QuizAttemptSummaryPayload> attempts =
-        _toQuizAttemptSummaries(decoded['data']);
+    final List<QuizAttemptSummaryPayload> attempts = _toQuizAttemptSummaries(
+      decoded['data'],
+    );
     final PaginationPayload pagination = _toPaginationPayload(
       decoded['pagination'],
     );
@@ -1647,24 +1703,27 @@ class MobileApiService {
     if (raw is! List<dynamic>) {
       return <QuizAttemptSummaryPayload>[];
     }
-    return raw.map((dynamic item) {
-      if (item is! Map<String, dynamic>) {
-        return null;
-      }
-      final int? id = _parseInt(item['id']);
-      if (id == null) {
-        return null;
-      }
-      return QuizAttemptSummaryPayload(
-        id: id,
-        subjectId: _parseInt(item['subject_id']),
-        subject: _nullableText(item['subject']),
-        subjectCode: _nullableText(item['subject_code']),
-        score: _parseInt(item['score']) ?? 0,
-        totalQuestions: _parseInt(item['total_questions']) ?? 0,
-        createdAt: _parseDate(item['created_at']),
-      );
-    }).whereType<QuizAttemptSummaryPayload>().toList();
+    return raw
+        .map((dynamic item) {
+          if (item is! Map<String, dynamic>) {
+            return null;
+          }
+          final int? id = _parseInt(item['id']);
+          if (id == null) {
+            return null;
+          }
+          return QuizAttemptSummaryPayload(
+            id: id,
+            subjectId: _parseInt(item['subject_id']),
+            subject: _nullableText(item['subject']),
+            subjectCode: _nullableText(item['subject_code']),
+            score: _parseInt(item['score']) ?? 0,
+            totalQuestions: _parseInt(item['total_questions']) ?? 0,
+            createdAt: _parseDate(item['created_at']),
+          );
+        })
+        .whereType<QuizAttemptSummaryPayload>()
+        .toList();
   }
 
   QuizAttemptDetailPayload? _toQuizAttemptDetailPayload(dynamic decoded) {
@@ -1678,8 +1737,8 @@ class MobileApiService {
 
     final Map<String, dynamic>? subjectMap =
         data['subject'] is Map<String, dynamic>
-            ? data['subject'] as Map<String, dynamic>
-            : null;
+        ? data['subject'] as Map<String, dynamic>
+        : null;
     final int? subjectId =
         _parseInt(subjectMap?['id']) ?? _parseInt(data['subject_id']);
     final String subjectTitle = _firstNonEmpty(<dynamic>[
@@ -1693,9 +1752,9 @@ class MobileApiService {
 
     final List<QuestionItem> questions = (data['questions'] is List<dynamic>)
         ? (data['questions'] as List<dynamic>)
-            .map(_toQuestionItem)
-            .whereType<QuestionItem>()
-            .toList()
+              .map(_toQuestionItem)
+              .whereType<QuestionItem>()
+              .toList()
         : <QuestionItem>[];
 
     final Map<int, String?> answerByQuestionId = <int, String?>{};
@@ -1747,26 +1806,31 @@ class MobileApiService {
     if (raw is! List<dynamic>) {
       return <SubscriptionHistoryEntryPayload>[];
     }
-    return raw.map((dynamic item) {
-      if (item is! Map<String, dynamic>) {
-        return null;
-      }
-      final String planName =
-          _firstNonEmpty(<dynamic>[item['plan_name'], item['plan']]);
-      final DateTime? startDate = _parseDate(item['start_date']);
-      if (startDate == null) {
-        return null;
-      }
-      return SubscriptionHistoryEntryPayload(
-        id: _parseInt(item['id']) ?? 0,
-        planName: planName,
-        price: _parseDouble(item['price']) ?? 0,
-        billingCycle: _nullableText(item['billing_cycle']) ?? 'monthly',
-        startDate: startDate,
-        endDate: _parseDate(item['end_date']),
-        status: _nullableText(item['status']) ?? 'active',
-      );
-    }).whereType<SubscriptionHistoryEntryPayload>().toList();
+    return raw
+        .map((dynamic item) {
+          if (item is! Map<String, dynamic>) {
+            return null;
+          }
+          final String planName = _firstNonEmpty(<dynamic>[
+            item['plan_name'],
+            item['plan'],
+          ]);
+          final DateTime? startDate = _parseDate(item['start_date']);
+          if (startDate == null) {
+            return null;
+          }
+          return SubscriptionHistoryEntryPayload(
+            id: _parseInt(item['id']) ?? 0,
+            planName: planName,
+            price: _parseDouble(item['price']) ?? 0,
+            billingCycle: _nullableText(item['billing_cycle']) ?? 'monthly',
+            startDate: startDate,
+            endDate: _parseDate(item['end_date']),
+            status: _nullableText(item['status']) ?? 'active',
+          );
+        })
+        .whereType<SubscriptionHistoryEntryPayload>()
+        .toList();
   }
 
   PaginationPayload _toPaginationPayload(dynamic raw) {
@@ -1775,7 +1839,8 @@ class MobileApiService {
     }
     final int currentPage = _parseInt(raw['current_page']) ?? 1;
     final int lastPage = _parseInt(raw['last_page']) ?? 1;
-    final bool hasMore = raw['has_more'] == true ||
+    final bool hasMore =
+        raw['has_more'] == true ||
         (raw['next_page_url'] != null && raw['next_page_url'] != '');
     return PaginationPayload(
       currentPage: currentPage,
@@ -2048,6 +2113,8 @@ class PracticeSubjectPayload {
     required this.id,
     required this.code,
     required this.title,
+    required this.groupKey,
+    required this.groupLabel,
     required this.totalQuestions,
     required this.questionLimit,
     required this.isAccessible,
@@ -2057,6 +2124,8 @@ class PracticeSubjectPayload {
   final int id;
   final String code;
   final String title;
+  final String groupKey;
+  final String groupLabel;
   final int totalQuestions;
   final int questionLimit;
   final bool isAccessible;

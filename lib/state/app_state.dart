@@ -76,44 +76,23 @@ class AppState extends ChangeNotifier {
   int _referralsPage = 1;
   bool _restoringSession = false;
 
-  static const List<PlanOption> _fallbackPlans = <PlanOption>[
-    PlanOption(
-      id: 0,
-      name: 'Free Plan',
-      tier: PlanTier.free,
-      title: 'Free Plan',
-      price: 0,
-      priceLabel: 'PHP 0',
-      billingCycle: 'monthly',
-      billingLabel: 'Forever free',
-      description: 'Starter access for board review.',
-      features: <String>[
-        'Access to 3 subjects',
-        'Up to 30 questions per set',
-        'Score summary after each attempt',
-        'Basic leaderboard preview',
-      ],
-    ),
-    PlanOption(
-      id: 1,
-      name: 'Subscription',
-      tier: PlanTier.premium,
-      title: 'Subscription',
-      price: 299,
-      priceLabel: 'PHP 299',
-      billingCycle: 'monthly',
-      billingLabel: 'per month',
-      description: 'Full premium review access.',
-      features: <String>[
-        'All subjects unlocked',
-        'Up to 100 questions per set',
-        'Full A B C D rationalization',
-        'Advanced performance analytics',
-        'Bookmarks for weak topics',
-        'Referral reward multiplier',
-      ],
-    ),
-  ];
+  static const PlanOption _placeholderPlan = PlanOption(
+    id: -1,
+    name: 'Loading Plan',
+    tier: PlanTier.free,
+    title: 'Loading Plan',
+    planGroup: 'placeholder',
+    groupLabel: 'Loading',
+    subPlanLabel: 'Loading',
+    price: 0,
+    priceLabel: 'PHP 0',
+    billingCycle: 'trial',
+    billingLabel: 'Loading',
+    durationDays: 0,
+    sortOrder: 0,
+    description: 'Waiting for server data.',
+    features: <String>[],
+  );
   static const List<Color> _subjectPalette = <Color>[
     Color(0xFF9F76C0),
     Color(0xFF70A764),
@@ -124,7 +103,7 @@ class AppState extends ChangeNotifier {
     Color(0xFF4B8DDF),
   ];
 
-  List<PlanOption> _plans = List<PlanOption>.from(_fallbackPlans);
+  List<PlanOption> _plans = <PlanOption>[];
 
   List<PlanOption> get plans => List<PlanOption>.unmodifiable(_plans);
   bool get practiceSubjectsLoaded => _practiceSubjectsLoaded;
@@ -141,248 +120,11 @@ class AppState extends ChangeNotifier {
   List<ReferralRewardItem> get activeRewards =>
       List<ReferralRewardItem>.unmodifiable(_activeRewards);
 
-  final List<SubjectItem> allSubjects = const <SubjectItem>[
-    SubjectItem(
-      id: 'far',
-      code: 'FAR',
-      title: 'Financial Accounting and Reporting',
-      totalQuestions: 1000,
-      color: Color(0xFF9F76C0),
-    ),
-    SubjectItem(
-      id: 'afar',
-      code: 'AFAR',
-      title: 'Advanced Financial Accounting and Reporting',
-      totalQuestions: 900,
-      color: Color(0xFF70A764),
-    ),
-    SubjectItem(
-      id: 'ms',
-      code: 'MS',
-      title: 'Management Services',
-      totalQuestions: 800,
-      color: Color(0xFFF45A64),
-    ),
-    SubjectItem(
-      id: 'aud',
-      code: 'AUD',
-      title: 'Auditing',
-      totalQuestions: 850,
-      color: Color(0xFF2CA6AA),
-    ),
-    SubjectItem(
-      id: 'tax',
-      code: 'TAX',
-      title: 'Taxation',
-      totalQuestions: 750,
-      color: Color(0xFFF29C33),
-    ),
-    SubjectItem(
-      id: 'rfbt',
-      code: 'RFBT',
-      title: 'Regulatory Framework for Business Transactions',
-      totalQuestions: 700,
-      color: Color(0xFFEF4DA8),
-    ),
-    SubjectItem(
-      id: 'nursing',
-      code: 'NUR',
-      title: 'Nursing Concepts',
-      totalQuestions: 950,
-      color: Color(0xFF4B8DDF),
-    ),
-  ];
-
   final List<QuizRecord> records = <QuizRecord>[];
 
   static const String _prefsRememberMe = 'remember_me';
   static const String _prefsAuthToken = 'auth_token';
   static const String _prefsRememberedEmail = 'remembered_email';
-
-  final Map<String, List<_QuestionBlueprint>>
-  _bank = <String, List<_QuestionBlueprint>>{
-    'far': <_QuestionBlueprint>[
-      _QuestionBlueprint(
-        prompt:
-            "Shareholders' equity will increase when which event happens first",
-        options: <String>[
-          'Payment of cash dividends',
-          'Recognition of net income',
-          'Purchase of treasury shares',
-          'Settlement of a bank loan',
-        ],
-        correctIndex: 1,
-        reason:
-            'net income closes to retained earnings and directly increases equity',
-      ),
-      _QuestionBlueprint(
-        prompt:
-            'The statement that reports assets liabilities and equity at one date is',
-        options: <String>[
-          'Statement of financial position',
-          'Statement of cash flows',
-          'Statement of comprehensive income',
-          'Statement of changes in equity',
-        ],
-        correctIndex: 0,
-        reason:
-            'it presents the financial position at a specific point in time',
-      ),
-    ],
-    'afar': <_QuestionBlueprint>[
-      _QuestionBlueprint(
-        prompt:
-            'Intercompany sales in consolidation are removed mainly to avoid',
-        options: <String>[
-          'Double counting group revenue',
-          'Changing parent ownership',
-          'Increasing minority interest',
-          'Creating new liabilities',
-        ],
-        correctIndex: 0,
-        reason:
-            'group reports should include only transactions with external parties',
-      ),
-      _QuestionBlueprint(
-        prompt: 'Goodwill in acquisition is generally measured as',
-        options: <String>[
-          'Parent book value minus liabilities',
-          'Excess of consideration over fair value of net identifiable assets',
-          'Difference between revenue and expense',
-          'Total subsidiary retained earnings',
-        ],
-        correctIndex: 1,
-        reason:
-            'IFRS measures goodwill from purchase consideration and fair values',
-      ),
-    ],
-    'ms': <_QuestionBlueprint>[
-      _QuestionBlueprint(
-        prompt: 'Break even point occurs when',
-        options: <String>[
-          'Revenue equals variable costs',
-          'Revenue equals total costs',
-          'Contribution margin is zero',
-          'Profit equals target income',
-        ],
-        correctIndex: 1,
-        reason:
-            'at break even profit is zero because total revenue equals total cost',
-      ),
-      _QuestionBlueprint(
-        prompt: 'Contribution margin per unit helps evaluate',
-        options: <String>[
-          'Short term profitability and coverage of fixed costs',
-          'Historical acquisition cost',
-          'Bond market value',
-          'Payroll withholding taxes',
-        ],
-        correctIndex: 0,
-        reason:
-            'contribution margin shows how each unit contributes to fixed costs and profit',
-      ),
-    ],
-    'aud': <_QuestionBlueprint>[
-      _QuestionBlueprint(
-        prompt: 'Audit evidence is sufficient when there is enough',
-        options: <String>[
-          'Quantity to reduce audit risk',
-          'Internal memo pages only',
-          'Verbal explanation only',
-          'Unsigned drafts only',
-        ],
-        correctIndex: 0,
-        reason: 'sufficiency refers to the quantity of appropriate evidence',
-      ),
-      _QuestionBlueprint(
-        prompt: 'An unmodified audit opinion indicates statements are',
-        options: <String>[
-          'Fraud free with absolute assurance',
-          'Prepared fairly under the applicable framework',
-          'Not yet audited',
-          'Guaranteed accurate in every amount',
-        ],
-        correctIndex: 1,
-        reason:
-            'auditors provide reasonable assurance and fair presentation conclusion',
-      ),
-    ],
-    'tax': <_QuestionBlueprint>[
-      _QuestionBlueprint(
-        prompt: 'Value added tax is commonly imposed on',
-        options: <String>[
-          'Gross sales and covered services of VAT registered persons',
-          'Only annual salary income',
-          'Only import duties',
-          'Only unrealized gains',
-        ],
-        correctIndex: 0,
-        reason: 'VAT generally applies to sale barter exchange and importation',
-      ),
-      _QuestionBlueprint(
-        prompt: 'Withholding tax is designed mainly to',
-        options: <String>[
-          'Delay tax payments',
-          'Advance collection and improve compliance',
-          'Replace all other taxes',
-          'Remove filing responsibilities',
-        ],
-        correctIndex: 1,
-        reason:
-            'it secures collection earlier and improves compliance behavior',
-      ),
-    ],
-    'rfbt': <_QuestionBlueprint>[
-      _QuestionBlueprint(
-        prompt:
-            'Essential requisites of a valid contract include consent object and',
-        options: <String>[
-          'Cause',
-          'Court approval',
-          'Notarization in all cases',
-          'Board resolution always',
-        ],
-        correctIndex: 0,
-        reason: 'civil law principles require consent object and cause',
-      ),
-      _QuestionBlueprint(
-        prompt: 'A negotiable instrument is payable to bearer when it',
-        options: <String>[
-          'States payable to bearer',
-          'Contains collateral terms',
-          'Has fixed maturity only',
-          'Uses assignment language only',
-        ],
-        correctIndex: 0,
-        reason: 'bearer wording allows transfer by delivery',
-      ),
-    ],
-    'nursing': <_QuestionBlueprint>[
-      _QuestionBlueprint(
-        prompt:
-            'In emergency care the immediate priority for airway obstruction is',
-        options: <String>[
-          'Prepare discharge notes',
-          'Maintain airway patency',
-          'Administer oral medication',
-          'Document intake and output',
-        ],
-        correctIndex: 1,
-        reason: 'airway is first in the ABC emergency framework',
-      ),
-      _QuestionBlueprint(
-        prompt: 'A sterile field becomes contaminated when',
-        options: <String>[
-          'A non sterile object touches it',
-          'It remains above waist level',
-          'Sterile gloves are used',
-          'The nurse avoids reaching over it',
-        ],
-        correctIndex: 0,
-        reason: 'any contact from non sterile items breaks sterility',
-      ),
-    ],
-  };
 
   void finishOnboarding() {
     onboardingDone = true;
@@ -440,10 +182,7 @@ class AppState extends ChangeNotifier {
         return false;
       }
 
-      _applyAuthPayload(
-        response.data!,
-        emailFallback: rememberedEmail,
-      );
+      _applyAuthPayload(response.data!, emailFallback: rememberedEmail);
       _restoringSession = false;
 
       await loadPlans(force: true);
@@ -463,15 +202,16 @@ class AppState extends ChangeNotifier {
   Future<void> _initConnectivity() async {
     final Connectivity connectivity = Connectivity();
     try {
-      final List<ConnectivityResult> result =
-          await connectivity.checkConnectivity();
+      final List<ConnectivityResult> result = await connectivity
+          .checkConnectivity();
       _setOffline(result.contains(ConnectivityResult.none));
     } catch (_) {
       _setOffline(false);
     }
 
-    _connectivitySubscription = connectivity.onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
+    _connectivitySubscription = connectivity.onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) {
       _setOffline(results.contains(ConnectivityResult.none));
     });
   }
@@ -505,7 +245,16 @@ class AppState extends ChangeNotifier {
       return 'No plan data available from server.';
     }
 
-    _plans = remotePlans;
+    _plans = List<PlanOption>.from(remotePlans)
+      ..sort((PlanOption a, PlanOption b) {
+        if (a.sortOrder != b.sortOrder) {
+          return a.sortOrder.compareTo(b.sortOrder);
+        }
+        if (a.price != b.price) {
+          return a.price.compareTo(b.price);
+        }
+        return a.id.compareTo(b.id);
+      });
     _plansLoaded = true;
 
     if (selectedPlanId != null &&
@@ -698,6 +447,8 @@ class AppState extends ChangeNotifier {
         id: item.id.toString(),
         code: item.code,
         title: item.title,
+        groupKey: item.groupKey,
+        groupLabel: item.groupLabel,
         totalQuestions: item.totalQuestions,
         maxQuestionsPerSet: item.questionLimit,
         color: _subjectColorForPayload(item, index),
@@ -719,8 +470,8 @@ class AppState extends ChangeNotifier {
       return null;
     }
 
-    final ApiResult<DashboardMetricsPayload> response =
-        await _api.fetchDashboardMetrics();
+    final ApiResult<DashboardMetricsPayload> response = await _api
+        .fetchDashboardMetrics();
     if (!response.ok || response.data == null) {
       return response.message ?? 'Unable to load dashboard metrics.';
     }
@@ -748,8 +499,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     final int targetPage = loadMore ? _referralsPage + 1 : 1;
-    final ApiResult<ReferralSummaryPayload> response =
-        await _api.fetchReferrals(page: targetPage);
+    final ApiResult<ReferralSummaryPayload> response = await _api
+        .fetchReferrals(page: targetPage);
     loadingReferrals = false;
 
     if (!response.ok || response.data == null) {
@@ -771,39 +522,45 @@ class AppState extends ChangeNotifier {
     referralCategories = payload.categories;
     referralBrands = payload.brands;
     _referralOffers = payload.offers
-        .map((ReferralOfferPayload item) => ReferralOfferItem(
-              id: item.id,
-              title: item.title,
-              description: item.description,
-              pointsCost: item.pointsCost,
-              subject: item.subject,
-              subjectId: item.subjectId,
-              questionLimit: item.questionLimit,
-              durationDays: item.durationDays,
-              category: item.category,
-              brand: item.brand,
-              imageUrl: item.imageUrl,
-              isFeatured: item.isFeatured,
-            ))
+        .map(
+          (ReferralOfferPayload item) => ReferralOfferItem(
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            pointsCost: item.pointsCost,
+            subject: item.subject,
+            subjectId: item.subjectId,
+            questionLimit: item.questionLimit,
+            durationDays: item.durationDays,
+            category: item.category,
+            brand: item.brand,
+            imageUrl: item.imageUrl,
+            isFeatured: item.isFeatured,
+          ),
+        )
         .toList();
     _activeRewards = payload.activeRewards
-        .map((ReferralRewardPayload item) => ReferralRewardItem(
-              id: item.id,
-              offerId: item.offerId,
-              subjectId: item.subjectId,
-              questionLimit: item.questionLimit,
-              expiresAt: item.expiresAt,
-            ))
+        .map(
+          (ReferralRewardPayload item) => ReferralRewardItem(
+            id: item.id,
+            offerId: item.offerId,
+            subjectId: item.subjectId,
+            questionLimit: item.questionLimit,
+            expiresAt: item.expiresAt,
+          ),
+        )
         .toList();
     if (loadMore) {
       _referralEntries = <ReferralEntry>[
         ..._referralEntries,
-        ...payload.referrals.map((ReferralEntryPayload item) => ReferralEntry(
-              id: item.id,
-              invitedName: item.invitedName,
-              invitedEmail: item.invitedEmail,
-              createdAt: item.createdAt,
-            )),
+        ...payload.referrals.map(
+          (ReferralEntryPayload item) => ReferralEntry(
+            id: item.id,
+            invitedName: item.invitedName,
+            invitedEmail: item.invitedEmail,
+            createdAt: item.createdAt,
+          ),
+        ),
       ];
     } else {
       _referralEntries = payload.referrals.map((ReferralEntryPayload item) {
@@ -825,8 +582,7 @@ class AppState extends ChangeNotifier {
     if (!signedIn) {
       return 'Please login first.';
     }
-    final ApiResult<bool> response =
-        await _api.applyReferralCode(code: code);
+    final ApiResult<bool> response = await _api.applyReferralCode(code: code);
     if (!response.ok) {
       return response.message ?? 'Unable to apply referral code.';
     }
@@ -843,8 +599,8 @@ class AppState extends ChangeNotifier {
       return 'Please login first.';
     }
 
-    final ApiResult<ReferralRedemptionPayload> response =
-        await _api.redeemReferralOffer(offerId: offer.id);
+    final ApiResult<ReferralRedemptionPayload> response = await _api
+        .redeemReferralOffer(offerId: offer.id);
     if (!response.ok || response.data == null) {
       return response.message ?? 'Unable to redeem this offer.';
     }
@@ -876,8 +632,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     final int targetPage = loadMore ? _subscriptionHistoryPage + 1 : 1;
-    final ApiResult<SubscriptionHistoryPayload> response =
-        await _api.fetchSubscriptionHistory(page: targetPage);
+    final ApiResult<SubscriptionHistoryPayload> response = await _api
+        .fetchSubscriptionHistory(page: targetPage);
     loadingSubscriptionHistory = false;
 
     if (!response.ok || response.data == null) {
@@ -886,19 +642,19 @@ class AppState extends ChangeNotifier {
     }
 
     final SubscriptionHistoryPayload payload = response.data!;
-    final List<SubscriptionHistoryItem> mapped = payload.entries.map(
-      (SubscriptionHistoryEntryPayload item) {
-        return SubscriptionHistoryItem(
-          id: item.id,
-          planName: item.planName,
-          price: item.price,
-          billingCycle: item.billingCycle,
-          startDate: item.startDate,
-          endDate: item.endDate,
-          status: item.status,
-        );
-      },
-    ).toList();
+    final List<SubscriptionHistoryItem> mapped = payload.entries.map((
+      SubscriptionHistoryEntryPayload item,
+    ) {
+      return SubscriptionHistoryItem(
+        id: item.id,
+        planName: item.planName,
+        price: item.price,
+        billingCycle: item.billingCycle,
+        startDate: item.startDate,
+        endDate: item.endDate,
+        status: item.status,
+      );
+    }).toList();
 
     if (loadMore) {
       _subscriptionHistory = <SubscriptionHistoryItem>[
@@ -927,8 +683,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     final int targetPage = loadMore ? _quizAttemptsPage + 1 : 1;
-    final ApiResult<QuizAttemptHistoryPayload> response =
-        await _api.fetchQuizAttempts(page: targetPage);
+    final ApiResult<QuizAttemptHistoryPayload> response = await _api
+        .fetchQuizAttempts(page: targetPage);
     loadingQuizAttempts = false;
 
     if (!response.ok || response.data == null) {
@@ -937,19 +693,19 @@ class AppState extends ChangeNotifier {
     }
 
     final QuizAttemptHistoryPayload payload = response.data!;
-    final List<QuizAttemptItem> mapped = payload.attempts.map(
-      (QuizAttemptSummaryPayload item) {
-        return QuizAttemptItem(
-          id: item.id,
-          subjectId: item.subjectId,
-          subjectCode: item.subjectCode ?? 'SUBJ',
-          subjectTitle: item.subject ?? 'Subject',
-          score: item.score,
-          total: item.totalQuestions,
-          completedAt: item.createdAt ?? DateTime.now(),
-        );
-      },
-    ).toList();
+    final List<QuizAttemptItem> mapped = payload.attempts.map((
+      QuizAttemptSummaryPayload item,
+    ) {
+      return QuizAttemptItem(
+        id: item.id,
+        subjectId: item.subjectId,
+        subjectCode: item.subjectCode ?? 'SUBJ',
+        subjectTitle: item.subject ?? 'Subject',
+        score: item.score,
+        total: item.totalQuestions,
+        completedAt: item.createdAt ?? DateTime.now(),
+      );
+    }).toList();
 
     if (loadMore) {
       _quizAttempts = <QuizAttemptItem>[..._quizAttempts, ...mapped];
@@ -971,8 +727,9 @@ class AppState extends ChangeNotifier {
       return 'No attempts selected.';
     }
 
-    final ApiResult<int> response =
-        await _api.deleteQuizAttempts(attemptIds: attemptIds);
+    final ApiResult<int> response = await _api.deleteQuizAttempts(
+      attemptIds: attemptIds,
+    );
     if (!response.ok) {
       return response.message ?? 'Unable to delete attempts.';
     }
@@ -1023,8 +780,8 @@ class AppState extends ChangeNotifier {
       );
     }
 
-    final ApiResult<QuizAttemptDetailPayload> response =
-        await _api.fetchQuizAttemptDetails(attemptId: attemptId);
+    final ApiResult<QuizAttemptDetailPayload> response = await _api
+        .fetchQuizAttemptDetails(attemptId: attemptId);
     if (!response.ok || response.data == null) {
       return ApiResult<QuizAttemptDetail>.failure(
         response.message ?? 'Unable to load attempt details.',
@@ -1097,6 +854,9 @@ class AppState extends ChangeNotifier {
   }
 
   PlanOption get currentPlan {
+    if (_plans.isEmpty) {
+      return _placeholderPlan;
+    }
     if (selectedPlanId != null) {
       final PlanOption? byId = _findPlanById(selectedPlanId);
       if (byId != null) {
@@ -1108,7 +868,7 @@ class AppState extends ChangeNotifier {
         return item;
       }
     }
-    return _plans.first;
+    return _plans.isNotEmpty ? _plans.first : _placeholderPlan;
   }
 
   bool get isSubscriptionExpired {
@@ -1128,13 +888,10 @@ class AppState extends ChangeNotifier {
   bool get hasActivePaidPlan => currentPlan.isPaid && !isSubscriptionExpired;
 
   List<SubjectItem> get visibleSubjects {
-    if (_practiceSubjects.isNotEmpty) {
-      return List<SubjectItem>.unmodifiable(_practiceSubjects);
-    }
-    if (signedIn) {
+    if (!signedIn) {
       return const <SubjectItem>[];
     }
-    return hasPremiumAccess ? allSubjects : allSubjects.take(3).toList();
+    return List<SubjectItem>.unmodifiable(_practiceSubjects);
   }
 
   int get maxQuestionPerSet {
@@ -1147,13 +904,11 @@ class AppState extends ChangeNotifier {
       }
       return accessible.fold<int>(
         1,
-        (int maxValue, SubjectItem item) => max(
-          maxValue,
-          item.maxQuestionsPerSet,
-        ),
+        (int maxValue, SubjectItem item) =>
+            max(maxValue, item.maxQuestionsPerSet),
       );
     }
-    return hasPremiumAccess ? 100 : 30;
+    return 1;
   }
 
   Future<String?> choosePlan({
@@ -1263,15 +1018,9 @@ class AppState extends ChangeNotifier {
         'Invalid subject selection.',
       );
     }
-    final int safeCount = count.clamp(
-      1,
-      max(1, subject.totalQuestions),
-    );
+    final int safeCount = count.clamp(1, max(1, subject.totalQuestions));
 
-    return _api.generateQuiz(
-      subjectId: subjectId,
-      totalQuestions: safeCount,
-    );
+    return _api.generateQuiz(subjectId: subjectId, totalQuestions: safeCount);
   }
 
   Future<ApiResult<QuizSubmitPayload>> submitQuizAttempt({
@@ -1281,9 +1030,7 @@ class AppState extends ChangeNotifier {
   }) async {
     final int? subjectId = int.tryParse(subject.id);
     if (subjectId == null) {
-      return ApiResult<QuizSubmitPayload>.failure(
-        'Invalid subject selection.',
-      );
+      return ApiResult<QuizSubmitPayload>.failure('Invalid subject selection.');
     }
 
     final List<QuizAnswerPayload> payload = <QuizAnswerPayload>[];
@@ -1295,67 +1042,15 @@ class AppState extends ChangeNotifier {
         );
       }
       payload.add(
-        QuizAnswerPayload(
-          questionId: item.id!,
-          selectedChoice: answers[index],
-        ),
+        QuizAnswerPayload(questionId: item.id!, selectedChoice: answers[index]),
       );
     }
 
     if (payload.isEmpty) {
-      return ApiResult<QuizSubmitPayload>.failure(
-        'No quiz answers to submit.',
-      );
+      return ApiResult<QuizSubmitPayload>.failure('No quiz answers to submit.');
     }
 
-    return _api.submitQuizAttempt(
-      subjectId: subjectId,
-      answers: payload,
-    );
-  }
-
-  List<QuestionItem> buildQuiz({
-    required SubjectItem subject,
-    required int count,
-  }) {
-    final List<_QuestionBlueprint> source =
-        _bank[subject.id] ?? <_QuestionBlueprint>[];
-    if (source.isEmpty) {
-      return <QuestionItem>[];
-    }
-
-    final int safeCount = count.clamp(1, maxQuestionPerSet);
-    final Random random = Random(
-      subject.id.hashCode + DateTime.now().millisecondsSinceEpoch,
-    );
-    final List<String> keys = <String>['A', 'B', 'C', 'D'];
-    final List<QuestionItem> result = <QuestionItem>[];
-
-    for (int index = 0; index < safeCount; index++) {
-      final _QuestionBlueprint bp = source[random.nextInt(source.length)];
-      final Map<String, String> choices = <String, String>{
-        for (int i = 0; i < 4; i++) keys[i]: bp.options[i],
-      };
-      final String correctKey = keys[bp.correctIndex];
-      final Map<String, String> rationales = <String, String>{
-        for (int i = 0; i < 4; i++)
-          keys[i]: i == bp.correctIndex
-              ? 'is correct because ${bp.reason}.'
-              : 'is wrong because it does not satisfy the core rule in this item.',
-      };
-
-      result.add(
-        QuestionItem(
-          id: null,
-          subjectId: subject.id,
-          question: '${bp.prompt}  Question ${index + 1}',
-          choices: choices,
-          correctKey: correctKey,
-          rationales: rationales,
-        ),
-      );
-    }
-    return result;
+    return _api.submitQuizAttempt(subjectId: subjectId, answers: payload);
   }
 
   SubjectItem _subjectForAttempt(QuizAttemptDetailPayload payload) {
@@ -1372,16 +1067,12 @@ class AppState extends ChangeNotifier {
       }
     }
 
-    for (final SubjectItem item in allSubjects) {
-      if (item.code == code || item.title == title) {
-        return item;
-      }
-    }
-
     return SubjectItem(
       id: subjectId?.toString() ?? code,
       code: code.isEmpty ? 'SUBJ' : code,
       title: title.isEmpty ? 'Subject' : title,
+      groupKey: 'nursing_concepts',
+      groupLabel: 'All Nursing Concepts',
       totalQuestions: payload.totalQuestions,
       color: AppPalette.primary,
     );
@@ -1433,9 +1124,7 @@ class AppState extends ChangeNotifier {
       return null;
     }
 
-    final String value = normalized.length == 6
-        ? 'FF$normalized'
-        : normalized;
+    final String value = normalized.length == 6 ? 'FF$normalized' : normalized;
     final int? parsed = int.tryParse(value, radix: 16);
     if (parsed == null) {
       return null;
@@ -1469,12 +1158,9 @@ class AppState extends ChangeNotifier {
 
   PlanOption? _findFreePlan() {
     for (final PlanOption item in _plans) {
-      if (!item.isPaid || item.tier == PlanTier.free) {
-        return item;
-      }
-    }
-    for (final PlanOption item in _fallbackPlans) {
-      if (!item.isPaid || item.tier == PlanTier.free) {
+      if (item.planGroup == 'free_trial' ||
+          !item.isPaid ||
+          item.tier == PlanTier.free) {
         return item;
       }
     }
@@ -1539,18 +1225,4 @@ class AppState extends ChangeNotifier {
       // Ignore storage cleanup errors.
     }
   }
-}
-
-class _QuestionBlueprint {
-  const _QuestionBlueprint({
-    required this.prompt,
-    required this.options,
-    required this.correctIndex,
-    required this.reason,
-  });
-
-  final String prompt;
-  final List<String> options;
-  final int correctIndex;
-  final String reason;
 }

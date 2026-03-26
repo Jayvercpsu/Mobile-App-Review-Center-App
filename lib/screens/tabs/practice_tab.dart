@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -25,6 +23,7 @@ class _PracticeTabState extends State<PracticeTab>
   final Set<int> _selectedAttemptIds = <int>{};
   late final AnimationController _flickerController;
   late final Animation<double> _flickerOpacity;
+  final Map<String, int> _groupPageIndex = <String, int>{};
 
   bool get _hasSelectedAttempts => _selectedAttemptIds.isNotEmpty;
 
@@ -66,9 +65,9 @@ class _PracticeTabState extends State<PracticeTab>
     }
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 
@@ -108,9 +107,9 @@ class _PracticeTabState extends State<PracticeTab>
     }
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 
@@ -127,10 +126,7 @@ class _PracticeTabState extends State<PracticeTab>
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
     _flickerOpacity = Tween<double>(begin: 0.08, end: 0.18).animate(
-      CurvedAnimation(
-        parent: _flickerController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _flickerController, curve: Curves.easeInOut),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -151,7 +147,11 @@ class _PracticeTabState extends State<PracticeTab>
     required SubjectItem subject,
     required AppState appState,
   }) async {
-    final int maxBySubject = subject.totalQuestions;
+    final int maxBySubject = subject.maxQuestionsPerSet > 0
+        ? (subject.maxQuestionsPerSet < subject.totalQuestions
+              ? subject.maxQuestionsPerSet
+              : subject.totalQuestions)
+        : subject.totalQuestions;
     final int maxCount = maxBySubject;
 
     if (maxCount <= 0) {
@@ -166,8 +166,16 @@ class _PracticeTabState extends State<PracticeTab>
       return;
     }
 
-    final int minCount = maxCount >= 10 ? 10 : 1;
-    double chosenCount = max(minCount, min(20, maxCount)).toDouble();
+    const List<int> preferredItemCounts = <int>[10, 25, 50, 75, 100];
+    final List<int> itemCountOptions = preferredItemCounts
+        .where((int count) => count <= maxCount)
+        .toList();
+    if (itemCountOptions.isEmpty) {
+      itemCountOptions.add(maxCount);
+    }
+    int chosenCount = itemCountOptions.contains(25)
+        ? 25
+        : itemCountOptions.first;
     int chosenSecondsPerQuestion = 60;
     const List<int> secondOptions = <int>[30, 45, 60, 90, 120];
 
@@ -179,14 +187,6 @@ class _PracticeTabState extends State<PracticeTab>
         bool starting = false;
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            final int? divisions = maxCount > minCount
-                ? (maxCount - minCount)
-                : null;
-            final double sliderValue = chosenCount.clamp(
-              minCount.toDouble(),
-              maxCount.toDouble(),
-            );
-
             return Container(
               margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
@@ -217,38 +217,58 @@ class _PracticeTabState extends State<PracticeTab>
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Text(
-                      'Number of items: ${sliderValue.round()}',
-                      style: GoogleFonts.manrope(
-                        color: AppPalette.textDark,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                      ),
-                    ),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: AppPalette.primary,
-                        inactiveTrackColor: AppPalette.primary.withValues(
-                          alpha: 0.12,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(
+                          child: _SelectorColumn(
+                            title: 'Number of Items',
+                            titleColor: const Color(0xFF13A44A),
+                            options: itemCountOptions
+                                .map(
+                                  (int count) => _SelectorOption(
+                                    value: count,
+                                    label: '$count',
+                                  ),
+                                )
+                                .toList(),
+                            selectedValue: chosenCount,
+                            onChanged: (int value) {
+                              setModalState(() {
+                                chosenCount = value;
+                              });
+                            },
+                          ),
                         ),
-                        thumbColor: AppPalette.secondary,
-                        overlayColor: AppPalette.secondary.withValues(
-                          alpha: 0.2,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _SelectorColumn(
+                            title: 'Time allotted for each question',
+                            titleColor: AppPalette.primary,
+                            options: secondOptions
+                                .map(
+                                  (int seconds) => _SelectorOption(
+                                    value: seconds,
+                                    label: switch (seconds) {
+                                      30 => '30 seconds',
+                                      45 => '45 seconds',
+                                      60 => '1 minute',
+                                      90 => '1 minute & 30 seconds',
+                                      120 => '2 minutes',
+                                      _ => '$seconds seconds',
+                                    },
+                                  ),
+                                )
+                                .toList(),
+                            selectedValue: chosenSecondsPerQuestion,
+                            onChanged: (int value) {
+                              setModalState(() {
+                                chosenSecondsPerQuestion = value;
+                              });
+                            },
+                          ),
                         ),
-                      ),
-                      child: Slider(
-                        min: minCount.toDouble(),
-                        max: maxCount.toDouble(),
-                        divisions: divisions,
-                        value: sliderValue,
-                        onChanged: maxCount == minCount
-                            ? null
-                            : (double value) {
-                                setModalState(() {
-                                  chosenCount = value;
-                                });
-                              },
-                      ),
+                      ],
                     ),
                     Text(
                       'Plan limit for ${subject.code}: ${subject.maxQuestionsPerSet} unique questions per set.',
@@ -265,63 +285,6 @@ class _PracticeTabState extends State<PracticeTab>
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Time allotted for each question',
-                      style: GoogleFonts.manrope(
-                        color: AppPalette.primary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: secondOptions.map((int seconds) {
-                        final bool selected = chosenSecondsPerQuestion == seconds;
-                        final String label = switch (seconds) {
-                          30 => '30 sec',
-                          45 => '45 sec',
-                          60 => '1 min',
-                          90 => '1m 30s',
-                          120 => '2 mins',
-                          _ => '$seconds sec',
-                        };
-                        return ChoiceChip(
-                          selected: selected,
-                          onSelected: (bool value) {
-                            if (!value) {
-                              return;
-                            }
-                            setModalState(() {
-                              chosenSecondsPerQuestion = seconds;
-                            });
-                          },
-                          label: Text(
-                            label,
-                            style: GoogleFonts.manrope(
-                              fontWeight: FontWeight.w700,
-                              color: selected
-                                  ? Colors.white
-                                  : AppPalette.textDark,
-                            ),
-                          ),
-                          selectedColor: AppPalette.primary,
-                          backgroundColor: AppPalette.primary.withValues(
-                            alpha: 0.08,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(
-                              color: selected
-                                  ? AppPalette.primary
-                                  : AppPalette.primary.withValues(alpha: 0.2),
-                            ),
-                          ),
-                        );
-                      }).toList(),
                     ),
                     const SizedBox(height: 14),
                     Column(
@@ -363,10 +326,11 @@ class _PracticeTabState extends State<PracticeTab>
                                     final NavigatorState sheetNavigator =
                                         Navigator.of(modalContext);
 
-                                    final response = await appState.generateQuiz(
-                                      subject: subject,
-                                      count: sliderValue.round(),
-                                    );
+                                    final response = await appState
+                                        .generateQuiz(
+                                          subject: subject,
+                                          count: chosenCount,
+                                        );
 
                                     if (!mounted) {
                                       return;
@@ -388,8 +352,7 @@ class _PracticeTabState extends State<PracticeTab>
                                       return;
                                     }
 
-                                    final int requestedCount =
-                                        sliderValue.round();
+                                    final int requestedCount = chosenCount;
                                     final int servedCount =
                                         response.data!.length;
                                     if (servedCount < requestedCount) {
@@ -459,10 +422,250 @@ class _PracticeTabState extends State<PracticeTab>
     );
   }
 
+  Future<void> _refreshReview(AppState appState) async {
+    await appState.loadPracticeSubjects(force: true);
+    await appState.loadQuizAttempts(loadMore: false);
+  }
+
+  List<MapEntry<String, List<SubjectItem>>> _groupSubjects(
+    List<SubjectItem> subjects,
+  ) {
+    final Map<String, List<SubjectItem>> grouped = <String, List<SubjectItem>>{};
+    final List<String> order = <String>[];
+
+    for (final SubjectItem subject in subjects) {
+      final String label = subject.groupLabel.trim().isNotEmpty
+          ? subject.groupLabel.trim()
+          : 'Subjects';
+      if (!grouped.containsKey(label)) {
+        grouped[label] = <SubjectItem>[];
+        order.add(label);
+      }
+      grouped[label]!.add(subject);
+    }
+
+    final List<MapEntry<String, List<SubjectItem>>> result = order
+        .map((String label) => MapEntry<String, List<SubjectItem>>(
+              label,
+              grouped[label] ?? <SubjectItem>[],
+            ))
+        .where((MapEntry<String, List<SubjectItem>> entry) =>
+            entry.value.isNotEmpty)
+        .toList();
+
+    for (final MapEntry<String, List<SubjectItem>> entry in result) {
+      final List<SubjectItem> accessible =
+          entry.value.where((SubjectItem item) => item.isAccessible).toList();
+      final List<SubjectItem> locked =
+          entry.value.where((SubjectItem item) => !item.isAccessible).toList();
+      entry.value
+        ..clear()
+        ..addAll(accessible)
+        ..addAll(locked);
+    }
+
+    return result;
+  }
+
+  List<List<SubjectItem>> _paginateSubjects(
+    List<SubjectItem> subjects,
+    int pageSize,
+  ) {
+    if (subjects.isEmpty || pageSize <= 0) {
+      return <List<SubjectItem>>[];
+    }
+
+    final List<List<SubjectItem>> pages = <List<SubjectItem>>[];
+    for (int i = 0; i < subjects.length; i += pageSize) {
+      final int endIndex =
+          i + pageSize < subjects.length ? i + pageSize : subjects.length;
+      pages.add(subjects.sublist(i, endIndex));
+    }
+
+    return pages;
+  }
+
+  Widget _buildSubjectCard({
+    required BuildContext context,
+    required SubjectItem subject,
+    required bool isLocked,
+    required bool selected,
+    required AppState appState,
+  }) {
+    return GestureDetector(
+      onTap: isLocked
+          ? () {
+              showDialog<void>(
+                context: context,
+                builder: (BuildContext dialogContext) {
+                  final PlanOption currentPlan = appState.currentPlan;
+                  final List<PlanOption> paidPlans = appState.plans
+                      .where((PlanOption plan) => plan.isPaid)
+                      .toList()
+                    ..sort(
+                      (PlanOption a, PlanOption b) =>
+                          a.price.compareTo(b.price),
+                    );
+                  final PlanOption recommendedPlan = paidPlans.isNotEmpty
+                      ? paidPlans.first
+                      : currentPlan;
+                  return AlertDialog(
+                    title: const Text('Upgrade required'),
+                    content: Text(
+                      'Upgrade your plan to unlock ${subject.title}.',
+                    ),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.of(dialogContext).pop(),
+                        child: const Text('Not now'),
+                      ),
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute<void>(
+                              builder: (_) => HomeShell(
+                                initialIndex: 0,
+                                initialPlanId: recommendedPlan.id,
+                              ),
+                            ),
+                            (Route<dynamic> route) => false,
+                          );
+                        },
+                        child: const Text('View Plans'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            }
+          : () {
+              setState(() {
+                _selected = subject;
+              });
+              _openQuestionCountModal(
+                subject: subject,
+                appState: context.read<AppState>(),
+              );
+            },
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isLocked
+                  ? subject.color.withValues(alpha: 0.35)
+                  : subject.color,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? Colors.white : Colors.transparent,
+                width: 2,
+              ),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: subject.color.withValues(alpha: 0.35),
+                  blurRadius: selected ? 16 : 8,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Opacity(
+              opacity: isLocked ? 0.65 : 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    subject.groupLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subject.code,
+                    style: GoogleFonts.redHatDisplay(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subject.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    NumberFormat.decimalPattern().format(
+                      subject.totalQuestions,
+                    ),
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (isLocked)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _flickerOpacity,
+                builder: (BuildContext context, Widget? child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(
+                        alpha: _flickerOpacity.value,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: child,
+                  );
+                },
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.lock_rounded,
+                      size: 20,
+                      color: AppPalette.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
     final List<SubjectItem> subjects = appState.practiceSubjects;
+    final List<MapEntry<String, List<SubjectItem>>> groupedSubjects =
+        _groupSubjects(subjects);
     final Set<String> accessibleIds = subjects
         .where((SubjectItem item) => item.isAccessible)
         .map((SubjectItem item) => item.id)
@@ -490,23 +693,26 @@ class _PracticeTabState extends State<PracticeTab>
     }
 
     if (_selectedAttemptIds.isNotEmpty) {
-      final Set<int> attemptIds =
-          attempts.map((QuizAttemptItem item) => item.id).toSet();
+      final Set<int> attemptIds = attempts
+          .map((QuizAttemptItem item) => item.id)
+          .toSet();
       if (_selectedAttemptIds.any((int id) => !attemptIds.contains(id))) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) {
             return;
           }
           setState(() {
-            _selectedAttemptIds
-                .removeWhere((int id) => !attemptIds.contains(id));
+            _selectedAttemptIds.removeWhere(
+              (int id) => !attemptIds.contains(id),
+            );
           });
         });
       }
     }
 
     if (subjects.isEmpty &&
-        (appState.loadingPracticeSubjects || !appState.practiceSubjectsLoaded)) {
+        (appState.loadingPracticeSubjects ||
+            !appState.practiceSubjectsLoaded)) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -557,7 +763,10 @@ class _PracticeTabState extends State<PracticeTab>
       );
     }
 
-    return CustomScrollView(
+    return RefreshIndicator(
+      onRefresh: () => _refreshReview(appState),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
       slivers: <Widget>[
         if (appState.loadingPracticeSubjects)
           const SliverToBoxAdapter(
@@ -592,184 +801,160 @@ class _PracticeTabState extends State<PracticeTab>
             ),
           ),
         ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.32,
-            ),
-            delegate: SliverChildBuilderDelegate((
-              BuildContext context,
-              int index,
-            ) {
-              final SubjectItem subject = subjects[index];
-              final bool isLocked = !accessibleIds.contains(subject.id);
-              final bool selected = !isLocked && subject.id == _selected?.id;
-              return GestureDetector(
-                onTap: isLocked
-                    ? () {
-                        showDialog<void>(
-                          context: context,
-                          builder: (BuildContext dialogContext) {
-                            final PlanOption currentPlan =
-                                appState.currentPlan;
-                            final List<PlanOption> paidPlans = appState.plans
-                                .where((PlanOption plan) => plan.isPaid)
-                                .toList()
-                              ..sort(
-                                (PlanOption a, PlanOption b) =>
-                                    a.price.compareTo(b.price),
-                              );
-                            final PlanOption recommendedPlan =
-                                paidPlans.isNotEmpty
-                                    ? paidPlans.first
-                                    : currentPlan;
-                            return AlertDialog(
-                              title: const Text('Upgrade required'),
-                              content: Text(
-                                'Upgrade your plan to unlock ${subject.title}.',
-                              ),
-                              actions: <Widget>[
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(dialogContext).pop(),
-                                  child: const Text('Not now'),
-                                ),
-                                FilledButton(
-                                  onPressed: () {
-                                    Navigator.of(dialogContext).pop();
-                                    Navigator.of(context).pushAndRemoveUntil(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) =>
-                                            HomeShell(
-                                              initialIndex: 0,
-                                              initialPlanId:
-                                                  recommendedPlan.id,
-                                            ),
-                                      ),
-                                      (Route<dynamic> route) => false,
-                                    );
-                                  },
-                                  child: const Text('View Plans'),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      }
-                    : () {
-                    setState(() {
-                      _selected = subject;
-                    });
-                    _openQuestionCountModal(
-                      subject: subject,
-                      appState: context.read<AppState>(),
-                    );
-                },
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 240),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isLocked
-                            ? subject.color.withValues(alpha: 0.35)
-                            : subject.color,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: selected ? Colors.white : Colors.transparent,
-                          width: 2,
-                        ),
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(
-                            color: subject.color.withValues(alpha: 0.35),
-                            blurRadius: selected ? 16 : 8,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Opacity(
-                        opacity: isLocked ? 0.65 : 1,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              subject.code,
-                              style: GoogleFonts.redHatDisplay(
-                                color: Colors.white,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              subject.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              NumberFormat.decimalPattern().format(
-                                subject.totalQuestions,
-                              ),
-                              style: GoogleFonts.manrope(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
+        for (final MapEntry<String, List<SubjectItem>> group
+            in groupedSubjects) ...<Widget>[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      group.key,
+                      style: GoogleFonts.redHatDisplay(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppPalette.primary,
                       ),
                     ),
-                    if (isLocked)
-                      Positioned.fill(
-                        child: AnimatedBuilder(
-                          animation: _flickerOpacity,
-                          builder: (BuildContext context, Widget? child) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(
-                                  alpha: _flickerOpacity.value,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: child,
-                            );
-                          },
-                          child: Align(
-                            alignment: Alignment.center,
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.lock_rounded,
-                                size: 20,
-                                color: AppPalette.primary,
+                  ),
+                  Text(
+                    '${group.value.length} subjects',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            sliver: SliverToBoxAdapter(
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  const double crossAxisSpacing = 10;
+                  const double mainAxisSpacing = 10;
+                  const int crossAxisCount = 2;
+                  const double childAspectRatio = 1.32;
+                  const double groupHorizontalPadding = 10;
+                  final List<List<SubjectItem>> pages =
+                      _paginateSubjects(group.value, 4);
+
+                  if (pages.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final double availableWidth =
+                      constraints.maxWidth - (groupHorizontalPadding * 2);
+                  final double tileWidth =
+                      (availableWidth - crossAxisSpacing) / crossAxisCount;
+                  final double tileHeight = tileWidth / childAspectRatio;
+                  final double gridHeight =
+                      (tileHeight * 2) + mainAxisSpacing;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: groupHorizontalPadding,
+                    ),
+                    child: SizedBox(
+                      height: gridHeight + (pages.length > 1 ? 16 : 0),
+                      child: Column(
+                        children: <Widget>[
+                          SizedBox(
+                            height: gridHeight,
+                            child: ClipRect(
+                              child: PageView.builder(
+                                key:
+                                    PageStorageKey<String>('group-${group.key}'),
+                                itemCount: pages.length,
+                                onPageChanged: (int page) {
+                                  setState(() {
+                                    _groupPageIndex[group.key] = page;
+                                  });
+                                },
+                                itemBuilder:
+                                    (BuildContext context, int pageIndex) {
+                                  final List<SubjectItem> pageSubjects =
+                                      pages[pageIndex];
+                                  return GridView.builder(
+                                    padding: EdgeInsets.zero,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      crossAxisSpacing: crossAxisSpacing,
+                                      mainAxisSpacing: mainAxisSpacing,
+                                      childAspectRatio: childAspectRatio,
+                                    ),
+                                    itemCount: pageSubjects.length,
+                                    itemBuilder:
+                                        (BuildContext context, int index) {
+                                      final SubjectItem subject =
+                                          pageSubjects[index];
+                                      final bool isLocked =
+                                          !accessibleIds.contains(subject.id);
+                                      final bool selected = !isLocked &&
+                                          subject.id == _selected?.id;
+                                      return _buildSubjectCard(
+                                        context: context,
+                                        subject: subject,
+                                        isLocked: isLocked,
+                                        selected: selected,
+                                        appState: appState,
+                                      );
+                                    },
+                                  );
+                                },
                               ),
                             ),
                           ),
-                        ),
+                          if (pages.length > 1)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List<Widget>.generate(
+                                  pages.length,
+                                  (int index) {
+                                    final int currentPage =
+                                        _groupPageIndex[group.key] ?? 0;
+                                    final bool isActive =
+                                        index == currentPage;
+                                    return AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 200),
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 3,
+                                      ),
+                                      width: isActive ? 12 : 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: isActive
+                                            ? AppPalette.primary
+                                            : AppPalette.muted.withValues(
+                                                alpha: 0.35,
+                                              ),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-              );
-            }, childCount: subjects.length),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
-        ),
+        ],
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
@@ -829,7 +1014,8 @@ class _PracticeTabState extends State<PracticeTab>
                       const SizedBox(width: 10),
                       Expanded(
                         child: FilledButton(
-                          onPressed: !_hasSelectedAttempts ||
+                          onPressed:
+                              !_hasSelectedAttempts ||
                                   appState.loadingQuizAttempts
                               ? null
                               : () => _confirmDeleteSelected(appState),
@@ -856,9 +1042,7 @@ class _PracticeTabState extends State<PracticeTab>
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: Center(child: CircularProgressIndicator()),
             ),
           )
         else if (attempts.isEmpty)
@@ -920,8 +1104,9 @@ class _PracticeTabState extends State<PracticeTab>
                             ),
                           );
 
-                          final result =
-                              await appState.loadQuizAttemptDetails(item.id);
+                          final result = await appState.loadQuizAttemptDetails(
+                            item.id,
+                          );
                           if (!context.mounted) {
                             return;
                           }
@@ -956,8 +1141,7 @@ class _PracticeTabState extends State<PracticeTab>
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color:
-                                  AppPalette.primary.withValues(alpha: 0.08),
+                              color: AppPalette.primary.withValues(alpha: 0.08),
                             ),
                           ),
                           child: Row(
@@ -1038,8 +1222,8 @@ class _PracticeTabState extends State<PracticeTab>
                     ? null
                     : () {
                         context.read<AppState>().loadQuizAttempts(
-                              loadMore: true,
-                            );
+                          loadMore: true,
+                        );
                       },
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
@@ -1063,6 +1247,96 @@ class _PracticeTabState extends State<PracticeTab>
               ),
             ),
           ),
+      ],
+      ),
+    );
+  }
+}
+
+class _SelectorOption {
+  const _SelectorOption({required this.value, required this.label});
+
+  final int value;
+  final String label;
+}
+
+class _SelectorColumn extends StatelessWidget {
+  const _SelectorColumn({
+    required this.title,
+    required this.titleColor,
+    required this.options,
+    required this.selectedValue,
+    required this.onChanged,
+  });
+
+  final String title;
+  final Color titleColor;
+  final List<_SelectorOption> options;
+  final int selectedValue;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          title,
+          style: GoogleFonts.manrope(
+            color: titleColor,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 6),
+        ...options.map((option) {
+          final bool selected = option.value == selectedValue;
+          return InkWell(
+            onTap: () => onChanged(option.value),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected
+                            ? const Color(0xFF5FA741)
+                            : const Color(0xFF5FA741),
+                        width: 2,
+                      ),
+                      color: selected
+                          ? const Color(0xFF5FA741).withValues(alpha: 0.15)
+                          : Colors.transparent,
+                    ),
+                    child: selected
+                        ? const Icon(
+                            Icons.circle,
+                            size: 8,
+                            color: Color(0xFF5FA741),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      option.label,
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.textDark,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
       ],
     );
   }

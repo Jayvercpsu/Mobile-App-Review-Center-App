@@ -13,11 +13,21 @@ import '../login_screen.dart';
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
 
+  Future<void> _refreshProfile(BuildContext context) async {
+    final AppState appState = context.read<AppState>();
+    await appState.refreshCurrentUser();
+    await appState.loadReferrals(loadMore: false);
+    await appState.loadSubscriptionHistory(loadMore: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
 
-    return CustomScrollView(
+    return RefreshIndicator(
+      onRefresh: () => _refreshProfile(context),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
       slivers: <Widget>[
         SliverToBoxAdapter(
           child: Padding(
@@ -292,6 +302,7 @@ class ProfileTab extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }

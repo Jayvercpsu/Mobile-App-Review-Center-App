@@ -8,10 +8,15 @@ class PlanOption {
     required this.name,
     required this.tier,
     required this.title,
+    required this.planGroup,
+    required this.groupLabel,
+    required this.subPlanLabel,
     required this.price,
     required this.priceLabel,
     required this.billingCycle,
     required this.billingLabel,
+    required this.durationDays,
+    required this.sortOrder,
     required this.description,
     required this.features,
   });
@@ -20,14 +25,20 @@ class PlanOption {
   final String name;
   final PlanTier tier;
   final String title;
+  final String planGroup;
+  final String groupLabel;
+  final String subPlanLabel;
   final double price;
   final String priceLabel;
   final String billingCycle;
   final String billingLabel;
+  final int durationDays;
+  final int sortOrder;
   final String description;
   final List<String> features;
 
   bool get isPaid => price > 0;
+  bool get isTrial => tier == PlanTier.free;
 }
 
 class SubjectItem {
@@ -35,6 +46,8 @@ class SubjectItem {
     required this.id,
     required this.code,
     required this.title,
+    required this.groupKey,
+    required this.groupLabel,
     required this.totalQuestions,
     required this.color,
     int? maxQuestionsPerSet,
@@ -44,6 +57,8 @@ class SubjectItem {
   final String id;
   final String code;
   final String title;
+  final String groupKey;
+  final String groupLabel;
   final int totalQuestions;
   final Color color;
   final int maxQuestionsPerSet;

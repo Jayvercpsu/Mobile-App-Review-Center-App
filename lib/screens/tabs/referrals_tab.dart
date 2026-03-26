@@ -221,6 +221,11 @@ class _ReferralsTabState extends State<ReferralsTab> {
     );
   }
 
+  Future<void> _refreshReferrals(AppState appState) async {
+    await appState.loadReferrals(loadMore: false);
+    await appState.loadDashboardMetrics(force: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
@@ -253,7 +258,10 @@ class _ReferralsTabState extends State<ReferralsTab> {
     final List<ReferralOfferItem> recommended =
         featured.isNotEmpty ? featured : filteredOffers.take(4).toList();
 
-    return CustomScrollView(
+    return RefreshIndicator(
+      onRefresh: () => _refreshReferrals(appState),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
       slivers: <Widget>[
         SliverToBoxAdapter(
           child: Padding(
@@ -630,6 +638,7 @@ class _ReferralsTabState extends State<ReferralsTab> {
           child: const SizedBox(height: 20),
         ),
       ],
+      ),
     );
   }
 }

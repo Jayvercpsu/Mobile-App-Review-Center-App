@@ -27,37 +27,6 @@ class DashboardTab extends StatefulWidget {
 
 class _DashboardTabState extends State<DashboardTab> {
   int? _previewPlanId;
-  static const List<String> _planAConcepts = <String>[
-    'Anatomy and Physiology',
-    'Theoretical Foundation in Nursing & Health Ethics (Bioethics)',
-    'Health Assessment',
-    'Fundamentals of Nursing Practice, Nursing Informatics, Nutrition & Diet Therapy',
-    'Microbiology & Parasitology',
-    'Pharmacology and Nursing Therapeutics',
-    'Care of Maternal & Child (Well Clients)',
-    'Care of Maternal & Child (At-risk or with Problems: Acute & Chronic)',
-    'Nursing Research',
-    'Medical Surgical Nursing 101',
-    'Medical Surgical Nursing 102',
-    'Medical Surgical Nursing 103',
-    'Geriatric Nursing',
-    'Mental Health Disorders / Psychiatric Nursing',
-    'Community Health Nursing',
-    'Nursing Leadership and Management',
-  ];
-  static const List<String> _planBCoverage = <String>[
-    'Mock Board Exam (All Access)',
-    'Nursing Practice I - Community Health Nursing',
-    'Nursing Practice II - Care of Healthy / At Risk Mother and Child',
-    'Nursing Practice III - Physiologic & Psychosocial Alterations (Part A)',
-    'Nursing Practice IV - Physiologic & Psychosocial Alterations (Part B)',
-    'Nursing Practice V - Physiologic & Psychosocial Alterations (Part C)',
-    'Includes all Plan A Nursing Concepts',
-  ];
-  static const List<String> _freeTrialCoverage = <String>[
-    '3 days FREE trial (Limited Access: Nursing Concepts only)',
-    'Upgrade anytime for full subject access and Mock Board Exam sets',
-  ];
 
   @override
   void initState() {
@@ -88,43 +57,75 @@ class _DashboardTabState extends State<DashboardTab> {
     });
   }
 
-  bool _isPlanB(PlanOption plan) {
-    final String normalized =
-        '${plan.name} ${plan.title} ${plan.description}'.toLowerCase();
-    return normalized.contains('plan b') ||
-        normalized.contains('mock board') ||
-        normalized.contains('full access') ||
-        plan.price >= 1000;
-  }
-
   String _planDisplayTitle(PlanOption plan) {
-    if (!plan.isPaid || plan.tier == PlanTier.free) {
-      return 'FREE TRIAL (3 DAYS)';
+    final String label = plan.groupLabel.trim();
+    if (label.isNotEmpty) {
+      return label;
     }
-    if (_isPlanB(plan)) {
-      return 'PLAN B: MOCK BOARD EXAM + ALL NURSING CONCEPTS';
-    }
-    return 'PLAN A: ALL NURSING CONCEPTS';
+    return plan.title;
   }
 
   String _planDisplayDescription(PlanOption plan) {
-    if (!plan.isPaid || plan.tier == PlanTier.free) {
-      return 'A. Free Trial (Limited Access)';
+    if (plan.description.trim().isNotEmpty) {
+      return plan.description.trim();
     }
-    if (_isPlanB(plan)) {
-      return 'C. FULL ACCESS including All Concepts / All Subjects and Mock Board Exam';
+    if (plan.tier == PlanTier.free || plan.planGroup == 'free_trial') {
+      return 'Limited access trial plan.';
     }
-    return 'B. All Concepts / All Subjects Only';
+    if (plan.planGroup == 'plan_b') {
+      return 'Full access including mock board exam and all concepts.';
+    }
+    return 'Subscription coverage is based on server plan settings.';
   }
 
   List<String> _planDisplayFeatures(PlanOption plan) {
-    if (!plan.isPaid || plan.tier == PlanTier.free) {
-      return _freeTrialCoverage;
+    final List<String> features = plan.features
+        .map((String feature) => feature.trim())
+        .where((String feature) => feature.isNotEmpty)
+        .toList();
+    if (features.isNotEmpty) {
+      return features;
     }
-    if (_isPlanB(plan)) {
-      return _planBCoverage;
-    }
-    return _planAConcepts;
+    return <String>[
+      plan.tier == PlanTier.free
+          ? 'Limited access during free trial.'
+          : 'Plan coverage is managed by server settings.',
+    ];
+  }
+
+  Future<void> _refreshDashboard(AppState appState) async {
+    await appState.refreshCurrentUser();
+    await appState.loadPlans(force: true);
+    await appState.loadPracticeSubjects(force: true);
+    await appState.loadDashboardMetrics(force: true);
+    await appState.loadSubscriptionHistory(loadMore: false);
+    await appState.loadReferrals(loadMore: false);
+    await appState.loadQuizAttempts(loadMore: false);
+  }
+
+  bool _isFreeTrialPlan(PlanOption plan) {
+    return plan.planGroup == 'free_trial' ||
+        plan.tier == PlanTier.free ||
+        !plan.isPaid;
+  }
+
+  List<PlanOption> _sortedExplorePlans(List<PlanOption> plans) {
+    final List<PlanOption> items = List<PlanOption>.from(plans);
+    items.sort((PlanOption a, PlanOption b) {
+      final bool aFree = _isFreeTrialPlan(a);
+      final bool bFree = _isFreeTrialPlan(b);
+      if (aFree != bFree) {
+        return aFree ? -1 : 1;
+      }
+      if (a.sortOrder != b.sortOrder) {
+        return a.sortOrder.compareTo(b.sortOrder);
+      }
+      if (a.price != b.price) {
+        return a.price.compareTo(b.price);
+      }
+      return a.id.compareTo(b.id);
+    });
+    return items;
   }
 
   Future<void> _choosePlan({
@@ -142,7 +143,11 @@ class _DashboardTabState extends State<DashboardTab> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? 'Plan activated: ${plan.title}')),
+      SnackBar(
+        content: Text(
+          error ?? 'Plan activated: ${plan.groupLabel} - ${plan.subPlanLabel}',
+        ),
+      ),
     );
 
     if (error == null) {
@@ -280,10 +285,17 @@ class _DashboardTabState extends State<DashboardTab> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '$displayTitle - ${plan.priceLabel}',
+                    '${plan.subPlanLabel} - ${plan.priceLabel}',
                     style: GoogleFonts.manrope(
                       color: AppPalette.textDark,
                       fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    displayTitle,
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
@@ -374,11 +386,15 @@ class _DashboardTabState extends State<DashboardTab> {
     required PlanOption currentPlan,
     required PlanOption nextPlan,
   }) async {
+    final String currentLabel =
+        '${currentPlan.groupLabel} - ${currentPlan.subPlanLabel}';
+    final String nextLabel =
+        '${nextPlan.groupLabel} - ${nextPlan.subPlanLabel}';
     final String message = currentPlan.isPaid
-        ? 'Your current plan (${currentPlan.title}) will be cancelled '
-              'and replaced with ${nextPlan.title}. Continue?'
-        : 'You are currently on ${currentPlan.title}. '
-              'Switching will replace it with ${nextPlan.title}. Continue?';
+        ? 'Your current plan ($currentLabel) will be cancelled '
+              'and replaced with $nextLabel. Continue?'
+        : 'You are currently on $currentLabel. '
+              'Switching will replace it with $nextLabel. Continue?';
 
     return await showDialog<bool>(
           context: context,
@@ -511,7 +527,11 @@ class _DashboardTabState extends State<DashboardTab> {
       }
       if (refreshError == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully chose ${plan.name}.')),
+          SnackBar(
+            content: Text(
+              'Successfully chose ${plan.groupLabel} - ${plan.subPlanLabel}.',
+            ),
+          ),
         );
       } else {
         ScaffoldMessenger.of(
@@ -555,7 +575,7 @@ class _DashboardTabState extends State<DashboardTab> {
     final String message = formattedEndDate == null
         ? 'Your premium access will end immediately and you will return to the free plan.'
         : 'Your premium access is valid until $formattedEndDate, '
-            'but cancelling will end it immediately and return you to the free plan.';
+              'but cancelling will end it immediately and return you to the free plan.';
 
     return await showDialog<bool>(
           context: context,
@@ -593,9 +613,7 @@ class _DashboardTabState extends State<DashboardTab> {
                   ),
                   child: Text(
                     'Cancel Plan',
-                    style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -627,9 +645,25 @@ class _DashboardTabState extends State<DashboardTab> {
       return;
     }
 
+    String successMessage = 'Plan cancelled. You are now on the Free Plan.';
+    if (error == null) {
+      final PlanOption activePlan = appState.currentPlan;
+      if (activePlan.planGroup == 'free_trial' ||
+          activePlan.tier == PlanTier.free) {
+        final DateTime? resumedEndDate = appState.subscriptionEndDate;
+        if (resumedEndDate != null && !appState.isSubscriptionExpired) {
+          final String until =
+              DateFormat('MMM d, yyyy').format(resumedEndDate);
+          successMessage = 'Free trial resumed. Valid until $until.';
+        } else {
+          successMessage = 'You are now on the Free Trial.';
+        }
+      }
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(error ?? 'Plan cancelled. You are now on the Free Plan.'),
+        content: Text(error ?? successMessage),
       ),
     );
 
@@ -652,24 +686,29 @@ class _DashboardTabState extends State<DashboardTab> {
         appState.currentPlan.isPaid && !appState.isSubscriptionExpired;
     final bool hasActivePaidPlan = appState.hasActivePaidPlan;
     final List<String> featureItems = _planDisplayFeatures(featuresPlan);
-    final String lastScoreLabel = (appState.lastScore != null &&
-            appState.lastScoreTotal != null)
+    final String lastScoreLabel =
+        (appState.lastScore != null && appState.lastScoreTotal != null)
         ? '${appState.lastScore}/${appState.lastScoreTotal}'
         : (appState.records.isEmpty
               ? '--'
               : '${appState.records.first.score}/${appState.records.first.total}');
     final DateFormat historyFormatter = DateFormat('MMM dd, yyyy');
     final DateFormat referralFormatter = DateFormat('MMM dd, yyyy');
+    final List<PlanOption> explorePlans = _sortedExplorePlans(appState.plans);
 
-    return CustomScrollView(
-      slivers: <Widget>[
+    return RefreshIndicator(
+      onRefresh: () => _refreshDashboard(appState),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: <Widget>[
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
             child: Row(
               children: <Widget>[
                 ClipOval(
-                  child: appState.userAvatarUrl != null &&
+                  child:
+                      appState.userAvatarUrl != null &&
                           appState.userAvatarUrl!.trim().isNotEmpty
                       ? Image.network(
                           appState.userAvatarUrl!,
@@ -812,14 +851,14 @@ class _DashboardTabState extends State<DashboardTab> {
                       width: double.infinity,
                       height: 44,
                       child: OutlinedButton(
-                        onPressed: appState.selectingPlan ||
-                                appState.creatingCheckout
+                        onPressed:
+                            appState.selectingPlan || appState.creatingCheckout
                             ? null
                             : () => _cancelPlan(
-                                  context: context,
-                                  appState: context.read<AppState>(),
-                                  formattedEndDate: formattedEndDate,
-                                ),
+                                context: context,
+                                appState: context.read<AppState>(),
+                                formattedEndDate: formattedEndDate,
+                              ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           backgroundColor: Colors.white.withValues(alpha: 0.12),
@@ -883,15 +922,21 @@ class _DashboardTabState extends State<DashboardTab> {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
                 scrollDirection: Axis.horizontal,
-                itemCount: appState.plans.length,
+                itemCount: explorePlans.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder: (BuildContext context, int index) {
-                  final PlanOption plan = appState.plans[index];
+                  final PlanOption plan = explorePlans[index];
                   final bool selected = plan.id == appState.currentPlan.id;
                   final bool previewed = _previewPlanId == plan.id;
                   final bool isFreePlan = !plan.isPaid;
-                  final String displayTitle = _planDisplayTitle(plan);
-                  final String displayDescription = _planDisplayDescription(plan);
+                  final String displayTitle =
+                      plan.subPlanLabel.trim().isNotEmpty
+                      ? plan.subPlanLabel
+                      : plan.name;
+                  final String groupTitle = _planDisplayTitle(plan);
+                  final String displayDescription = _planDisplayDescription(
+                    plan,
+                  );
                   final bool lockedFreePlan = lockFreePlan && isFreePlan;
                   final bool lockedByActivePlan =
                       hasActivePaidPlan && !selected;
@@ -907,117 +952,128 @@ class _DashboardTabState extends State<DashboardTab> {
                   final String buttonLabel = selected
                       ? (canRenew ? 'Renew Plan' : 'Selected')
                       : (lockedByActivePlan
-                          ? 'Cancel current plan first'
-                          : (lockedFreePlan
-                                ? 'Unavailable'
-                                : (plan.isPaid
-                                      ? 'PAY NOW'
-                                      : 'Choose Plan')));
+                            ? 'Cancel current plan first'
+                            : (lockedFreePlan
+                                  ? 'Unavailable'
+                                  : (plan.isPaid ? 'PAY NOW' : 'Choose Plan')));
 
-                return GestureDetector(
-                  onTap: lockedFreePlan ? null : () => _setPreviewPlan(plan),
-                  child: AnimatedScale(
-                    duration: const Duration(milliseconds: 220),
-                    scale: selected ? 1.02 : 1,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 280),
-                      width: 258,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: Colors.white,
-                      border: Border.all(
-                        color: selected
-                            ? AppPalette.success
-                            : (previewed
-                                ? AppPalette.secondary
-                                : AppPalette.primary.withValues(alpha: 0.1)),
-                        width: selected || previewed ? 2 : 1,
-                      ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                        Text(
-                          displayTitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.redHatDisplay(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                              color: AppPalette.primary,
-                            ),
+                  return GestureDetector(
+                    onTap: lockedFreePlan ? null : () => _setPreviewPlan(plan),
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 220),
+                      scale: selected ? 1.02 : 1,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        width: 258,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.white,
+                          border: Border.all(
+                            color: selected
+                                ? AppPalette.success
+                                : (previewed
+                                      ? AppPalette.secondary
+                                      : AppPalette.primary.withValues(
+                                          alpha: 0.1,
+                                        )),
+                            width: selected || previewed ? 2 : 1,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            plan.priceLabel,
-                            style: GoogleFonts.redHatDisplay(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: AppPalette.secondary,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              displayTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.redHatDisplay(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppPalette.primary,
+                              ),
                             ),
-                          ),
-                          Text(
-                            plan.billingLabel,
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w600,
+                            const SizedBox(height: 2),
+                            Text(
+                              groupTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            displayDescription,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
+                            const SizedBox(height: 4),
+                            Text(
+                              plan.priceLabel,
+                              style: GoogleFonts.redHatDisplay(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                color: AppPalette.secondary,
+                              ),
                             ),
-                          ),
-                          const Spacer(),
-                          SizedBox(
-                            height: 42,
-                            width: double.infinity,
-                            child: FilledButton(
-                              onPressed: disabled
-                                  ? null
-                                  : () => _handleChoosePlan(
+                            Text(
+                              plan.billingLabel,
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              displayDescription,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const Spacer(),
+                            SizedBox(
+                              height: 42,
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed: disabled
+                                    ? null
+                                    : () => _handleChoosePlan(
                                         context: context,
                                         appState: context.read<AppState>(),
                                         plan: plan,
                                       ),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: selected && !canRenew
-                                    ? AppPalette.success
-                                    : AppPalette.primary,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: selected && !canRenew
+                                      ? AppPalette.success
+                                      : AppPalette.primary,
+                                ),
+                                child: busy
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Text(
+                                        buttonLabel,
+                                        style: GoogleFonts.manrope(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
                               ),
-                              child: busy
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : Text(
-                                      buttonLabel,
-                                      style: GoogleFonts.manrope(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
-        ),
         ],
         SliverToBoxAdapter(
           child: Padding(
@@ -1341,7 +1397,8 @@ class _DashboardTabState extends State<DashboardTab> {
             ),
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 }

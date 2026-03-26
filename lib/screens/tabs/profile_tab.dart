@@ -28,280 +28,287 @@ class ProfileTab extends StatelessWidget {
       onRefresh: () => _refreshProfile(context),
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-      slivers: <Widget>[
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-            child: Text(
-              'Profile',
-              style: GoogleFonts.redHatDisplay(
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                color: AppPalette.primary,
+        slivers: <Widget>[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+              child: Text(
+                'Profile',
+                style: GoogleFonts.redHatDisplay(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.primary,
+                ),
               ),
             ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppPalette.primary.withValues(alpha: 0.08),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppPalette.primary.withValues(alpha: 0.08),
+                  ),
                 ),
-              ),
-              child: Row(
-                children: <Widget>[
-                  ClipOval(
-                    child: appState.userAvatarUrl == null
-                        ? Image.asset(
-                            'assets/images/boardmaster-square.png',
-                            width: 58,
-                            height: 58,
-                            fit: BoxFit.cover,
-                          )
-                        : Image.network(
-                            appState.userAvatarUrl!,
-                            width: 58,
-                            height: 58,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Image.asset(
+                child: Row(
+                  children: <Widget>[
+                    ClipOval(
+                      child: appState.userAvatarUrl == null
+                          ? Image.asset(
                               'assets/images/boardmaster-square.png',
                               width: 58,
                               height: 58,
                               fit: BoxFit.cover,
+                            )
+                          : Image.network(
+                              appState.userAvatarUrl!,
+                              width: 58,
+                              height: 58,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                'assets/images/boardmaster-square.png',
+                                width: 58,
+                                height: 58,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            appState.userName,
+                            style: GoogleFonts.redHatDisplay(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: AppPalette.primary,
                             ),
                           ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          appState.userName,
-                          style: GoogleFonts.redHatDisplay(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: AppPalette.primary,
+                          Text(
+                            appState.userEmail.isEmpty
+                                ? 'boardmaster@app.local'
+                                : appState.userEmail,
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.muted,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Center(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final String? result = await Navigator.of(context)
+                        .push<String?>(
+                          MaterialPageRoute<String?>(
+                            builder: (_) => const ProfileSettingsScreen(),
+                          ),
+                        );
+                    if (!context.mounted || result == null) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(result)));
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: AppPalette.secondary.withValues(alpha: 0.35),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: Text(
+                    'Edit Profile',
+                    style: GoogleFonts.manrope(
+                      fontWeight: FontWeight.w700,
+                      color: AppPalette.secondary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: AppPalette.primary,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        const Icon(
+                          Icons.workspace_premium_rounded,
+                          color: Colors.white,
                         ),
-                        Text(
-                          appState.userEmail.isEmpty
-                              ? 'boardmaster@app.local'
-                              : appState.userEmail,
-                          style: GoogleFonts.manrope(
-                            color: AppPalette.muted,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Plan: ${appState.currentPlan.title}',
+                            style: GoogleFonts.manrope(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Center(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const ProfileSettingsScreen(),
-                    ),
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: AppPalette.secondary.withValues(alpha: 0.35),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                icon: const Icon(Icons.edit_outlined),
-                label: Text(
-                  'Edit Profile',
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w700,
-                    color: AppPalette.secondary,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                color: AppPalette.primary,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      const Icon(
-                        Icons.workspace_premium_rounded,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Plan: ${appState.currentPlan.title}',
-                          style: GoogleFonts.manrope(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Billing: ${(appState.subscriptionBillingCycle ?? appState.currentPlan.billingCycle).toUpperCase()}',
-                    style: GoogleFonts.manrope(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    appState.subscriptionEndDate == null
-                        ? 'No end date'
-                        : 'Valid until ${DateFormat('MMM dd, yyyy').format(appState.subscriptionEndDate!)}',
-                    style: GoogleFonts.manrope(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (appState.isSubscriptionExpired)
+                    const SizedBox(height: 8),
                     Text(
-                      'Subscription expired. Renew in Home > Choose Plan.',
+                      'Billing: ${(appState.subscriptionBillingCycle ?? appState.currentPlan.billingCycle).toUpperCase()}',
                       style: GoogleFonts.manrope(
-                        color: AppPalette.accent,
-                        fontWeight: FontWeight.w800,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Manage plan from Home tab.',
-                    style: GoogleFonts.manrope(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontWeight: FontWeight.w600,
+                    Text(
+                      appState.subscriptionEndDate == null
+                          ? 'No end date'
+                          : 'Valid until ${DateFormat('MMM dd, yyyy').format(appState.subscriptionEndDate!)}',
+                      style: GoogleFonts.manrope(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
+                    if (appState.isSubscriptionExpired)
+                      Text(
+                        'Subscription expired. Renew in Home > Choose Plan.',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.accent,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Manage plan from Home tab.',
+                      style: GoogleFonts.manrope(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: _ReferralCard(),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: _ReferralCard(),
+            ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: OutlinedButton(
-                onPressed: () async {
-                  final bool? shouldLogout = await showDialog<bool>(
-                    context: context,
-                    builder: (BuildContext dialogContext) {
-                      return AlertDialog(
-                        title: Text(
-                          'Logout',
-                          style: GoogleFonts.redHatDisplay(
-                            fontWeight: FontWeight.w800,
-                            color: AppPalette.primary,
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final bool? shouldLogout = await showDialog<bool>(
+                      context: context,
+                      builder: (BuildContext dialogContext) {
+                        return AlertDialog(
+                          title: Text(
+                            'Logout',
+                            style: GoogleFonts.redHatDisplay(
+                              fontWeight: FontWeight.w800,
+                              color: AppPalette.primary,
+                            ),
                           ),
-                        ),
-                        content: Text(
-                          'Are you sure you want to logout from your account?',
-                          style: GoogleFonts.manrope(
-                            color: AppPalette.textDark,
-                            fontWeight: FontWeight.w600,
+                          content: Text(
+                            'Are you sure you want to logout from your account?',
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.textDark,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        actions: <Widget>[
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(false),
-                            child: Text(
-                              'Cancel',
-                              style: GoogleFonts.manrope(
-                                color: AppPalette.muted,
-                                fontWeight: FontWeight.w700,
+                          actions: <Widget>[
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(false),
+                              child: Text(
+                                'Cancel',
+                                style: GoogleFonts.manrope(
+                                  color: AppPalette.muted,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                          FilledButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(true),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppPalette.secondary,
-                            ),
-                            child: Text(
-                              'Logout',
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.w700,
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(true),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppPalette.secondary,
+                              ),
+                              child: Text(
+                                'Logout',
+                                style: GoogleFonts.manrope(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
-                  );
+                          ],
+                        );
+                      },
+                    );
 
-                  if (shouldLogout != true || !context.mounted) {
-                    return;
-                  }
-                  context.read<AppState>().logout();
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          const LoginScreen(showLogoutMessage: true),
+                    if (shouldLogout != true || !context.mounted) {
+                      return;
+                    }
+                    context.read<AppState>().logout();
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            const LoginScreen(showLogoutMessage: true),
+                      ),
+                      (Route<dynamic> route) => false,
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: AppPalette.secondary.withValues(alpha: 0.3),
                     ),
-                    (Route<dynamic> route) => false,
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: AppPalette.secondary.withValues(alpha: 0.3),
                   ),
-                ),
-                child: Text(
-                  'Logout',
-                  style: GoogleFonts.manrope(
-                    color: AppPalette.secondary,
-                    fontWeight: FontWeight.w800,
+                  child: Text(
+                    'Logout',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.secondary,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }
@@ -309,6 +316,10 @@ class ProfileTab extends StatelessWidget {
 
 class ProfileSettingsScreen extends StatelessWidget {
   const ProfileSettingsScreen({super.key});
+
+  Future<void> _refreshProfile(BuildContext context) async {
+    await context.read<AppState>().refreshCurrentUser();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -324,11 +335,15 @@ class ProfileSettingsScreen extends StatelessWidget {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const <Widget>[_ProfileSettingsCard()],
+        child: RefreshIndicator(
+          onRefresh: () => _refreshProfile(context),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const <Widget>[_ProfileSettingsCard()],
+            ),
           ),
         ),
       ),
@@ -782,6 +797,8 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
   Future<void> _saveProfile(AppState appState) async {
     final String name = _nameController.text.trim();
     final String email = _emailController.text.trim();
+    final bool emailChanged =
+        email.toLowerCase() != appState.userEmail.trim().toLowerCase();
 
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -792,6 +809,23 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
       if (_birthdate!.isAfter(minAllowed)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('You must be at least 13 years old.')),
+        );
+        return;
+      }
+    }
+    if (emailChanged) {
+      final bool emailAvailable = await appState.isEmailAvailable(
+        email: email,
+        ignoreEmail: appState.userEmail,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (!emailAvailable) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email is already used by another account.'),
+          ),
         );
         return;
       }
@@ -824,14 +858,39 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
       _dirty = error != null;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? 'Profile updated successfully.')),
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    Navigator.of(context).pop(
+      emailChanged
+          ? 'Profile updated. Verify your new email from inbox.'
+          : 'Profile updated successfully.',
     );
   }
 
   String? _trimOrNull(String value) {
     final String trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  bool _isValidPhilippinesPhone(String value) {
+    final String digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      return true;
+    }
+    if (digits.length == 11 && digits.startsWith('09')) {
+      return true;
+    }
+    if (digits.length == 12 &&
+        digits.startsWith('63') &&
+        digits.substring(2, 3) == '9') {
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -852,14 +911,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              'Update your info',
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w800,
-                color: AppPalette.textDark,
-              ),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
@@ -979,6 +1031,43 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                 return null;
               },
             ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: appState.userEmailVerified
+                    ? AppPalette.success.withValues(alpha: 0.12)
+                    : AppPalette.secondary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    appState.userEmailVerified
+                        ? Icons.verified_rounded
+                        : Icons.error_outline_rounded,
+                    size: 16,
+                    color: appState.userEmailVerified
+                        ? AppPalette.success
+                        : AppPalette.secondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    appState.userEmailVerified
+                        ? 'Email verified'
+                        : 'Email not verified',
+                    style: GoogleFonts.manrope(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      color: appState.userEmailVerified
+                          ? AppPalette.success
+                          : AppPalette.secondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               key: ValueKey<String?>(_gender),
@@ -1048,9 +1137,8 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
               ),
               validator: (String? value) {
                 final String trimmed = value?.trim() ?? '';
-                final RegExp phonePattern = RegExp(r'^[0-9+\-()\s]{7,20}$');
-                if (trimmed.isNotEmpty && !phonePattern.hasMatch(trimmed)) {
-                  return 'Enter a valid phone number.';
+                if (trimmed.isNotEmpty && !_isValidPhilippinesPhone(trimmed)) {
+                  return 'Enter a valid Philippine phone number.';
                 }
                 return null;
               },

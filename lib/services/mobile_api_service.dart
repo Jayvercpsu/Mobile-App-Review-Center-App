@@ -27,13 +27,13 @@ class MobileApiService {
     );
   }
 
-  Future<ApiResult<AuthPayload>> register({
+  Future<ApiResult<bool>> register({
     required String name,
     required String email,
     required String password,
     String? passwordConfirmation,
-    DateTime? birthdate,
-    String? gender,
+    String? phoneNumber,
+    String? school,
   }) async {
     final Map<String, dynamic> payload = <String, dynamic>{
       'name': name.trim(),
@@ -42,14 +42,115 @@ class MobileApiService {
       'password_confirmation': passwordConfirmation ?? password,
     };
 
-    if (birthdate != null) {
-      payload['birthdate'] = birthdate.toIso8601String().split('T').first;
+    if (phoneNumber != null && phoneNumber.trim().isNotEmpty) {
+      payload['phone_number'] = phoneNumber.trim();
     }
-    if (gender != null && gender.trim().isNotEmpty) {
-      payload['gender'] = gender.trim().toLowerCase();
+    if (school != null && school.trim().isNotEmpty) {
+      payload['school'] = school.trim();
     }
 
-    return _postAuth(path: ApiConfig.register, payload: payload);
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.register,
+        payload: payload,
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<bool>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<bool>.success(true);
+    } catch (_) {
+      return ApiResult<bool>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<bool>> forgotPassword({required String email}) async {
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.forgotPassword,
+        payload: <String, dynamic>{'email': email.trim()},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<bool>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<bool>.success(true);
+    } catch (_) {
+      return ApiResult<bool>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<bool>> resendVerification({required String email}) async {
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.resendVerification,
+        payload: <String, dynamic>{'email': email.trim()},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<bool>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<bool>.success(true);
+    } catch (_) {
+      return ApiResult<bool>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
+  Future<ApiResult<bool>> isEmailAvailable({
+    required String email,
+    String? ignoreEmail,
+  }) async {
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.checkEmail,
+        payload: <String, dynamic>{
+          'email': email.trim(),
+          if (ignoreEmail != null && ignoreEmail.trim().isNotEmpty)
+            'ignore_email': ignoreEmail.trim(),
+        },
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<bool>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final bool available =
+          decoded is Map<String, dynamic> && decoded['available'] == true;
+      return ApiResult<bool>.success(available);
+    } catch (_) {
+      return ApiResult<bool>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
   }
 
   Future<ApiResult<AuthPayload>> fetchCurrentUser() async {
@@ -1115,6 +1216,18 @@ class MobileApiService {
           dataMap?['end_date'] ??
           decoded['end_date'],
     );
+    final DateTime? emailVerifiedAt = _parseDate(
+      user['email_verified_at'] ??
+          dataMap?['email_verified_at'] ??
+          decoded['email_verified_at'],
+    );
+    final bool emailVerified =
+        _parseBool(
+          user['email_verified'] ??
+              dataMap?['email_verified'] ??
+              decoded['email_verified'],
+        ) ??
+        emailVerifiedAt != null;
     final String? school = _nullableText(
       user['school'] ?? dataMap?['school'] ?? decoded['school'],
     );
@@ -1160,6 +1273,8 @@ class MobileApiService {
       planId: planId,
       billingCycle: billingCycle,
       endDate: endDate,
+      emailVerified: emailVerified,
+      emailVerifiedAt: emailVerifiedAt,
       school: school,
       birthdate: birthdate,
       gender: gender,
@@ -1967,6 +2082,29 @@ class MobileApiService {
     return double.tryParse(value.toString().trim());
   }
 
+  bool? _parseBool(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value > 0;
+    }
+    final String normalized = value.toString().trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+      return true;
+    }
+    if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+      return false;
+    }
+    return null;
+  }
+
   String? _nullableText(dynamic value) {
     final String text = _firstNonEmpty(<dynamic>[value]);
     return text.isEmpty ? null : text;
@@ -2081,6 +2219,8 @@ class AuthPayload {
     required this.planId,
     required this.billingCycle,
     required this.endDate,
+    required this.emailVerified,
+    required this.emailVerifiedAt,
     required this.school,
     required this.birthdate,
     required this.gender,
@@ -2098,6 +2238,8 @@ class AuthPayload {
   final int? planId;
   final String? billingCycle;
   final DateTime? endDate;
+  final bool emailVerified;
+  final DateTime? emailVerifiedAt;
   final String? school;
   final DateTime? birthdate;
   final String? gender;

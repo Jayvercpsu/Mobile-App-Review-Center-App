@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../core/app_theme.dart';
 import '../state/app_state.dart';
-import 'home_shell.dart';
+import 'email_verification_notice_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -19,9 +19,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
-  final TextEditingController _birthdateController = TextEditingController();
-  DateTime? _birthdate;
-  String? _gender;
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _schoolController = TextEditingController();
   bool _loading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -42,7 +41,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _birthdateController.dispose();
+    _phoneController.dispose();
+    _schoolController.dispose();
     super.dispose();
   }
 
@@ -92,32 +92,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  Future<void> _pickBirthdate(BuildContext context) async {
-    final DateTime today = DateTime.now();
-    final DateTime latestAllowed =
-        DateTime(today.year - 13, today.month, today.day);
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate:
-          _birthdate ?? DateTime(today.year - 18, today.month, today.day),
-      firstDate: DateTime(1900),
-      lastDate: latestAllowed,
-    );
-    if (picked == null) {
-      return;
+  String? _normalizePhilippinesPhone(String input) {
+    final String digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 11 && digits.startsWith('09')) {
+      return digits;
     }
-    setState(() {
-      _birthdate = picked;
-      _birthdateController.text =
-          '${picked.year.toString().padLeft(4, '0')}-'
-          '${picked.month.toString().padLeft(2, '0')}-'
-          '${picked.day.toString().padLeft(2, '0')}';
-    });
+    if (digits.length == 12 &&
+        digits.startsWith('63') &&
+        digits.substring(2, 3) == '9') {
+      return '0${digits.substring(2)}';
+    }
+    return null;
   }
 
   Future<void> _register() async {
     final String name = _nameController.text.trim();
     final String email = _emailController.text.trim();
+    final String? phoneNumber = _normalizePhilippinesPhone(
+      _phoneController.text.trim(),
+    );
+    final String school = _schoolController.text.trim();
     final String password = _passwordController.text.trim();
     final String confirmPassword = _confirmPasswordController.text.trim();
 
@@ -127,19 +121,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return;
     }
-    if (_birthdate == null) {
+    if (phoneNumber == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Birthdate is required.')),
+        const SnackBar(content: Text('Enter a valid Philippine phone number.')),
       );
       return;
     }
-    final DateTime today = DateTime.now();
-    final DateTime minAllowed =
-        DateTime(today.year - 13, today.month, today.day);
-    if (_birthdate!.isAfter(minAllowed)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be at least 13 years old.')),
-      );
+    if (school.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('School is required.')));
       return;
     }
     if (!_isStrongPassword(password)) {
@@ -153,9 +144,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Passwords do not match.')));
       return;
     }
     if (!_agreedToTerms) {
@@ -173,13 +164,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _loading = true;
     });
 
-    final String? error = await context.read<AppState>().register(
+    final AppState appState = context.read<AppState>();
+    final bool emailAvailable = await appState.isEmailAvailable(email: email);
+    if (!mounted) {
+      return;
+    }
+    if (!emailAvailable) {
+      setState(() {
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email already exists. Try another one.')),
+      );
+      return;
+    }
+
+    final String? error = await appState.register(
       name: name,
       email: email,
       password: password,
       passwordConfirmation: confirmPassword,
-      birthdate: _birthdate,
-      gender: _gender,
+      phoneNumber: phoneNumber,
+      school: school,
     );
     if (!mounted) {
       return;
@@ -198,7 +204,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
-        builder: (_) => const HomeShell(showOnlineMessageOnStart: true),
+        builder: (_) => EmailVerificationNoticeScreen(email: email),
       ),
       (Route<dynamic> route) => false,
     );
@@ -233,277 +239,255 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-              Text(
-                'Signup',
-                style: GoogleFonts.redHatDisplay(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: AppPalette.primary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Philippine Nurses Licensure Exam (PNLE) Review',
-                style: GoogleFonts.manrope(
-                  color: AppPalette.muted,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _nameController,
-                style: const TextStyle(color: AppPalette.textDark),
-                cursorColor: AppPalette.primary,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name (First + Last Name)',
-                  prefixIcon: Icon(Icons.person_outline_rounded),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: AppPalette.textDark),
-                cursorColor: AppPalette.primary,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.mail_outline_rounded),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _birthdateController,
-                readOnly: true,
-                onTap: () => _pickBirthdate(context),
-                style: const TextStyle(color: AppPalette.textDark),
-                cursorColor: AppPalette.primary,
-                decoration: InputDecoration(
-                  labelText: 'Birthdate',
-                  prefixIcon: const Icon(Icons.cake_outlined),
-                  suffixIcon: _birthdate == null
-                      ? null
-                      : IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _birthdate = null;
-                              _birthdateController.text = '';
-                            });
-                          },
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
-                value: _gender,
-                decoration: const InputDecoration(
-                  labelText: 'Gender (optional)',
-                  prefixIcon: Icon(Icons.person_outline_rounded),
-                ),
-                items: const <DropdownMenuItem<String>>[
-                  DropdownMenuItem<String>(
-                    value: 'male',
-                    child: Text('Male'),
-                  ),
-                  DropdownMenuItem<String>(
-                    value: 'female',
-                    child: Text('Female'),
-                  ),
-                  DropdownMenuItem<String>(
-                    value: 'other',
-                    child: Text('Other'),
-                  ),
-                ],
-                onChanged: (String? value) {
-                  setState(() {
-                    _gender = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                style: const TextStyle(color: AppPalette.textDark),
-                cursorColor: AppPalette.primary,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  suffixIcon: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
+                  Text(
+                    'Signup',
+                    style: GoogleFonts.redHatDisplay(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      color: AppPalette.primary,
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(height: 8),
+                  Text(
+                    'Philippine Nurses Licensure Exam (PNLE) Review',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _nameController,
+                    style: const TextStyle(color: AppPalette.textDark),
+                    cursorColor: AppPalette.primary,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name (First + Last Name)',
+                      prefixIcon: Icon(Icons.person_outline_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(color: AppPalette.textDark),
+                    cursorColor: AppPalette.primary,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.mail_outline_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(color: AppPalette.textDark),
+                    cursorColor: AppPalette.primary,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number (PH)',
+                      hintText: '09XXXXXXXXX or +639XXXXXXXXX',
+                      prefixIcon: Icon(Icons.phone_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _schoolController,
+                    style: const TextStyle(color: AppPalette.textDark),
+                    cursorColor: AppPalette.primary,
+                    decoration: const InputDecoration(
+                      labelText: 'School',
+                      prefixIcon: Icon(Icons.school_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    style: const TextStyle(color: AppPalette.textDark),
+                    cursorColor: AppPalette.primary,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Text(
+                            'Password strength',
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.muted,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            _passwordStrengthLabel,
+                            style: GoogleFonts.manrope(
+                              color: _passwordStrengthColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: _passwordStrength == 0
+                              ? 0.05
+                              : _passwordStrength,
+                          minHeight: 6,
+                          backgroundColor: AppPalette.primary.withValues(
+                            alpha: 0.08,
+                          ),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            _passwordStrengthColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       Text(
-                        'Password strength',
+                        'Use 8+ chars with upper, lower, number, and symbol.',
                         style: GoogleFonts.manrope(
                           color: AppPalette.muted,
                           fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        _passwordStrengthLabel,
-                        style: GoogleFonts.manrope(
-                          color: _passwordStrengthColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
+                          fontSize: 11,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: _passwordStrength == 0 ? 0.05 : _passwordStrength,
-                      minHeight: 6,
-                      backgroundColor: AppPalette.primary.withValues(alpha: 0.08),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _passwordStrengthColor,
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _confirmPasswordController,
+                    obscureText: _obscureConfirmPassword,
+                    style: const TextStyle(color: AppPalette.textDark),
+                    cursorColor: AppPalette.primary,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Use 8+ chars with upper, lower, number, and symbol.',
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.muted,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11,
+                  const SizedBox(height: 24),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Checkbox(
+                        value: _agreedToTerms,
+                        activeColor: AppPalette.primary,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            _agreedToTerms = value ?? false;
+                          });
+                        },
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _agreedToTerms = !_agreedToTerms;
+                            });
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 13),
+                            child: Text(
+                              'By registering, you agree to the Terms & Conditions and Policy.',
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: (_loading || !_agreedToTerms)
+                          ? null
+                          : _register,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppPalette.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: _loading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              'REGISTER NOW',
+                              style: GoogleFonts.manrope(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _confirmPasswordController,
-                obscureText: _obscureConfirmPassword,
-                style: const TextStyle(color: AppPalette.textDark),
-                cursorColor: AppPalette.primary,
-                decoration: InputDecoration(
-                  labelText: 'Confirm Password',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  suffixIcon: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
-                    icon: Icon(
-                      _obscureConfirmPassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Checkbox(
-                    value: _agreedToTerms,
-                    activeColor: AppPalette.primary,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _agreedToTerms = value ?? false;
-                      });
-                    },
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _agreedToTerms = !_agreedToTerms;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 13),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Text(
+                        'Already have an account?',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
                         child: Text(
-                          'By registering, you agree to the Terms & Conditions and Policy.',
+                          'Login',
                           style: GoogleFonts.manrope(
-                            color: AppPalette.muted,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton(
-                  onPressed: (_loading || !_agreedToTerms) ? null : _register,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppPalette.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          'REGISTER NOW',
-                          style: GoogleFonts.manrope(
+                            color: AppPalette.primary,
                             fontWeight: FontWeight.w700,
-                            fontSize: 16,
                           ),
                         ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Text(
-                    'Already have an account?',
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.muted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: Text(
-                      'Login',
-                      style: GoogleFonts.manrope(
-                        color: AppPalette.primary,
-                        fontWeight: FontWeight.w700,
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
                 ],
               ),
             ),

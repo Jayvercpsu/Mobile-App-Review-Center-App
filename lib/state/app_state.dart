@@ -23,6 +23,8 @@ class AppState extends ChangeNotifier {
   String? rememberedEmail;
   String userName = 'Future Topnotcher';
   String userEmail = '';
+  bool userEmailVerified = false;
+  DateTime? userEmailVerifiedAt;
   String userSchool = '';
   DateTime? userBirthdate;
   String? userGender;
@@ -319,39 +321,50 @@ class AppState extends ChangeNotifier {
     required String email,
     required String password,
     String? passwordConfirmation,
-    DateTime? birthdate,
-    String? gender,
+    String? phoneNumber,
+    String? school,
   }) async {
-    final ApiResult<AuthPayload> response = await _api.register(
+    final ApiResult<bool> response = await _api.register(
       name: name,
       email: email,
       password: password,
       passwordConfirmation: passwordConfirmation,
-      birthdate: birthdate,
-      gender: gender,
+      phoneNumber: phoneNumber,
+      school: school,
     );
-    if (!response.ok || response.data == null) {
+    if (!response.ok || response.data != true) {
       return response.message ?? 'Registration failed.';
     }
-
-    final AuthPayload data = response.data!;
-    final String fallbackName = name.trim().isNotEmpty
-        ? name.trim()
-        : _nameFromEmail(email.trim());
-    _applyAuthPayload(
-      data,
-      emailFallback: email.trim(),
-      nameFallback: fallbackName,
-    );
-    notifyListeners();
-
-    await loadPlans(force: true);
-    await loadPracticeSubjects(force: true);
-    await loadDashboardMetrics(force: true);
-    await loadSubscriptionHistory(loadMore: false);
-    await loadReferrals(loadMore: false);
-    await loadQuizAttempts(loadMore: false);
     return null;
+  }
+
+  Future<String?> forgotPassword({required String email}) async {
+    final ApiResult<bool> response = await _api.forgotPassword(email: email);
+    if (!response.ok || response.data != true) {
+      return response.message ?? 'Unable to send password reset link.';
+    }
+    return null;
+  }
+
+  Future<String?> resendVerification({required String email}) async {
+    final ApiResult<bool> response = await _api.resendVerification(
+      email: email,
+    );
+    if (!response.ok || response.data != true) {
+      return response.message ?? 'Unable to send verification email.';
+    }
+    return null;
+  }
+
+  Future<bool> isEmailAvailable({
+    required String email,
+    String? ignoreEmail,
+  }) async {
+    final ApiResult<bool> response = await _api.isEmailAvailable(
+      email: email,
+      ignoreEmail: ignoreEmail,
+    );
+    return response.ok && response.data == true;
   }
 
   Future<String?> updateProfile({
@@ -393,6 +406,8 @@ class AppState extends ChangeNotifier {
     final AuthPayload data = response.data!;
     userName = data.name.trim().isNotEmpty ? data.name.trim() : userName;
     userEmail = data.email.trim().isNotEmpty ? data.email.trim() : userEmail;
+    userEmailVerified = data.emailVerified;
+    userEmailVerifiedAt = data.emailVerifiedAt;
     userSchool = data.school ?? '';
     userBirthdate = data.birthdate;
     userGender = data.gender;
@@ -811,6 +826,8 @@ class AppState extends ChangeNotifier {
     selectingPlan = false;
     creatingCheckout = false;
     userSchool = '';
+    userEmailVerified = false;
+    userEmailVerifiedAt = null;
     userBirthdate = null;
     userGender = null;
     userPlace = '';
@@ -1180,6 +1197,8 @@ class AppState extends ChangeNotifier {
     userName = trimmedName.isNotEmpty
         ? trimmedName
         : (nameFallback ?? userName);
+    userEmailVerified = data.emailVerified;
+    userEmailVerifiedAt = data.emailVerifiedAt;
     userSchool = data.school ?? '';
     userBirthdate = data.birthdate;
     userGender = data.gender;

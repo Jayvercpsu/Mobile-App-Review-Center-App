@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 
 import '../core/app_theme.dart';
 import '../state/app_state.dart';
+import 'email_verification_notice_screen.dart';
+import 'forgot_password_screen.dart';
 import 'home_shell.dart';
 import 'register_screen.dart';
 
@@ -76,6 +78,19 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     if (error != null) {
+      final String normalizedError = error.toLowerCase();
+      if (normalizedError.contains('verify') &&
+          _emailController.text.trim().isNotEmpty) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => EmailVerificationNoticeScreen(
+              email: _emailController.text.trim(),
+            ),
+          ),
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error)));
@@ -119,41 +134,57 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: <Widget>[
                   const SizedBox(height: 8),
                   Center(
-                    child: Hero(
-                      tag: 'boardmaster-logo',
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/images/boardmaster.png',
-                          width: 96,
-                          height: 96,
-                          fit: BoxFit.cover,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Hero(
+                          tag: 'boardmaster-logo',
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/images/boardmaster.png',
+                              width: 96,
+                              height: 96,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 20),
+                        Text(
+                              'Welcome to',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.redHatDisplay(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                color: AppPalette.primary,
+                              ),
+                            )
+                            .animate()
+                            .fadeIn(duration: 520.ms)
+                            .slideX(begin: -0.06, end: 0),
+                        const SizedBox(height: 10),
+                        Text(
+                          'BOARDMASTERS REVIEW CENTER',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppPalette.muted,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '"Your ultimate partner to SUCCEED in PHILIPPINE NURSES LICENSURE EXAM (PNLE)"',
+                          textAlign: TextAlign.center,
+                          softWrap: true,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppPalette.muted,
+                          ),
+                        ),
+                      ],
                     ),
                   ).animate().fadeIn(duration: 500.ms).scale(),
-                  const SizedBox(height: 20),
-                  Text(
-                        'Welcome to',
-                        style: GoogleFonts.redHatDisplay(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w800,
-                          color: AppPalette.primary,
-                        ),
-                      )
-                      .animate()
-                      .fadeIn(duration: 520.ms)
-                      .slideX(begin: -0.06, end: 0),
-                  const SizedBox(height: 8),
-                  Text(
-                    'BOARDMASTERS REVIEW CENTER\n'
-                    '"Your ultimate partner to SUCCEED in\n'
-                    'PHILIPPINE NURSES LICENSURE EXAM (PNLE)"',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppPalette.muted,
-                    ),
-                  ),
                   const SizedBox(height: 28),
                   TextField(
                     controller: _emailController,
@@ -198,8 +229,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               value: context.watch<AppState>().rememberMe,
                               onChanged: (bool? value) {
                                 context.read<AppState>().setRememberMe(
-                                      value ?? false,
-                                    );
+                                  value ?? false,
+                                );
                               },
                             ),
                             Expanded(
@@ -216,11 +247,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       TextButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Forgot password support will be available soon.',
-                              ),
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const ForgotPasswordScreen(),
                             ),
                           );
                         },

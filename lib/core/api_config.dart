@@ -30,7 +30,9 @@ class ApiConfig {
       urls.add(primary);
     }
 
-    for (final String candidate in _splitCandidates(_configuredFallbackBaseUrls)) {
+    for (final String candidate in _splitCandidates(
+      _configuredFallbackBaseUrls,
+    )) {
       final String normalized = _normalizeBaseUrl(candidate);
       if (normalized.isNotEmpty) {
         urls.add(normalized);
@@ -49,6 +51,10 @@ class ApiConfig {
 
   static const String login = '/mobile/login';
   static const String register = '/mobile/register';
+  static const String forgotPassword = '/mobile/password/forgot';
+  static const String checkEmail = '/mobile/email/check';
+  static const String resendVerification =
+      '/mobile/email/verification-notification';
   static const String me = '/mobile/me';
   static const String plans = '/mobile/plans';
   static const String profile = '/mobile/profile';

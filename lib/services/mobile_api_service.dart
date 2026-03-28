@@ -927,6 +927,43 @@ class MobileApiService {
     }
   }
 
+  Future<ApiResult<bool>> submitFeedback({
+    required int rating,
+    required String comment,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<bool>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.feedback,
+        payload: <String, dynamic>{
+          'rating': rating,
+          'comment': comment.trim(),
+        },
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<bool>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<bool>.success(true);
+    } catch (_) {
+      return ApiResult<bool>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
   Future<ApiResult<AuthPayload>> _postAuth({
     required String path,
     required Map<String, dynamic> payload,

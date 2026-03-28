@@ -428,6 +428,36 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  Future<String?> submitFeedback({
+    required int rating,
+    required String comment,
+  }) async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+    final String trimmed = comment.trim();
+    if (rating < 1 || rating > 5) {
+      return 'Please select a rating.';
+    }
+    if (trimmed.length < 10) {
+      return 'Please share at least 10 characters.';
+    }
+
+    final ApiResult<bool> response = await _api.submitFeedback(
+      rating: rating,
+      comment: trimmed,
+    );
+
+    if (!response.ok || response.data != true) {
+      if (response.statusCode == 401) {
+        return 'Session expired. Please login again.';
+      }
+      return response.message ?? 'Unable to send feedback.';
+    }
+
+    return null;
+  }
+
   Future<String?> loadPracticeSubjects({bool force = false}) async {
     if (!signedIn) {
       return null;

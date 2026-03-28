@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../models/app_models.dart';
 import '../../state/app_state.dart';
+import '../feedback_screen.dart';
 import '../login_screen.dart';
 
 class ProfileTab extends StatelessWidget {
@@ -226,6 +227,66 @@ class ProfileTab extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
               child: _ReferralCard(),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppPalette.primary.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Share your feedback',
+                      style: GoogleFonts.redHatDisplay(
+                        fontWeight: FontWeight.w800,
+                        color: AppPalette.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Share your feedback by rating the app—we’re delighted to serve you!',
+                      style: GoogleFonts.manrope(
+                        fontWeight: FontWeight.w600,
+                        color: AppPalette.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const FeedbackScreen(),
+                          ),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppPalette.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: const Icon(Icons.rate_review_rounded),
+                        label: Text(
+                          'Send Feedback',
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           SliverToBoxAdapter(

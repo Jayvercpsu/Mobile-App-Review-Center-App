@@ -670,6 +670,7 @@ class _OfferCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isRedeemed = activeReward != null;
+    final double dpr = MediaQuery.of(context).devicePixelRatio;
     final String? expiryLabel = isRedeemed
         ? (activeReward?.expiresAt == null
             ? 'Redeemed'
@@ -711,6 +712,9 @@ class _OfferCard extends StatelessWidget {
                           child: Image.network(
                             offer.imageUrl!,
                             fit: BoxFit.cover,
+                            cacheWidth: (64 * dpr).round(),
+                            cacheHeight: (64 * dpr).round(),
+                            filterQuality: FilterQuality.low,
                           ),
                         ),
                 ),

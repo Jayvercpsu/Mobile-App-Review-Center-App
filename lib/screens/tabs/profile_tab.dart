@@ -23,6 +23,7 @@ class ProfileTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
+    final double dpr = MediaQuery.of(context).devicePixelRatio;
 
     return RefreshIndicator(
       onRefresh: () => _refreshProfile(context),
@@ -69,6 +70,9 @@ class ProfileTab extends StatelessWidget {
                               width: 58,
                               height: 58,
                               fit: BoxFit.cover,
+                              cacheWidth: (58 * dpr).round(),
+                              cacheHeight: (58 * dpr).round(),
+                              filterQuality: FilterQuality.low,
                               errorBuilder: (_, __, ___) => Image.asset(
                                 'assets/images/boardmaster-square.png',
                                 width: 58,
@@ -707,6 +711,8 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
     if (_avatarBytes == null && appState.userAvatarUrl == null) {
       return;
     }
+    final double dpr = MediaQuery.of(context).devicePixelRatio;
+    final int cacheSize = (MediaQuery.of(context).size.width * dpr).round();
 
     showDialog<void>(
       context: context,
@@ -732,6 +738,9 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                           : Image.network(
                               appState.userAvatarUrl!,
                               fit: BoxFit.contain,
+                              cacheWidth: cacheSize,
+                              cacheHeight: cacheSize,
+                              filterQuality: FilterQuality.low,
                               errorBuilder: (_, __, ___) => Image.asset(
                                 'assets/images/boardmaster-square.png',
                                 fit: BoxFit.contain,
@@ -896,6 +905,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
+    final double dpr = MediaQuery.of(context).devicePixelRatio;
     _syncFromState(appState);
 
     return Container(
@@ -938,6 +948,9 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                                     width: 68,
                                     height: 68,
                                     fit: BoxFit.cover,
+                                    cacheWidth: (68 * dpr).round(),
+                                    cacheHeight: (68 * dpr).round(),
+                                    filterQuality: FilterQuality.low,
                                     errorBuilder: (_, __, ___) => Image.asset(
                                       'assets/images/boardmaster-square.png',
                                       width: 68,

@@ -108,6 +108,8 @@ class _DashboardTabState extends State<DashboardTab> {
         appState.userAvatarUrl!.trim().isEmpty) {
       return;
     }
+    final double dpr = MediaQuery.of(context).devicePixelRatio;
+    final int cacheSize = (MediaQuery.of(context).size.width * dpr).round();
 
     showDialog<void>(
       context: context,
@@ -131,6 +133,9 @@ class _DashboardTabState extends State<DashboardTab> {
                       child: Image.network(
                         appState.userAvatarUrl!,
                         fit: BoxFit.contain,
+                        cacheWidth: cacheSize,
+                        cacheHeight: cacheSize,
+                        filterQuality: FilterQuality.low,
                         errorBuilder: (_, __, ___) => Image.asset(
                           'assets/images/boardmaster.png',
                           fit: BoxFit.contain,
@@ -733,6 +738,7 @@ class _DashboardTabState extends State<DashboardTab> {
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
+    final double dpr = MediaQuery.of(context).devicePixelRatio;
     final PlanOption featuresPlan = _resolvePreviewPlan(appState);
     final DateTime? endDate = appState.subscriptionEndDate;
     final String? formattedEndDate = endDate == null
@@ -774,6 +780,9 @@ class _DashboardTabState extends State<DashboardTab> {
                             width: 52,
                             height: 52,
                             fit: BoxFit.cover,
+                            cacheWidth: (52 * dpr).round(),
+                            cacheHeight: (52 * dpr).round(),
+                            filterQuality: FilterQuality.low,
                             errorBuilder: (_, __, ___) => Image.asset(
                               'assets/images/boardmaster.png',
                               width: 52,

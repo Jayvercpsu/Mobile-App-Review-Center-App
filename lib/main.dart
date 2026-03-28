@@ -7,6 +7,9 @@ import 'state/app_state.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Keep the image cache smaller for low-RAM devices.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20;
+  PaintingBinding.instance.imageCache.maximumSize = 200;
   runApp(
     ChangeNotifierProvider<AppState>(
       create: (_) => AppState(),

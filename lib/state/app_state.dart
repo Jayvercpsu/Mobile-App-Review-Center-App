@@ -53,6 +53,7 @@ class AppState extends ChangeNotifier {
   bool creatingCheckout = false;
   bool updatingProfile = false;
   bool isOffline = false;
+  bool loadingPlans = false;
   final MobileApiService _api = MobileApiService();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _plansLoaded = false;
@@ -237,8 +238,12 @@ class AppState extends ChangeNotifier {
       return null;
     }
 
+    loadingPlans = true;
+    notifyListeners();
     final ApiResult<List<PlanOption>> response = await _api.fetchPlans();
     if (!response.ok || response.data == null) {
+      loadingPlans = false;
+      notifyListeners();
       return response.message ?? 'Unable to load plans from web app.';
     }
 
@@ -258,6 +263,7 @@ class AppState extends ChangeNotifier {
         return a.id.compareTo(b.id);
       });
     _plansLoaded = true;
+    loadingPlans = false;
 
     if (selectedPlanId != null &&
         !_plans.any((PlanOption item) => item.id == selectedPlanId)) {

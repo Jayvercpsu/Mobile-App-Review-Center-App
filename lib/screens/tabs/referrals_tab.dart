@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../models/app_models.dart';
 import '../../state/app_state.dart';
+import '../../widgets/skeleton_widgets.dart';
 
 class ReferralsTab extends StatefulWidget {
   const ReferralsTab({super.key});
@@ -457,41 +458,44 @@ class _ReferralsTabState extends State<ReferralsTab> {
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.62,
+          if (appState.loadingReferrals && recommended.isEmpty)
+            const SliverToBoxAdapter(child: _OffersSkeletonGrid())
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.62,
+                ),
+                delegate: SliverChildBuilderDelegate((
+                  BuildContext context,
+                  int index,
+                ) {
+                  final ReferralOfferItem offer = recommended[index];
+                  final ReferralRewardItem? activeReward =
+                      activeByOffer[offer.id];
+                  final bool canRedeem =
+                      points.available >= offer.pointsCost &&
+                      activeReward == null;
+                  return _OfferCard(
+                    offer: offer,
+                    canRedeem: canRedeem,
+                    activeReward: activeReward,
+                    onRedeem: () => _redeemOffer(appState, offer),
+                    onOpenDetails: () => _showOfferDetails(
+                      context,
+                      appState,
+                      offer,
+                      points,
+                      activeReward,
+                    ),
+                  );
+                }, childCount: recommended.length),
               ),
-              delegate: SliverChildBuilderDelegate((
-                BuildContext context,
-                int index,
-              ) {
-                final ReferralOfferItem offer = recommended[index];
-                final ReferralRewardItem? activeReward =
-                    activeByOffer[offer.id];
-                final bool canRedeem =
-                    points.available >= offer.pointsCost &&
-                    activeReward == null;
-                return _OfferCard(
-                  offer: offer,
-                  canRedeem: canRedeem,
-                  activeReward: activeReward,
-                  onRedeem: () => _redeemOffer(appState, offer),
-                  onOpenDetails: () => _showOfferDetails(
-                    context,
-                    appState,
-                    offer,
-                    points,
-                    activeReward,
-                  ),
-                );
-              }, childCount: recommended.length),
             ),
-          ),
           if (appState.referralCategories.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -649,6 +653,73 @@ class _ReferralsTabState extends State<ReferralsTab> {
             ),
           SliverToBoxAdapter(child: const SizedBox(height: 20)),
         ],
+      ),
+    );
+  }
+}
+
+class _OffersSkeletonGrid extends StatelessWidget {
+  const _OffersSkeletonGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonShimmer(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double cardWidth = (constraints.maxWidth - 12) / 2;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: List<Widget>.generate(
+                4,
+                (int index) => Container(
+                  width: cardWidth,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: AppPalette.primary.withValues(alpha: 0.06),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Container(
+                        height: 64,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: AppPalette.primary.withValues(alpha: 0.06),
+                        ),
+                        child: const Center(
+                          child: SkeletonBox.circle(size: 26),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const SkeletonBox(height: 10, width: 90, borderRadius: 8),
+                      const SizedBox(height: 6),
+                      const SkeletonBox(
+                        height: 12,
+                        width: 130,
+                        borderRadius: 8,
+                      ),
+                      const SizedBox(height: 10),
+                      const SkeletonBox(height: 8, width: 110, borderRadius: 8),
+                      const SizedBox(height: 12),
+                      const SkeletonBox(
+                        height: 26,
+                        width: double.infinity,
+                        borderRadius: 999,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

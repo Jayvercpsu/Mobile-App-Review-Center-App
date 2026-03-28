@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../models/app_models.dart';
 import '../../state/app_state.dart';
+import '../../widgets/skeleton_widgets.dart';
 import '../feedback_screen.dart';
 import '../login_screen.dart';
 
@@ -599,8 +600,7 @@ class _ReferralCardState extends State<_ReferralCard> {
             ),
           ),
           const SizedBox(height: 8),
-          if (appState.loadingReferrals)
-            const Center(child: CircularProgressIndicator()),
+          if (appState.loadingReferrals) const _InvitedSkeletonList(),
           if (!appState.loadingReferrals && appState.referralEntries.isEmpty)
             Text(
               'No referrals yet.',
@@ -664,6 +664,60 @@ class _ReferralCardState extends State<_ReferralCard> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _InvitedSkeletonList extends StatelessWidget {
+  const _InvitedSkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonShimmer(
+      child: Column(
+        children: List<Widget>.generate(
+          3,
+          (int index) => Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppPalette.primary.withValues(alpha: 0.06),
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                const SkeletonBox.circle(size: 34),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const SkeletonBox(
+                        height: 12,
+                        width: double.infinity,
+                        borderRadius: 8,
+                      ),
+                      const SizedBox(height: 8),
+                      const SkeletonBox(
+                        height: 10,
+                        width: 150,
+                        borderRadius: 6,
+                      ),
+                      const SizedBox(height: 6),
+                      const SkeletonBox(height: 8, width: 90, borderRadius: 6),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const SkeletonBox(height: 18, width: 54, borderRadius: 999),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

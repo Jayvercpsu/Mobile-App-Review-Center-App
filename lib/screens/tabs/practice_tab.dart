@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../models/app_models.dart';
 import '../../state/app_state.dart';
+import '../../widgets/skeleton_widgets.dart';
 import '../home_shell.dart';
 import '../quiz_screen.dart';
 import '../rationalization_screen.dart';
@@ -700,7 +701,7 @@ class _PracticeTabState extends State<PracticeTab>
     if (subjects.isEmpty &&
         (appState.loadingPracticeSubjects ||
             !appState.practiceSubjectsLoaded)) {
-      return const Center(child: CircularProgressIndicator());
+      return const _PracticeSkeletonList();
     }
 
     if (subjects.isEmpty && appState.practiceSubjectsError != null) {
@@ -1005,12 +1006,7 @@ class _PracticeTabState extends State<PracticeTab>
               ),
             ),
           if (attempts.isEmpty && appState.loadingQuizAttempts)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            )
+            const SliverToBoxAdapter(child: _AttemptsSkeletonList())
           else if (attempts.isEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -1788,6 +1784,133 @@ class _SelectorColumn extends StatelessWidget {
           );
         }),
       ],
+    );
+  }
+}
+
+class _PracticeSkeletonList extends StatelessWidget {
+  const _PracticeSkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonShimmer(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+        children: <Widget>[
+          const SkeletonBox(height: 14, width: 120, borderRadius: 8),
+          const SizedBox(height: 10),
+          const SkeletonBox(height: 32, width: 260, borderRadius: 14),
+          const SizedBox(height: 8),
+          const SkeletonBox(height: 14, width: 220, borderRadius: 10),
+          const SizedBox(height: 18),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double cardWidth = (constraints.maxWidth - 12) / 2;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: List<Widget>.generate(
+                  6,
+                  (int index) => Container(
+                    width: cardWidth,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppPalette.primary.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const SkeletonBox(
+                          height: 12,
+                          width: 80,
+                          borderRadius: 8,
+                        ),
+                        const SizedBox(height: 10),
+                        const SkeletonBox(
+                          height: 10,
+                          width: 120,
+                          borderRadius: 8,
+                        ),
+                        const SizedBox(height: 6),
+                        const SkeletonBox(
+                          height: 8,
+                          width: 90,
+                          borderRadius: 8,
+                        ),
+                        const SizedBox(height: 14),
+                        const SkeletonBox(
+                          height: 32,
+                          width: double.infinity,
+                          borderRadius: 12,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttemptsSkeletonList extends StatelessWidget {
+  const _AttemptsSkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonShimmer(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: Column(
+          children: List<Widget>.generate(
+            3,
+            (int index) => Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppPalette.primary.withValues(alpha: 0.06),
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  const SkeletonBox.circle(size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const SkeletonBox(
+                          height: 12,
+                          width: double.infinity,
+                          borderRadius: 8,
+                        ),
+                        const SizedBox(height: 8),
+                        const SkeletonBox(
+                          height: 10,
+                          width: 160,
+                          borderRadius: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const SkeletonBox(height: 22, width: 54, borderRadius: 999),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

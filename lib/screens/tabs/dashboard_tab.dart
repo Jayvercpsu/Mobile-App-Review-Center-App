@@ -10,6 +10,7 @@ import '../../core/url_helper.dart';
 import '../../models/app_models.dart';
 import '../../screens/payment_webview.dart';
 import '../../state/app_state.dart';
+import '../../widgets/skeleton_widgets.dart';
 
 class DashboardTab extends StatefulWidget {
   const DashboardTab({
@@ -713,8 +714,7 @@ class _DashboardTabState extends State<DashboardTab> {
           activePlan.tier == PlanTier.free) {
         final DateTime? resumedEndDate = appState.subscriptionEndDate;
         if (resumedEndDate != null && !appState.isSubscriptionExpired) {
-          final String until =
-              DateFormat('MMM d, yyyy').format(resumedEndDate);
+          final String until = DateFormat('MMM d, yyyy').format(resumedEndDate);
           successMessage = 'Free trial resumed. Valid until $until.';
         } else {
           successMessage = 'You are now on the Free Trial.';
@@ -722,11 +722,9 @@ class _DashboardTabState extends State<DashboardTab> {
       }
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(error ?? successMessage),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error ?? successMessage)));
 
     if (error == null) {
       setState(() {
@@ -757,715 +755,736 @@ class _DashboardTabState extends State<DashboardTab> {
     final DateFormat historyFormatter = DateFormat('MMM dd, yyyy');
     final DateFormat referralFormatter = DateFormat('MMM dd, yyyy');
     final List<PlanOption> explorePlans = _sortedExplorePlans(appState.plans);
+    final bool plansLoading = appState.loadingPlans && explorePlans.isEmpty;
 
     return RefreshIndicator(
       onRefresh: () => _refreshDashboard(appState),
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: <Widget>[
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
-            child: Row(
-              children: <Widget>[
-                InkWell(
-                  onTap: () => _showAvatarPreview(appState),
-                  borderRadius: BorderRadius.circular(999),
-                  child: ClipOval(
-                    child:
-                        appState.userAvatarUrl != null &&
-                            appState.userAvatarUrl!.trim().isNotEmpty
-                        ? Image.network(
-                            appState.userAvatarUrl!,
-                            width: 52,
-                            height: 52,
-                            fit: BoxFit.cover,
-                            cacheWidth: (52 * dpr).round(),
-                            cacheHeight: (52 * dpr).round(),
-                            filterQuality: FilterQuality.low,
-                            errorBuilder: (_, __, ___) => Image.asset(
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
+              child: Row(
+                children: <Widget>[
+                  InkWell(
+                    onTap: () => _showAvatarPreview(appState),
+                    borderRadius: BorderRadius.circular(999),
+                    child: ClipOval(
+                      child:
+                          appState.userAvatarUrl != null &&
+                              appState.userAvatarUrl!.trim().isNotEmpty
+                          ? Image.network(
+                              appState.userAvatarUrl!,
+                              width: 52,
+                              height: 52,
+                              fit: BoxFit.cover,
+                              cacheWidth: (52 * dpr).round(),
+                              cacheHeight: (52 * dpr).round(),
+                              filterQuality: FilterQuality.low,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                'assets/images/boardmaster.png',
+                                width: 52,
+                                height: 52,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.asset(
                               'assets/images/boardmaster.png',
                               width: 52,
                               height: 52,
                               fit: BoxFit.cover,
                             ),
-                          )
-                        : Image.asset(
-                            'assets/images/boardmaster.png',
-                            width: 52,
-                            height: 52,
-                            fit: BoxFit.cover,
-                          ),
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'BoardMasters Review',
+                          style: GoogleFonts.redHatDisplay(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppPalette.primary,
+                          ),
+                        ),
+                        Text(
+                          'Philippine Nurses Licensure Exam (PNLE) Review',
+                          style: GoogleFonts.manrope(
+                            color: AppPalette.muted,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(duration: 450.ms).slideX(begin: -0.05, end: 0),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: const LinearGradient(
+                    colors: <Color>[Color(0xFF243362), Color(0xFF39559E)],
+                  ),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: AppPalette.primary.withValues(alpha: 0.28),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'BoardMasters Review',
-                        style: GoogleFonts.redHatDisplay(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: AppPalette.primary,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'SUBSCRIPTION',
+                      style: GoogleFonts.manrope(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _planDisplayTitle(appState.currentPlan),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.redHatDisplay(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${appState.currentPlan.priceLabel} ${appState.currentPlan.billingLabel}',
+                      style: GoogleFonts.manrope(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (formattedEndDate != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          appState.isSubscriptionExpired
+                              ? 'Expired on $formattedEndDate'
+                              : 'Expires on $formattedEndDate',
+                          style: GoogleFonts.manrope(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                      Text(
-                        'Philippine Nurses Licensure Exam (PNLE) Review',
-                        style: GoogleFonts.manrope(
-                          color: AppPalette.muted,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                    if (appState.isSubscriptionExpired)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Subscription expired. Renew to unlock premium access.',
+                          style: GoogleFonts.manrope(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: FilledButton(
+                        onPressed: widget.onOpenPractice,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppPalette.primary,
+                        ),
+                        child: Text(
+                          'START THE TEST NOW',
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (hasActivePaidPlan) ...<Widget>[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: OutlinedButton(
+                          onPressed:
+                              appState.selectingPlan ||
+                                  appState.creatingCheckout
+                              ? null
+                              : () => _cancelPlan(
+                                  context: context,
+                                  appState: context.read<AppState>(),
+                                  formattedEndDate: formattedEndDate,
+                                ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.12,
+                            ),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.5),
+                            ),
+                            shape: const StadiumBorder(),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              const Icon(Icons.cancel_rounded, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Cancel Plan',
+                                style: GoogleFonts.manrope(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 450.ms).slideX(begin: -0.05, end: 0),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: const LinearGradient(
-                  colors: <Color>[Color(0xFF243362), Color(0xFF39559E)],
-                ),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: AppPalette.primary.withValues(alpha: 0.28),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'SUBSCRIPTION',
-                    style: GoogleFonts.manrope(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _planDisplayTitle(appState.currentPlan),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.redHatDisplay(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 22,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${appState.currentPlan.priceLabel} ${appState.currentPlan.billingLabel}',
-                    style: GoogleFonts.manrope(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (formattedEndDate != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        appState.isSubscriptionExpired
-                            ? 'Expired on $formattedEndDate'
-                            : 'Expires on $formattedEndDate',
-                        style: GoogleFonts.manrope(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
+            ),
+          ),
+          if (!hasActivePaidPlan) ...<Widget>[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Explore your OPTIONS.',
+                      style: GoogleFonts.redHatDisplay(
+                        color: AppPalette.textDark,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  if (appState.isSubscriptionExpired)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Subscription expired. Renew to unlock premium access.',
-                        style: GoogleFonts.manrope(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: FilledButton(
-                      onPressed: widget.onOpenPractice,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppPalette.primary,
-                      ),
-                      child: Text(
-                        'START THE TEST NOW',
-                        style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ),
-                  if (hasActivePaidPlan) ...<Widget>[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: OutlinedButton(
-                        onPressed:
-                            appState.selectingPlan || appState.creatingCheckout
-                            ? null
-                            : () => _cancelPlan(
-                                context: context,
-                                appState: context.read<AppState>(),
-                                formattedEndDate: formattedEndDate,
-                              ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: Colors.white.withValues(alpha: 0.12),
-                          side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.5),
-                          ),
-                          shape: const StadiumBorder(),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: <Widget>[
-                            const Icon(Icons.cancel_rounded, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Cancel Plan',
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '3 days FREE trial available for Nursing Concepts (limited access).',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.muted,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-        if (!hasActivePaidPlan) ...<Widget>[
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 248,
+                child: plansLoading
+                    ? const _ExplorePlanSkeleton()
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: explorePlans.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (BuildContext context, int index) {
+                          final PlanOption plan = explorePlans[index];
+                          final bool selected =
+                              plan.id == appState.currentPlan.id;
+                          final bool previewed = _previewPlanId == plan.id;
+                          final bool isFreePlan = !plan.isPaid;
+                          final String displayTitle =
+                              plan.subPlanLabel.trim().isNotEmpty
+                              ? plan.subPlanLabel
+                              : plan.name;
+                          final String groupTitle = _planDisplayTitle(plan);
+                          final String displayDescription =
+                              _planDisplayDescription(plan);
+                          final bool lockedFreePlan =
+                              lockFreePlan && isFreePlan;
+                          final bool lockedByActivePlan =
+                              hasActivePaidPlan && !selected;
+                          final bool canRenew =
+                              selected &&
+                              plan.isPaid &&
+                              appState.isSubscriptionExpired;
+                          final bool busy =
+                              appState.selectingPlan ||
+                              appState.creatingCheckout;
+                          final bool disabled =
+                              busy ||
+                              (selected && !canRenew) ||
+                              lockedFreePlan ||
+                              lockedByActivePlan;
+                          final String buttonLabel = selected
+                              ? (canRenew ? 'Renew Plan' : 'Selected')
+                              : (lockedByActivePlan
+                                    ? 'Cancel current plan first'
+                                    : (lockedFreePlan
+                                          ? 'Unavailable'
+                                          : (plan.isPaid
+                                                ? 'PAY NOW'
+                                                : 'Choose Plan')));
+
+                          return GestureDetector(
+                            onTap: lockedFreePlan
+                                ? null
+                                : () => _setPreviewPlan(plan),
+                            child: AnimatedScale(
+                              duration: const Duration(milliseconds: 220),
+                              scale: selected ? 1.02 : 1,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 280),
+                                width: 258,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  color: Colors.white,
+                                  border: Border.all(
+                                    color: selected
+                                        ? AppPalette.success
+                                        : (previewed
+                                              ? AppPalette.secondary
+                                              : AppPalette.primary.withValues(
+                                                  alpha: 0.1,
+                                                )),
+                                    width: selected || previewed ? 2 : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      displayTitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.redHatDisplay(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppPalette.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      groupTitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.manrope(
+                                        color: AppPalette.muted,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      plan.priceLabel,
+                                      style: GoogleFonts.redHatDisplay(
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppPalette.secondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      plan.billingLabel,
+                                      style: GoogleFonts.manrope(
+                                        color: AppPalette.muted,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      displayDescription,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.manrope(
+                                        color: AppPalette.muted,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    SizedBox(
+                                      height: 42,
+                                      width: double.infinity,
+                                      child: FilledButton(
+                                        onPressed: disabled
+                                            ? null
+                                            : () => _handleChoosePlan(
+                                                context: context,
+                                                appState: context
+                                                    .read<AppState>(),
+                                                plan: plan,
+                                              ),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: selected && !canRenew
+                                              ? AppPalette.success
+                                              : AppPalette.primary,
+                                        ),
+                                        child: busy
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Colors.white,
+                                                    ),
+                                              )
+                                            : Text(
+                                                buttonLabel,
+                                                style: GoogleFonts.manrope(
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+          ],
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Explore your OPTIONS.',
-                    style: GoogleFonts.redHatDisplay(
-                      color: AppPalette.textDark,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '3 days FREE trial available for Nursing Concepts (limited access).',
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.muted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 248,
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-                scrollDirection: Axis.horizontal,
-                itemCount: explorePlans.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (BuildContext context, int index) {
-                  final PlanOption plan = explorePlans[index];
-                  final bool selected = plan.id == appState.currentPlan.id;
-                  final bool previewed = _previewPlanId == plan.id;
-                  final bool isFreePlan = !plan.isPaid;
-                  final String displayTitle =
-                      plan.subPlanLabel.trim().isNotEmpty
-                      ? plan.subPlanLabel
-                      : plan.name;
-                  final String groupTitle = _planDisplayTitle(plan);
-                  final String displayDescription = _planDisplayDescription(
-                    plan,
-                  );
-                  final bool lockedFreePlan = lockFreePlan && isFreePlan;
-                  final bool lockedByActivePlan =
-                      hasActivePaidPlan && !selected;
-                  final bool canRenew =
-                      selected && plan.isPaid && appState.isSubscriptionExpired;
-                  final bool busy =
-                      appState.selectingPlan || appState.creatingCheckout;
-                  final bool disabled =
-                      busy ||
-                      (selected && !canRenew) ||
-                      lockedFreePlan ||
-                      lockedByActivePlan;
-                  final String buttonLabel = selected
-                      ? (canRenew ? 'Renew Plan' : 'Selected')
-                      : (lockedByActivePlan
-                            ? 'Cancel current plan first'
-                            : (lockedFreePlan
-                                  ? 'Unavailable'
-                                  : (plan.isPaid ? 'PAY NOW' : 'Choose Plan')));
-
-                  return GestureDetector(
-                    onTap: lockedFreePlan ? null : () => _setPreviewPlan(plan),
-                    child: AnimatedScale(
-                      duration: const Duration(milliseconds: 220),
-                      scale: selected ? 1.02 : 1,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 280),
-                        width: 258,
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+              child:
+                  Container(
+                        key: ValueKey<int>(featuresPlan.id),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
                           color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: selected
-                                ? AppPalette.success
-                                : (previewed
-                                      ? AppPalette.secondary
-                                      : AppPalette.primary.withValues(
-                                          alpha: 0.1,
-                                        )),
-                            width: selected || previewed ? 2 : 1,
+                            color: AppPalette.primary.withValues(alpha: 0.08),
                           ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              displayTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              'Subscription Coverage',
                               style: GoogleFonts.redHatDisplay(
-                                fontSize: 18,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w800,
                                 color: AppPalette.primary,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              groupTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
-                                color: AppPalette.muted,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              plan.priceLabel,
-                              style: GoogleFonts.redHatDisplay(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800,
-                                color: AppPalette.secondary,
-                              ),
-                            ),
-                            Text(
-                              plan.billingLabel,
-                              style: GoogleFonts.manrope(
-                                color: AppPalette.muted,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              displayDescription,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
-                                color: AppPalette.muted,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 11,
-                              ),
-                            ),
-                            const Spacer(),
-                            SizedBox(
-                              height: 42,
-                              width: double.infinity,
-                              child: FilledButton(
-                                onPressed: disabled
-                                    ? null
-                                    : () => _handleChoosePlan(
-                                        context: context,
-                                        appState: context.read<AppState>(),
-                                        plan: plan,
-                                      ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: selected && !canRenew
-                                      ? AppPalette.success
-                                      : AppPalette.primary,
-                                ),
-                                child: busy
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
+                            const SizedBox(height: 10),
+                            ...featureItems.map(
+                              (String feature) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: AppPalette.success.withValues(
+                                          alpha: 0.12,
                                         ),
-                                      )
-                                    : Text(
-                                        buttonLabel,
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        size: 14,
+                                        color: AppPalette.success,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        feature,
                                         style: GoogleFonts.manrope(
-                                          fontWeight: FontWeight.w800,
+                                          color: AppPalette.textDark,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                      .animate(key: ValueKey<int>(featuresPlan.id))
+                      .fadeIn(duration: 280.ms)
+                      .slideX(begin: 0.12, end: 0, duration: 280.ms),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _MetricCard(
+                      title: 'Referral Joins',
+                      value: '${appState.referralJoinedCount}',
+                      icon: Icons.people_alt_rounded,
+                      color: const Color(0xFFEEF3FF),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _MetricCard(
+                      title: 'Last Score',
+                      value: lastScoreLabel,
+                      icon: Icons.emoji_events_rounded,
+                      color: const Color(0xFFFFF2F3),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                'Subscription History',
+                style: GoogleFonts.redHatDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.textDark,
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppPalette.primary.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    if (appState.loadingSubscriptionHistory &&
+                        appState.subscriptionHistory.isEmpty)
+                      const _HistorySkeletonList()
+                    else if (appState.subscriptionHistory.isEmpty)
+                      Text(
+                        'No subscription history yet.',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ...appState.subscriptionHistory.map(
+                      (SubscriptionHistoryItem item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            const Icon(
+                              Icons.receipt_long_rounded,
+                              color: AppPalette.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    item.planName,
+                                    style: GoogleFonts.manrope(
+                                      fontWeight: FontWeight.w700,
+                                      color: AppPalette.textDark,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'PHP ${item.price.toStringAsFixed(0)} • ${item.billingCycle.toUpperCase()}',
+                                    style: GoogleFonts.manrope(
+                                      color: AppPalette.muted,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Start: ${historyFormatter.format(item.startDate)}',
+                                    style: GoogleFonts.manrope(
+                                      color: AppPalette.muted,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  if (item.endDate != null)
+                                    Text(
+                                      'End: ${historyFormatter.format(item.endDate!)}',
+                                      style: GoogleFonts.manrope(
+                                        color: AppPalette.muted,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  Text(
+                                    'Status: ${item.status}',
+                                    style: GoogleFonts.manrope(
+                                      color: AppPalette.muted,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                  );
-                },
+                    if (!appState.loadingSubscriptionHistory &&
+                        appState.hasMoreSubscriptionHistory)
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            appState.loadSubscriptionHistory(loadMore: true);
+                          },
+                          child: Text(
+                            'Show more',
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
-        ],
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-            child:
-                Container(
-                      key: ValueKey<int>(featuresPlan.id),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppPalette.primary.withValues(alpha: 0.08),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Referral History',
+                style: GoogleFonts.redHatDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.textDark,
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppPalette.primary.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    if (appState.referralEntries.isEmpty)
+                      Text(
+                        'No referral history yet.',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.muted,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            'Subscription Coverage',
-                            style: GoogleFonts.redHatDisplay(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: AppPalette.primary,
+                    ...appState.referralEntries.map(
+                      (ReferralEntry entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            const Icon(
+                              Icons.verified_rounded,
+                              color: AppPalette.success,
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          ...featureItems.map(
-                            (String feature) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: Row(
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: <Widget>[
-                                  Container(
-                                    width: 20,
-                                    height: 20,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: AppPalette.success.withValues(
-                                        alpha: 0.12,
-                                      ),
+                                  Text(
+                                    entry.invitedName,
+                                    style: GoogleFonts.manrope(
+                                      fontWeight: FontWeight.w700,
+                                      color: AppPalette.textDark,
                                     ),
-                                    child: const Icon(
-                                      Icons.check,
-                                      size: 14,
-                                      color: AppPalette.success,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    entry.invitedEmail,
+                                    style: GoogleFonts.manrope(
+                                      color: AppPalette.muted,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      feature,
+                                  if (entry.createdAt != null)
+                                    Text(
+                                      referralFormatter.format(
+                                        entry.createdAt!,
+                                      ),
                                       style: GoogleFonts.manrope(
-                                        color: AppPalette.textDark,
+                                        color: AppPalette.muted,
                                         fontWeight: FontWeight.w600,
+                                        fontSize: 11,
                                       ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    )
-                    .animate(key: ValueKey<int>(featuresPlan.id))
-                    .fadeIn(duration: 280.ms)
-                    .slideX(begin: 0.12, end: 0, duration: 280.ms),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: _MetricCard(
-                    title: 'Referral Joins',
-                    value: '${appState.referralJoinedCount}',
-                    icon: Icons.people_alt_rounded,
-                    color: const Color(0xFFEEF3FF),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _MetricCard(
-                    title: 'Last Score',
-                    value: lastScoreLabel,
-                    icon: Icons.emoji_events_rounded,
-                    color: const Color(0xFFFFF2F3),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text(
-              'Subscription History',
-              style: GoogleFonts.redHatDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppPalette.textDark,
-              ),
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: AppPalette.primary.withValues(alpha: 0.08),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  if (appState.subscriptionHistory.isEmpty)
-                    Text(
-                      'No subscription history yet.',
-                      style: GoogleFonts.manrope(
-                        color: AppPalette.muted,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ...appState.subscriptionHistory.map(
-                    (SubscriptionHistoryItem item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          const Icon(
-                            Icons.receipt_long_rounded,
-                            color: AppPalette.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  item.planName,
-                                  style: GoogleFonts.manrope(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppPalette.textDark,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  'PHP ${item.price.toStringAsFixed(0)} • ${item.billingCycle.toUpperCase()}',
-                                  style: GoogleFonts.manrope(
-                                    color: AppPalette.muted,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  'Start: ${historyFormatter.format(item.startDate)}',
-                                  style: GoogleFonts.manrope(
-                                    color: AppPalette.muted,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                if (item.endDate != null)
-                                  Text(
-                                    'End: ${historyFormatter.format(item.endDate!)}',
-                                    style: GoogleFonts.manrope(
-                                      color: AppPalette.muted,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                Text(
-                                  'Status: ${item.status}',
-                                  style: GoogleFonts.manrope(
-                                    color: AppPalette.muted,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (appState.loadingSubscriptionHistory)
-                    const Center(child: CircularProgressIndicator()),
-                  if (!appState.loadingSubscriptionHistory &&
-                      appState.hasMoreSubscriptionHistory)
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          appState.loadSubscriptionHistory(loadMore: true);
-                        },
-                        child: Text(
-                          'Show more',
-                          style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w700,
-                          ),
+                          ],
                         ),
                       ),
                     ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(
-              'Referral History',
-              style: GoogleFonts.redHatDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppPalette.textDark,
-              ),
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: AppPalette.primary.withValues(alpha: 0.08),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  if (appState.referralEntries.isEmpty)
-                    Text(
-                      'No referral history yet.',
-                      style: GoogleFonts.manrope(
-                        color: AppPalette.muted,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ...appState.referralEntries.map(
-                    (ReferralEntry entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          const Icon(
-                            Icons.verified_rounded,
-                            color: AppPalette.success,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  entry.invitedName,
-                                  style: GoogleFonts.manrope(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppPalette.textDark,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  entry.invitedEmail,
-                                  style: GoogleFonts.manrope(
-                                    color: AppPalette.muted,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                if (entry.createdAt != null)
-                                  Text(
-                                    referralFormatter.format(entry.createdAt!),
-                                    style: GoogleFonts.manrope(
-                                      color: AppPalette.muted,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                              ],
+                    if (appState.loadingReferrals)
+                      const _ReferralSkeletonList(),
+                    if (!appState.loadingReferrals && appState.hasMoreReferrals)
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            appState.loadReferrals(loadMore: true);
+                          },
+                          child: Text(
+                            'Show more',
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w700,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (appState.loadingReferrals)
-                    const Center(child: CircularProgressIndicator()),
-                  if (!appState.loadingReferrals && appState.hasMoreReferrals)
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          appState.loadReferrals(loadMore: true);
-                        },
-                        child: Text(
-                          'Show more',
-                          style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         ],
       ),
     );
@@ -1514,6 +1533,171 @@ class _MetricCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HistorySkeletonList extends StatelessWidget {
+  const _HistorySkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonShimmer(
+      child: Column(
+        children: List<Widget>.generate(
+          3,
+          (int index) => Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppPalette.primary.withValues(alpha: 0.06),
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                const SkeletonBox.circle(size: 40),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const SkeletonBox(
+                        height: 12,
+                        width: double.infinity,
+                        borderRadius: 8,
+                      ),
+                      const SizedBox(height: 8),
+                      const SkeletonBox(
+                        height: 10,
+                        width: 180,
+                        borderRadius: 8,
+                      ),
+                      const SizedBox(height: 6),
+                      const SkeletonBox(height: 8, width: 120, borderRadius: 8),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const SkeletonBox(height: 20, width: 60, borderRadius: 999),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReferralSkeletonList extends StatelessWidget {
+  const _ReferralSkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonShimmer(
+      child: Column(
+        children: List<Widget>.generate(
+          3,
+          (int index) => Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppPalette.primary.withValues(alpha: 0.06),
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                const SkeletonBox.circle(size: 34),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const SkeletonBox(
+                        height: 12,
+                        width: double.infinity,
+                        borderRadius: 8,
+                      ),
+                      const SizedBox(height: 6),
+                      const SkeletonBox(
+                        height: 10,
+                        width: 160,
+                        borderRadius: 8,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const SkeletonBox(height: 18, width: 54, borderRadius: 999),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExplorePlanSkeleton extends StatelessWidget {
+  const _ExplorePlanSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonShimmer(
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          return Container(
+            width: 258,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.white,
+              border: Border.all(
+                color: AppPalette.primary.withValues(alpha: 0.06),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    const SkeletonBox(height: 20, width: 90, borderRadius: 999),
+                    const Spacer(),
+                    const SkeletonBox(height: 16, width: 44, borderRadius: 999),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const SkeletonBox(height: 18, width: 140, borderRadius: 10),
+                const SizedBox(height: 8),
+                const SkeletonBox(
+                  height: 10,
+                  width: double.infinity,
+                  borderRadius: 8,
+                ),
+                const SizedBox(height: 6),
+                const SkeletonBox(height: 10, width: 160, borderRadius: 8),
+                const SizedBox(height: 12),
+                const SkeletonBox(height: 16, width: 90, borderRadius: 8),
+                const Spacer(),
+                const SkeletonBox(
+                  height: 36,
+                  width: double.infinity,
+                  borderRadius: 12,
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

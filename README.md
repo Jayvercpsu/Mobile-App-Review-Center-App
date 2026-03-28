@@ -48,14 +48,20 @@ npm run dev
 
 ```bash
 cd ..\app-review-center
-flutter run --dart-define-from-file=.env
+flutter run
 ```
 
 4. Start Flutter web app (optional):
 
 ```bash
 cd ..\app-review-center
-flutter run -d chrome --dart-define-from-file=.env
+flutter run -d chrome
+```
+
+Optional override at run time:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://<YOUR_PC_IPV4>:8000/api
 ```
 
 ## Login Troubleshooting (Mobile)
@@ -70,7 +76,7 @@ flutter run -d chrome --dart-define-from-file=.env
 
 ```bash
 cd app-review-center
-flutter build apk --release --dart-define-from-file=.env
+flutter build apk --release
 ```
 
 APK output:

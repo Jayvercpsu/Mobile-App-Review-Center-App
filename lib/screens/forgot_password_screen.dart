@@ -15,6 +15,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final TextEditingController _emailController = TextEditingController();
   bool _loading = false;
+  bool _sent = false;
 
   @override
   void dispose() {
@@ -36,16 +37,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _loading = true;
     });
 
-    final String? error = await context.read<AppState>().forgotPassword(
-      email: email,
-    );
+    String? error;
+    try {
+      error = await context.read<AppState>().forgotPassword(email: email);
+    } catch (_) {
+      error = 'Unable to send reset link. Please try again.';
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+
     if (!mounted) {
       return;
     }
-
-    setState(() {
-      _loading = false;
-    });
 
     if (error != null) {
       ScaffoldMessenger.of(
@@ -53,6 +60,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
+
+    setState(() {
+      _sent = true;
+    });
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -141,7 +152,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ),
                             )
                           : Text(
-                              'Send Reset Link',
+                              _sent ? 'Resend Link' : 'Send Reset Link',
                               style: GoogleFonts.manrope(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,

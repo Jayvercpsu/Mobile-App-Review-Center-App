@@ -306,13 +306,7 @@ class AppState extends ChangeNotifier {
       email: data.email.trim().isNotEmpty ? data.email.trim() : email.trim(),
     );
     notifyListeners();
-
-    await loadPlans(force: true);
-    await loadPracticeSubjects(force: true);
-    await loadDashboardMetrics(force: true);
-    await loadSubscriptionHistory(loadMore: false);
-    await loadReferrals(loadMore: false);
-    await loadQuizAttempts(loadMore: false);
+    unawaited(_warmupSignedInData());
     return null;
   }
 
@@ -1272,6 +1266,23 @@ class AppState extends ChangeNotifier {
       await prefs.remove(_prefsAuthToken);
     } catch (_) {
       // Ignore storage cleanup errors.
+    }
+  }
+
+  Future<void> _warmupSignedInData() async {
+    await _runWarmupLoad(() => loadPlans(force: true));
+    await _runWarmupLoad(() => loadPracticeSubjects(force: true));
+    await _runWarmupLoad(() => loadDashboardMetrics(force: true));
+    await _runWarmupLoad(() => loadSubscriptionHistory(loadMore: false));
+    await _runWarmupLoad(() => loadReferrals(loadMore: false));
+    await _runWarmupLoad(() => loadQuizAttempts(loadMore: false));
+  }
+
+  Future<void> _runWarmupLoad(Future<String?> Function() task) async {
+    try {
+      await task();
+    } catch (_) {
+      // Ignore warmup fetch errors to avoid blocking login flow.
     }
   }
 }

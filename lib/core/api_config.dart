@@ -1,3 +1,5 @@
+import 'runtime_env.dart';
+
 class ApiConfig {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -8,14 +10,16 @@ class ApiConfig {
     defaultValue: '',
   );
   static const List<String> _fallbackBaseUrls = <String>[
-    'http://10.239.202.119:8000/api',
     'http://127.0.0.1:8000/api',
     'http://localhost:8000/api',
+    'http://10.0.2.2:8000/api',
+    'http://10.0.3.2:8000/api',
     'http://192.168.0.157:8000/api',
+    'http://10.239.202.119:8000/api',
   ];
 
   static String get baseUrl {
-    final String configured = _normalizeBaseUrl(_configuredBaseUrl);
+    final String configured = _primaryConfiguredBaseUrl();
     if (configured.isNotEmpty) {
       return configured;
     }
@@ -25,9 +29,16 @@ class ApiConfig {
   static List<String> candidateBaseUrls() {
     final Set<String> urls = <String>{};
 
-    final String primary = _normalizeBaseUrl(_configuredBaseUrl);
+    final String primary = _primaryConfiguredBaseUrl();
     if (primary.isNotEmpty) {
       urls.add(primary);
+    }
+
+    for (final String candidate in _configuredFallbackCandidates()) {
+      final String normalized = _normalizeBaseUrl(candidate);
+      if (normalized.isNotEmpty) {
+        urls.add(normalized);
+      }
     }
 
     for (final String candidate in _splitCandidates(
@@ -106,5 +117,21 @@ class ApiConfig {
         yield trimmed;
       }
     }
+  }
+
+  static String _primaryConfiguredBaseUrl() {
+    final String fromDartDefine = _normalizeBaseUrl(_configuredBaseUrl);
+    if (fromDartDefine.isNotEmpty) {
+      return fromDartDefine;
+    }
+    return _normalizeBaseUrl(RuntimeEnv.get('API_BASE_URL'));
+  }
+
+  static Iterable<String> _configuredFallbackCandidates() {
+    final String fromRuntimeEnv = RuntimeEnv.get('API_FALLBACK_BASE_URLS');
+    if (fromRuntimeEnv.isEmpty) {
+      return const <String>[];
+    }
+    return _splitCandidates(fromRuntimeEnv);
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -9,6 +10,7 @@ import '../models/app_models.dart';
 class MobileApiService {
   MobileApiService({http.Client? client}) : _client = client ?? http.Client();
 
+  static const Duration _requestTimeout = Duration(seconds: 8);
   final http.Client _client;
   String? _token;
   String? _resolvedBaseUrl;
@@ -941,10 +943,7 @@ class MobileApiService {
     try {
       final http.Response response = await _postWithFallback(
         path: ApiConfig.feedback,
-        payload: <String, dynamic>{
-          'rating': rating,
-          'comment': comment.trim(),
-        },
+        payload: <String, dynamic>{'rating': rating, 'comment': comment.trim()},
       );
       final dynamic decoded = _decodeJson(response.body);
 
@@ -1017,10 +1016,12 @@ class MobileApiService {
 
     for (final String baseUrl in _candidateBaseUrls()) {
       try {
-        final http.Response response = await _client.get(
-          ApiConfig.uri(path, overrideBaseUrl: baseUrl),
-          headers: _headers(),
-        );
+        final http.Response response = await _client
+            .get(
+              ApiConfig.uri(path, overrideBaseUrl: baseUrl),
+              headers: _headers(),
+            )
+            .timeout(_requestTimeout);
         if (response.statusCode == 404) {
           fallbackResponse = response;
           continue;
@@ -1047,11 +1048,13 @@ class MobileApiService {
 
     for (final String baseUrl in _candidateBaseUrls()) {
       try {
-        final http.Response response = await _client.post(
-          ApiConfig.uri(path, overrideBaseUrl: baseUrl),
-          headers: _headers(),
-          body: jsonEncode(payload),
-        );
+        final http.Response response = await _client
+            .post(
+              ApiConfig.uri(path, overrideBaseUrl: baseUrl),
+              headers: _headers(),
+              body: jsonEncode(payload),
+            )
+            .timeout(_requestTimeout);
         if (response.statusCode == 404) {
           fallbackResponse = response;
           continue;
@@ -1100,7 +1103,9 @@ class MobileApiService {
           ),
         );
 
-        final http.StreamedResponse streamed = await _client.send(request);
+        final http.StreamedResponse streamed = await _client
+            .send(request)
+            .timeout(_requestTimeout);
         final http.Response response = await http.Response.fromStream(streamed);
         if (response.statusCode == 404) {
           fallbackResponse = response;

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/app_theme.dart';
+import 'core/runtime_env.dart';
 import 'screens/splash_screen.dart';
 import 'state/app_state.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await RuntimeEnv.load();
   // Keep the image cache smaller for low-RAM devices.
   PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20;
   PaintingBinding.instance.imageCache.maximumSize = 200;
@@ -31,4 +33,3 @@ class BoardMasterApp extends StatelessWidget {
     );
   }
 }
-

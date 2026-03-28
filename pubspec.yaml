@@ -1,5 +1,5 @@
 name: app_review_center
-description: Board Master Review Center mobile application
+description: BoardMasters Review Center mobile application
 publish_to: none
 version: 1.0.0+1
 
@@ -36,3 +36,4 @@ flutter:
     - assets/images/boardmaster-square.png
     - assets/images/gcash.png
     - assets/images/maya.jpg
+

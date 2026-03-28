@@ -1,6 +1,6 @@
-# Board Master Review Center Mobile App
+# BoardMasters Review Center Mobile App
 
-Flutter app for the Board Master Review Center project.
+Flutter app for the BoardMasters Review Center project.
 
 ## Included Flow
 
@@ -76,3 +76,4 @@ flutter build apk --release --dart-define-from-file=.env
 APK output:
 
 - `app-review-center/build/app/outputs/flutter-apk/app-release.apk`
+

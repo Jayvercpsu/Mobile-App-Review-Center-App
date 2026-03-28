@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../core/api_config.dart';
 import '../models/app_models.dart';
@@ -901,7 +902,11 @@ class MobileApiService {
               fields: fields,
               fileField: 'avatar',
               fileBytes: avatarBytes,
-              filename: avatarFilename ?? 'avatar.jpg',
+              filename: _normalizeAvatarFilename(avatarFilename, avatarBytes),
+              contentType: _resolveImageContentType(
+                avatarFilename,
+                avatarBytes,
+              ),
             );
       final dynamic decoded = _decodeJson(response.body);
 
@@ -1078,6 +1083,7 @@ class MobileApiService {
     required String fileField,
     required Uint8List fileBytes,
     required String filename,
+    MediaType? contentType,
   }) async {
     Object? lastError;
     http.Response? fallbackResponse;
@@ -1100,6 +1106,7 @@ class MobileApiService {
             fileField,
             fileBytes,
             filename: filename,
+            contentType: contentType,
           ),
         );
 
@@ -1146,6 +1153,94 @@ class MobileApiService {
     }
 
     return result;
+  }
+
+  MediaType _resolveImageContentType(
+    String? filename,
+    Uint8List bytes,
+  ) {
+    final String? byName = _contentTypeFromFilename(filename);
+    if (byName != null) {
+      return MediaType.parse(byName);
+    }
+
+    final String? byMagic = _contentTypeFromBytes(bytes);
+    return MediaType.parse(byMagic ?? 'image/jpeg');
+  }
+
+  String _normalizeAvatarFilename(String? filename, Uint8List bytes) {
+    final String trimmed = (filename ?? '').trim();
+    if (trimmed.isNotEmpty && trimmed.contains('.')) {
+      return trimmed;
+    }
+    final String? type = _contentTypeFromBytes(bytes);
+    final String extension = _extensionFromContentType(type) ?? 'jpg';
+    return 'avatar.$extension';
+  }
+
+  String? _contentTypeFromFilename(String? filename) {
+    if (filename == null || filename.trim().isEmpty) {
+      return null;
+    }
+    final String lower = filename.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+      return 'image/jpeg';
+    }
+    if (lower.endsWith('.png')) {
+      return 'image/png';
+    }
+    if (lower.endsWith('.webp')) {
+      return 'image/webp';
+    }
+    if (lower.endsWith('.gif')) {
+      return 'image/gif';
+    }
+    return null;
+  }
+
+  String? _contentTypeFromBytes(Uint8List bytes) {
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return 'image/jpeg';
+    }
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
+      return 'image/png';
+    }
+    if (bytes.length >= 6) {
+      final String header = String.fromCharCodes(bytes.sublist(0, 6));
+      if (header == 'GIF87a' || header == 'GIF89a') {
+        return 'image/gif';
+      }
+    }
+    if (bytes.length >= 12) {
+      final String riff = String.fromCharCodes(bytes.sublist(0, 4));
+      final String webp = String.fromCharCodes(bytes.sublist(8, 12));
+      if (riff == 'RIFF' && webp == 'WEBP') {
+        return 'image/webp';
+      }
+    }
+    return null;
+  }
+
+  String? _extensionFromContentType(String? contentType) {
+    switch (contentType) {
+      case 'image/jpeg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/webp':
+        return 'webp';
+      case 'image/gif':
+        return 'gif';
+      default:
+        return null;
+    }
   }
 
   dynamic _decodeJson(String body) {
@@ -1291,9 +1386,7 @@ class MobileApiService {
     String? avatarUrl = _nullableText(
       user['avatar_url'] ?? dataMap?['avatar_url'] ?? decoded['avatar_url'],
     );
-    if (avatarUrl != null && avatarUrl.startsWith('/')) {
-      avatarUrl = _resolveAssetUrl(avatarUrl);
-    }
+    avatarUrl = _normalizeAvatarUrl(avatarUrl);
     final String? referralCode = _nullableText(
       user['referral_code'] ??
           dataMap?['referral_code'] ??
@@ -2249,6 +2342,33 @@ class MobileApiService {
       root = root.substring(0, root.length - 1);
     }
     return '$root$path';
+  }
+
+  String? _normalizeAvatarUrl(String? avatarUrl) {
+    if (avatarUrl == null) {
+      return null;
+    }
+    final String trimmed = avatarUrl.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    if (trimmed.startsWith('/')) {
+      return _resolveAssetUrl(trimmed);
+    }
+
+    final Uri? parsed = Uri.tryParse(trimmed);
+    if (parsed == null || !parsed.hasAuthority) {
+      return trimmed;
+    }
+    final String host = parsed.host.toLowerCase();
+    if (host != 'localhost' && host != '127.0.0.1' && host != '0.0.0.0') {
+      return trimmed;
+    }
+
+    final String pathWithQuery = '${parsed.path}'
+        '${parsed.hasQuery ? '?${parsed.query}' : ''}'
+        '${parsed.hasFragment ? '#${parsed.fragment}' : ''}';
+    return _resolveAssetUrl(pathWithQuery);
   }
 }
 

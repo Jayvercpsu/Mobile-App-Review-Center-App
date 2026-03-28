@@ -172,7 +172,7 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(
             icon: Icon(Icons.card_giftcard_outlined),
             selectedIcon: Icon(Icons.card_giftcard_rounded),
-            label: 'Referrals',
+            label: 'Offers',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),

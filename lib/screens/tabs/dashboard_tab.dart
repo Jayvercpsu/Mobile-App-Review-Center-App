@@ -103,6 +103,62 @@ class _DashboardTabState extends State<DashboardTab> {
     await appState.loadQuizAttempts(loadMore: false);
   }
 
+  void _showAvatarPreview(AppState appState) {
+    if (appState.userAvatarUrl == null ||
+        appState.userAvatarUrl!.trim().isEmpty) {
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: <Widget>[
+                Container(
+                  color: Colors.black,
+                  child: InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 4,
+                    child: Center(
+                      child: Image.network(
+                        appState.userAvatarUrl!,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          'assets/images/boardmaster.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: IconButton(
+                    onPressed: () => Navigator.of(dialogContext).maybePop(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: Colors.white,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withValues(alpha: 0.45),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   bool _isFreeTrialPlan(PlanOption plan) {
     return plan.planGroup == 'free_trial' ||
         plan.tier == PlanTier.free ||
@@ -706,28 +762,32 @@ class _DashboardTabState extends State<DashboardTab> {
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
             child: Row(
               children: <Widget>[
-                ClipOval(
-                  child:
-                      appState.userAvatarUrl != null &&
-                          appState.userAvatarUrl!.trim().isNotEmpty
-                      ? Image.network(
-                          appState.userAvatarUrl!,
-                          width: 52,
-                          height: 52,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Image.asset(
+                InkWell(
+                  onTap: () => _showAvatarPreview(appState),
+                  borderRadius: BorderRadius.circular(999),
+                  child: ClipOval(
+                    child:
+                        appState.userAvatarUrl != null &&
+                            appState.userAvatarUrl!.trim().isNotEmpty
+                        ? Image.network(
+                            appState.userAvatarUrl!,
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Image.asset(
+                              'assets/images/boardmaster.png',
+                              width: 52,
+                              height: 52,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Image.asset(
                             'assets/images/boardmaster.png',
                             width: 52,
                             height: 52,
                             fit: BoxFit.cover,
                           ),
-                        )
-                      : Image.asset(
-                          'assets/images/boardmaster.png',
-                          width: 52,
-                          height: 52,
-                          fit: BoxFit.cover,
-                        ),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

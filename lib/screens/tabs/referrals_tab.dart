@@ -130,14 +130,14 @@ class _ReferralsTabState extends State<ReferralsTab> {
               Row(
                 children: <Widget>[
                   _InfoChip(
-                    label: '${offer.pointsCost} Points',
+                    label: _formatUnit(offer.pointsCost, 'Point'),
                     icon: Icons.card_giftcard_rounded,
                   ),
                   if (offer.durationDays != null &&
                       offer.durationDays! > 0) ...[
                     const SizedBox(width: 8),
                     _InfoChip(
-                      label: 'Access ${offer.durationDays} days',
+                      label: _formatAccessDays(offer.durationDays!),
                       icon: Icons.schedule_rounded,
                     ),
                   ],
@@ -215,6 +215,8 @@ class _ReferralsTabState extends State<ReferralsTab> {
     }
     if (error == null) {
       _codeController.clear();
+      await appState.refreshCurrentUser();
+      await appState.loadReferrals(loadMore: false);
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(error ?? 'Referral applied successfully.')),
@@ -222,6 +224,15 @@ class _ReferralsTabState extends State<ReferralsTab> {
   }
 
   Future<void> _refreshReferrals(AppState appState) async {
+    _codeController.clear();
+    _searchController.clear();
+    if (mounted) {
+      setState(() {
+        _searchQuery = '';
+      });
+    }
+    FocusScope.of(context).unfocus();
+    await appState.refreshCurrentUser();
     await appState.loadReferrals(loadMore: false);
     await appState.loadDashboardMetrics(force: true);
   }
@@ -270,7 +281,7 @@ class _ReferralsTabState extends State<ReferralsTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Referral Points',
+                  'Offer Points',
                   style: GoogleFonts.redHatDisplay(
                     fontSize: 30,
                     fontWeight: FontWeight.w800,
@@ -320,7 +331,7 @@ class _ReferralsTabState extends State<ReferralsTab> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Earn ${points.perReferral} points per successful referral.',
+                        'Earn ${_formatUnit(points.perReferral, 'point')} per successful referral.',
                         style: GoogleFonts.manrope(
                           color: Colors.white.withValues(alpha: 0.85),
                           fontWeight: FontWeight.w600,
@@ -379,9 +390,15 @@ class _ReferralsTabState extends State<ReferralsTab> {
                     decoration: InputDecoration(
                       hintText: 'Enter a friend\'s referral code',
                       prefixIcon: const Icon(Icons.card_giftcard_rounded),
-                      suffixIcon: IconButton(
+                      suffixIcon: TextButton(
                         onPressed: () => _applyReferral(appState),
-                        icon: const Icon(Icons.check_circle_outline_rounded),
+                        child: Text(
+                          'Apply',
+                          style: GoogleFonts.manrope(
+                            color: AppPalette.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
                   )
@@ -434,14 +451,6 @@ class _ReferralsTabState extends State<ReferralsTab> {
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: AppPalette.textDark,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Expiry depends on the offer setup by admin.',
-                  style: GoogleFonts.manrope(
-                    color: AppPalette.muted,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -667,7 +676,7 @@ class _OfferCard extends StatelessWidget {
             : _formatExpiryLabel(activeReward!.expiresAt!))
         : (offer.durationDays == null || offer.durationDays == 0
             ? null
-            : 'Access ${offer.durationDays} days');
+            : _formatAccessDays(offer.durationDays!));
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -738,7 +747,7 @@ class _OfferCard extends StatelessWidget {
               ],
               const SizedBox(height: 6),
               Text(
-                '${offer.pointsCost} Points',
+                _formatUnit(offer.pointsCost, 'Point'),
                 style: GoogleFonts.manrope(
                   color: AppPalette.primary,
                   fontWeight: FontWeight.w800,
@@ -785,6 +794,17 @@ String _formatExpiryLabel(DateTime value) {
     return 'Redeemed - Expires in 1 day';
   }
   return 'Redeemed - Expires in $days days';
+}
+
+String _formatUnit(int value, String singular) {
+  if (value == 1) {
+    return '1 $singular';
+  }
+  return '$value ${singular}s';
+}
+
+String _formatAccessDays(int days) {
+  return 'Access ${_formatUnit(days, 'day')}';
 }
 
 class _InfoChip extends StatelessWidget {

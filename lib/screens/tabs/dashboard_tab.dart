@@ -804,7 +804,7 @@ class _DashboardTabState extends State<DashboardTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Board Master Review',
+                        'BoardMasters Review',
                         style: GoogleFonts.redHatDisplay(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -909,7 +909,7 @@ class _DashboardTabState extends State<DashboardTab> {
                         foregroundColor: AppPalette.primary,
                       ),
                       child: Text(
-                        'click to START THE TEST NOW',
+                        'START THE TEST NOW',
                         style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
                       ),
                     ),

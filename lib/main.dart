@@ -25,7 +25,7 @@ class BoardMasterApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Board Master Review',
+      title: 'BoardMasters Review',
       theme: AppTheme.light,
       home: const SplashScreen(),
     );

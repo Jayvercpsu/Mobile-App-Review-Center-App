@@ -399,7 +399,7 @@ class _PracticeTabState extends State<PracticeTab>
                                 : FittedBox(
                                     fit: BoxFit.scaleDown,
                                     child: Text(
-                                      'click to START THE TEST NOW',
+                                      'START THE TEST NOW',
                                       maxLines: 1,
                                       textAlign: TextAlign.center,
                                       style: GoogleFonts.manrope(

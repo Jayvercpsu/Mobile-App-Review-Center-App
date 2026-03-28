@@ -382,7 +382,7 @@ class _QuizScreenState extends State<QuizScreen> {
                             minimumSize: const Size.fromHeight(48),
                           ),
                           child: Text(
-                            isLast ? 'Submit Answers' : 'Next QUESTION',
+                            isLast ? 'Submit Answers' : 'Next Question',
                             textAlign: TextAlign.center,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,

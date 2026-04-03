@@ -24,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscure = true;
   bool _loading = false;
+  bool _googleLoading = false;
 
   @override
   void initState() {
@@ -102,6 +103,49 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => const HomeShell(showOnlineMessageOnStart: true),
+      ),
+    );
+  }
+
+  Future<void> _loginWithGoogle() async {
+    if (_loading || _googleLoading) {
+      return;
+    }
+
+    setState(() {
+      _googleLoading = true;
+    });
+
+    String? error;
+    try {
+      error = await context.read<AppState>().loginWithGoogle();
+    } catch (_) {
+      error = 'Unable to complete Google sign-in. Please try again.';
+    } finally {
+      if (mounted) {
+        setState(() {
+          _googleLoading = false;
+        });
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final AppState appState = context.read<AppState>();
+    if (!appState.signedIn) {
+      if (error != null && error.trim().isNotEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
+      }
       return;
     }
 
@@ -298,6 +342,52 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton(
+                      onPressed: (_loading || _googleLoading)
+                          ? null
+                          : _loginWithGoogle,
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: BorderSide(
+                          color: AppPalette.primary.withValues(alpha: 0.25),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: _googleLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppPalette.primary,
+                              ),
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Image.asset(
+                                  'assets/images/google-logo.png',
+                                  width: 20,
+                                  height: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Sign in with Google',
+                                  style: GoogleFonts.manrope(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppPalette.textDark,
+                                  ),
+                                ),
+                              ],
                             ),
                     ),
                   ),

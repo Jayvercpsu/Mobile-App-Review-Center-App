@@ -4,10 +4,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_theme.dart';
 import '../models/app_models.dart';
+import '../services/google_auth_service.dart';
 import '../services/mobile_api_service.dart';
 
 class AppState extends ChangeNotifier {
@@ -55,6 +57,7 @@ class AppState extends ChangeNotifier {
   bool isOffline = false;
   bool loadingPlans = false;
   final MobileApiService _api = MobileApiService();
+  final GoogleAuthService _googleAuth = GoogleAuthService();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _plansLoaded = false;
   bool loadingPracticeSubjects = false;
@@ -310,6 +313,61 @@ class AppState extends ChangeNotifier {
     await _persistSession(
       token: data.token,
       email: data.email.trim().isNotEmpty ? data.email.trim() : email.trim(),
+    );
+    notifyListeners();
+    unawaited(_warmupSignedInData());
+    return null;
+  }
+
+  Future<String?> loginWithGoogle() async {
+    GoogleAuthResult? googleAuth;
+    try {
+      googleAuth = await _googleAuth.signIn();
+    } on GoogleSignInException catch (error) {
+      switch (error.code) {
+        case GoogleSignInExceptionCode.clientConfigurationError:
+          return 'Google sign-in is not configured correctly. Check Firebase and OAuth client setup.';
+        case GoogleSignInExceptionCode.uiUnavailable:
+          return 'Google sign-in UI is unavailable on this device.';
+        case GoogleSignInExceptionCode.userMismatch:
+          return 'Google account mismatch detected. Please try again.';
+        case GoogleSignInExceptionCode.providerConfigurationError:
+          return 'Google provider configuration error. Check package name and SHA fingerprints.';
+        default:
+          return 'Unable to complete Google sign-in. Please try again.';
+      }
+    } on StateError catch (error) {
+      return error.message;
+    } catch (_) {
+      return 'Unable to complete Google sign-in. Please try again.';
+    }
+
+    if (googleAuth == null) {
+      return 'Google sign-in was canceled or interrupted. Please try again.';
+    }
+
+    final ApiResult<AuthPayload> response = await _api.loginWithGoogle(
+      idToken: googleAuth.idToken,
+      email: googleAuth.email,
+      name: googleAuth.name,
+      avatarUrl: googleAuth.avatarUrl,
+    );
+    if (!response.ok || response.data == null) {
+      return response.message ?? 'Google login failed.';
+    }
+
+    final AuthPayload data = response.data!;
+    final String fallbackEmail = googleAuth.email.trim();
+    _applyAuthPayload(
+      data,
+      emailFallback: fallbackEmail,
+      nameFallback: (googleAuth.name ?? '').trim().isNotEmpty
+          ? googleAuth.name!.trim()
+          : _nameFromEmail(fallbackEmail),
+    );
+    await _persistSession(
+      token: data.token,
+      email: data.email.trim().isNotEmpty ? data.email.trim() : fallbackEmail,
     );
     notifyListeners();
     unawaited(_warmupSignedInData());
@@ -896,6 +954,7 @@ class AppState extends ChangeNotifier {
     hasMoreReferrals = false;
     _referralsPage = 1;
     _api.setAuthToken(null);
+    unawaited(_googleAuth.signOut());
     unawaited(_clearStoredSession());
     notifyListeners();
   }

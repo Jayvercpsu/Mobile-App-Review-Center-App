@@ -30,6 +30,24 @@ class MobileApiService {
     );
   }
 
+  Future<ApiResult<AuthPayload>> loginWithGoogle({
+    required String idToken,
+    String? email,
+    String? name,
+    String? avatarUrl,
+  }) async {
+    return _postAuth(
+      path: ApiConfig.googleLogin,
+      payload: <String, dynamic>{
+        'id_token': idToken.trim(),
+        if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        if (avatarUrl != null && avatarUrl.trim().isNotEmpty)
+          'avatar_url': avatarUrl.trim(),
+      },
+    );
+  }
+
   Future<ApiResult<bool>> register({
     required String name,
     required String email,
@@ -1155,10 +1173,7 @@ class MobileApiService {
     return result;
   }
 
-  MediaType _resolveImageContentType(
-    String? filename,
-    Uint8List bytes,
-  ) {
+  MediaType _resolveImageContentType(String? filename, Uint8List bytes) {
     final String? byName = _contentTypeFromFilename(filename);
     if (byName != null) {
       return MediaType.parse(byName);
@@ -1304,7 +1319,7 @@ class MobileApiService {
           dataMap?['email'],
         ]),
       ),
-      'Board Master User',
+      'Boardmasters User',
     ]);
 
     final String email = _firstNonEmpty(<dynamic>[
@@ -2365,7 +2380,8 @@ class MobileApiService {
       return trimmed;
     }
 
-    final String pathWithQuery = '${parsed.path}'
+    final String pathWithQuery =
+        '${parsed.path}'
         '${parsed.hasQuery ? '?${parsed.query}' : ''}'
         '${parsed.hasFragment ? '#${parsed.fragment}' : ''}';
     return _resolveAssetUrl(pathWithQuery);

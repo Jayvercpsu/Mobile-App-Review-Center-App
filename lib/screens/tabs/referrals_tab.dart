@@ -217,6 +217,9 @@ class _ReferralsTabState extends State<ReferralsTab> {
       _codeController.clear();
       await appState.refreshCurrentUser();
       await appState.loadReferrals(loadMore: false);
+      if (!mounted) {
+        return;
+      }
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(error ?? 'Referral applied successfully.')),
@@ -796,7 +799,7 @@ class _OfferCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                offer.brand ?? 'Board Masters',
+                offer.brand ?? 'Boardmasters',
                 style: GoogleFonts.manrope(
                   color: AppPalette.muted,
                   fontWeight: FontWeight.w600,

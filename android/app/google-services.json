@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "166616643070",
+    "project_id": "boardmasters-ec6b5",
+    "storage_bucket": "boardmasters-ec6b5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:166616643070:android:2b250051dfb6e9f189bcaf",
+        "android_client_info": {
+          "package_name": "ph.boardmaster.app_review_center"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "166616643070-vahneq77vemsftfj73k7gflgs0s2emrk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ph.boardmaster.app_review_center",
+            "certificate_hash": "f63da91a4b4e14ee6b1e8ac435c670558893d37a"
+          }
+        },
+        {
+          "client_id": "166616643070-cu88d2jpq3mhk4t0nn8p93cv9mgvg4q7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBa4_mzdcQLIgXlHk0i_anS0LbhKHi7rb0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "166616643070-cu88d2jpq3mhk4t0nn8p93cv9mgvg4q7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

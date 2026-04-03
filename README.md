@@ -64,6 +64,23 @@ Optional override at run time:
 flutter run --dart-define=API_BASE_URL=http://<YOUR_PC_IPV4>:8000/api
 ```
 
+## Google Sign-In Setup (Flutter Mobile)
+
+1. In Firebase Console, open your project and go to `Authentication > Sign-in method`.
+2. Enable `Google` provider.
+3. Go to `Project settings > Your apps > Android app`.
+4. Confirm package name is `ph.boardmaster.app_review_center`.
+5. Add SHA-1 and SHA-256 fingerprints for your debug/release keystores.
+6. In `Project settings > General`, find the OAuth section and copy the **Web client ID**.
+7. Set `GOOGLE_SERVER_CLIENT_ID=<your web client id>` in Flutter `.env`.
+8. In backend `.env`, set `GOOGLE_AUTH_AUDIENCES` with accepted client IDs (at minimum your Web client ID).
+9. Run:
+
+```bash
+flutter pub get
+flutter run
+```
+
 ## Login Troubleshooting (Mobile)
 
 - Make sure phone and computer are on the same Wi-Fi.

@@ -39,11 +39,11 @@ class _SplashScreenState extends State<SplashScreen>
       final Widget target = appState.signedIn
           ? const HomeShell()
           : (appState.onboardingDone
-              ? const LoginScreen()
-              : const OnboardingScreen());
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => target),
-      );
+                ? const LoginScreen()
+                : const OnboardingScreen());
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute<void>(builder: (_) => target));
     });
   }
 
@@ -70,16 +70,8 @@ class _SplashScreenState extends State<SplashScreen>
         ),
         child: Stack(
           children: <Widget>[
-            Positioned(
-              left: -70,
-              top: -60,
-              child: _bubble(220),
-            ),
-            Positioned(
-              right: -80,
-              bottom: 0,
-              child: _bubble(200),
-            ),
+            Positioned(left: -70, top: -60, child: _bubble(220)),
+            Positioned(right: -80, bottom: 0, child: _bubble(200)),
             Center(
               child: ScaleTransition(
                 scale: CurvedAnimation(
@@ -94,7 +86,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Container(
                         width: 148,
                         height: 148,
-                        padding: const EdgeInsets.all(7),
+                        padding: const EdgeInsets.fromLTRB(7, 9, 7, 5),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white,
@@ -116,13 +108,16 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Board Master',
-                      style: GoogleFonts.redHatDisplay(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ).animate().fadeIn(duration: 650.ms).slideY(begin: 0.2, end: 0),
+                          'BoardMaster',
+                          style: GoogleFonts.redHatDisplay(
+                            color: Colors.white,
+                            fontSize: 40,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        )
+                        .animate()
+                        .fadeIn(duration: 650.ms)
+                        .slideY(begin: 0.2, end: 0),
                     const SizedBox(height: 6),
                     Text(
                       'Review Center',
@@ -153,4 +148,3 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
-

@@ -654,8 +654,11 @@ class _PracticeTabState extends State<PracticeTab>
     final List<SubjectItem> subjects = appState.practiceSubjects;
     final List<MapEntry<String, List<SubjectItem>>> groupedSubjects =
         _groupSubjects(subjects);
+    final bool planExpired =
+        appState.isFreeTrialExpired || appState.isSubscriptionExpired;
+    final bool blockSubjectAccess = planExpired && !appState.hasActivePaidPlan;
     final Set<String> accessibleIds = subjects
-        .where((SubjectItem item) => item.isAccessible)
+        .where((SubjectItem item) => item.isAccessible && !blockSubjectAccess)
         .map((SubjectItem item) => item.id)
         .toSet();
     final List<QuizAttemptItem> attempts = appState.quizAttempts;

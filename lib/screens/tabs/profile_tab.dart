@@ -26,6 +26,11 @@ class ProfileTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
     final double dpr = MediaQuery.of(context).devicePixelRatio;
+    final bool trialExpired = appState.isFreeTrialExpired;
+    final bool subscriptionExpired = appState.isSubscriptionExpired;
+    final bool planExpired = trialExpired || subscriptionExpired;
+    final DateTime? endDate = appState.subscriptionEndDate;
+    final DateFormat dateFormatter = DateFormat('MMM dd, yyyy');
 
     return RefreshIndicator(
       onRefresh: () => _refreshProfile(context),
@@ -184,6 +189,26 @@ class ProfileTab extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (planExpired)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD6D6),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              'EXPIRED',
+                              style: GoogleFonts.manrope(
+                                color: const Color(0xFFB42318),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -195,15 +220,19 @@ class ProfileTab extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      appState.subscriptionEndDate == null
+                      endDate == null
                           ? 'No end date'
-                          : 'Valid until ${DateFormat('MMM dd, yyyy').format(appState.subscriptionEndDate!)}',
+                          : (trialExpired
+                              ? 'Free trial ended on ${dateFormatter.format(endDate)}'
+                              : (subscriptionExpired
+                                  ? 'Expired on ${dateFormatter.format(endDate)}'
+                                  : 'Valid until ${dateFormatter.format(endDate)}')),
                       style: GoogleFonts.manrope(
                         color: Colors.white.withValues(alpha: 0.9),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    if (appState.isSubscriptionExpired)
+                    if (subscriptionExpired)
                       Text(
                         'Subscription expired. Renew in Home > Choose Plan.',
                         style: GoogleFonts.manrope(
@@ -211,14 +240,15 @@ class ProfileTab extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Manage plan from Home tab.',
-                      style: GoogleFonts.manrope(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w600,
+                    if (trialExpired)
+                      Text(
+                        'Free trial ended. Choose a paid plan to continue.',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.accent,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                    ),
+                    const SizedBox(height: 4),
                   ],
                 ),
               ),

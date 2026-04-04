@@ -463,6 +463,30 @@ class _ReferralsTabState extends State<ReferralsTab> {
           ),
           if (appState.loadingReferrals && recommended.isEmpty)
             const SliverToBoxAdapter(child: _OffersSkeletonGrid())
+          else if (recommended.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppPalette.primary.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Text(
+                    'No recommended offers right now. Please check back soon.',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            )
           else
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),

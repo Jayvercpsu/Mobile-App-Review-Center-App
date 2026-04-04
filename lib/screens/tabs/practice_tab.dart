@@ -841,8 +841,10 @@ class _PracticeTabState extends State<PracticeTab>
                         child: Text(
                           'Show all',
                           style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             color: AppPalette.primary,
+                            decoration: TextDecoration.underline,
+                            decorationThickness: 2,
                           ),
                         ),
                       ),

@@ -738,6 +738,13 @@ class _DashboardTabState extends State<DashboardTab> {
     final AppState appState = context.watch<AppState>();
     final double dpr = MediaQuery.of(context).devicePixelRatio;
     final PlanOption featuresPlan = _resolvePreviewPlan(appState);
+    final PlanOption currentPlan = appState.currentPlan;
+    final bool trialExpired = appState.isFreeTrialExpired;
+    final bool isCurrentTrial = currentPlan.planGroup == 'free_trial';
+    final bool currentTrialExpired = isCurrentTrial && trialExpired;
+    final String subscriptionTitle = _planDisplayTitle(currentPlan);
+    final String subscriptionPrice =
+        '${currentPlan.priceLabel} ${currentPlan.billingLabel}';
     final DateTime? endDate = appState.subscriptionEndDate;
     final String? formattedEndDate = endDate == null
         ? null
@@ -754,7 +761,13 @@ class _DashboardTabState extends State<DashboardTab> {
               : '${appState.records.first.score}/${appState.records.first.total}');
     final DateFormat historyFormatter = DateFormat('MMM dd, yyyy');
     final DateFormat referralFormatter = DateFormat('MMM dd, yyyy');
-    final List<PlanOption> explorePlans = _sortedExplorePlans(appState.plans);
+    final List<PlanOption> explorePlans = _sortedExplorePlans(
+      appState.isFreeTrialExpired
+          ? appState.plans
+              .where((PlanOption plan) => plan.planGroup != 'free_trial')
+              .toList()
+          : appState.plans,
+    );
     final bool plansLoading = appState.loadingPlans && explorePlans.isEmpty;
 
     return RefreshIndicator(
@@ -771,30 +784,27 @@ class _DashboardTabState extends State<DashboardTab> {
                     onTap: () => _showAvatarPreview(appState),
                     borderRadius: BorderRadius.circular(999),
                     child: ClipOval(
-                      child:
-                          appState.userAvatarUrl != null &&
-                              appState.userAvatarUrl!.trim().isNotEmpty
-                          ? Image.network(
-                              appState.userAvatarUrl!,
-                              width: 52,
-                              height: 52,
-                              fit: BoxFit.cover,
-                              cacheWidth: (52 * dpr).round(),
-                              cacheHeight: (52 * dpr).round(),
-                              filterQuality: FilterQuality.low,
-                              errorBuilder: (_, __, ___) => Image.asset(
+                      child: SizedBox.square(
+                        dimension: 52,
+                        child:
+                            appState.userAvatarUrl != null &&
+                                appState.userAvatarUrl!.trim().isNotEmpty
+                            ? Image.network(
+                                appState.userAvatarUrl!,
+                                fit: BoxFit.cover,
+                                cacheWidth: (52 * dpr).round(),
+                                cacheHeight: (52 * dpr).round(),
+                                filterQuality: FilterQuality.low,
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  'assets/images/boardmaster.png',
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Image.asset(
                                 'assets/images/boardmaster.png',
-                                width: 52,
-                                height: 52,
                                 fit: BoxFit.cover,
                               ),
-                            )
-                          : Image.asset(
-                              'assets/images/boardmaster.png',
-                              width: 52,
-                              height: 52,
-                              fit: BoxFit.cover,
-                            ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -846,16 +856,42 @@ class _DashboardTabState extends State<DashboardTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      'SUBSCRIPTION',
-                      style: GoogleFonts.manrope(
-                        color: Colors.white.withValues(alpha: 0.92),
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: <Widget>[
+                        Text(
+                          'SUBSCRIPTION',
+                          style: GoogleFonts.manrope(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (currentTrialExpired) ...<Widget>[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD6D6),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              'EXPIRED',
+                              style: GoogleFonts.manrope(
+                                color: const Color(0xFFB42318),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _planDisplayTitle(appState.currentPlan),
+                      subscriptionTitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.redHatDisplay(
@@ -866,7 +902,7 @@ class _DashboardTabState extends State<DashboardTab> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${appState.currentPlan.priceLabel} ${appState.currentPlan.billingLabel}',
+                      subscriptionPrice,
                       style: GoogleFonts.manrope(
                         color: Colors.white.withValues(alpha: 0.85),
                         fontWeight: FontWeight.w700,
@@ -876,9 +912,11 @@ class _DashboardTabState extends State<DashboardTab> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          appState.isSubscriptionExpired
-                              ? 'Expired on $formattedEndDate'
-                              : 'Expires on $formattedEndDate',
+                          currentTrialExpired
+                              ? 'Free trial ended on $formattedEndDate'
+                              : (appState.isSubscriptionExpired
+                                    ? 'Expired on $formattedEndDate'
+                                    : 'Expires on $formattedEndDate'),
                           style: GoogleFonts.manrope(
                             color: Colors.white.withValues(alpha: 0.85),
                             fontWeight: FontWeight.w700,
@@ -897,18 +935,39 @@ class _DashboardTabState extends State<DashboardTab> {
                           ),
                         ),
                       ),
+                    if (currentTrialExpired)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Free trial ended. Choose a paid plan to continue.',
+                          style: GoogleFonts.manrope(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 14),
                     SizedBox(
                       width: double.infinity,
                       height: 46,
                       child: FilledButton(
-                        onPressed: widget.onOpenPractice,
+                        onPressed: (appState.isSubscriptionExpired ||
+                                appState.isFreeTrialExpired)
+                            ? null
+                            : widget.onOpenPractice,
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: AppPalette.primary,
+                          disabledBackgroundColor:
+                              Colors.white.withValues(alpha: 0.7),
+                          disabledForegroundColor:
+                              AppPalette.primary.withValues(alpha: 0.45),
                         ),
                         child: Text(
-                          'START THE TEST NOW',
+                          (appState.isSubscriptionExpired ||
+                                  appState.isFreeTrialExpired)
+                              ? 'PLAN EXPIRED'
+                              : 'START THE TEST NOW',
                           style: GoogleFonts.manrope(
                             fontWeight: FontWeight.w800,
                           ),
@@ -979,7 +1038,9 @@ class _DashboardTabState extends State<DashboardTab> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '3 days FREE trial available for Nursing Concepts (limited access).',
+                      trialExpired
+                          ? 'Free trial already expired. Choose a paid plan to continue.'
+                          : '3 days FREE trial available for Nursing Concepts (limited access).',
                       style: GoogleFonts.manrope(
                         color: AppPalette.muted,
                         fontWeight: FontWeight.w600,
@@ -1005,13 +1066,18 @@ class _DashboardTabState extends State<DashboardTab> {
                               plan.id == appState.currentPlan.id;
                           final bool previewed = _previewPlanId == plan.id;
                           final bool isFreePlan = !plan.isPaid;
+                          final bool isTrialPlan =
+                              plan.planGroup == 'free_trial';
+                          final bool trialExpiredForPlan =
+                              isTrialPlan && appState.isFreeTrialExpired;
                           final String displayTitle =
                               plan.subPlanLabel.trim().isNotEmpty
                               ? plan.subPlanLabel
                               : plan.name;
                           final String groupTitle = _planDisplayTitle(plan);
-                          final String displayDescription =
-                              _planDisplayDescription(plan);
+                          final String displayDescription = trialExpiredForPlan
+                              ? 'Free trial expired.'
+                              : _planDisplayDescription(plan);
                           final bool lockedFreePlan =
                               lockFreePlan && isFreePlan;
                           final bool lockedByActivePlan =
@@ -1025,6 +1091,7 @@ class _DashboardTabState extends State<DashboardTab> {
                               appState.creatingCheckout;
                           final bool disabled =
                               busy ||
+                              trialExpiredForPlan ||
                               (selected && !canRenew) ||
                               lockedFreePlan ||
                               lockedByActivePlan;
@@ -1034,9 +1101,11 @@ class _DashboardTabState extends State<DashboardTab> {
                                     ? 'Cancel current plan first'
                                     : (lockedFreePlan
                                           ? 'Unavailable'
-                                          : (plan.isPaid
-                                                ? 'PAY NOW'
-                                                : 'Choose Plan')));
+                                          : (trialExpiredForPlan
+                                                ? 'Expired'
+                                                : (plan.isPaid
+                                                      ? 'PAY NOW'
+                                                      : 'Choose Plan'))));
 
                           return GestureDetector(
                             onTap: lockedFreePlan
@@ -1066,6 +1135,31 @@ class _DashboardTabState extends State<DashboardTab> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
+                                    if (trialExpiredForPlan)
+                                      Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 6,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFE3E3),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'EXPIRED',
+                                          style: GoogleFonts.manrope(
+                                            color: const Color(0xFFB42318),
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 10,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ),
                                     Text(
                                       displayTitle,
                                       maxLines: 1,

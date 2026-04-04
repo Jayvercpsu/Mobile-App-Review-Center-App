@@ -1044,35 +1044,30 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                   alignment: Alignment.center,
                   children: <Widget>[
                     ClipOval(
-                      child: _avatarBytes != null
-                          ? Image.memory(
-                              _avatarBytes!,
-                              width: 68,
-                              height: 68,
-                              fit: BoxFit.cover,
-                            )
-                          : (appState.userAvatarUrl == null
-                                ? Image.asset(
-                                    'assets/images/boardmaster-square.png',
-                                    width: 68,
-                                    height: 68,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Image.network(
-                                    appState.userAvatarUrl!,
-                                    width: 68,
-                                    height: 68,
-                                    fit: BoxFit.cover,
-                                    cacheWidth: (68 * dpr).round(),
-                                    cacheHeight: (68 * dpr).round(),
-                                    filterQuality: FilterQuality.low,
-                                    errorBuilder: (_, __, ___) => Image.asset(
+                      child: SizedBox.square(
+                        dimension: 68,
+                        child: _avatarBytes != null
+                            ? Image.memory(
+                                _avatarBytes!,
+                                fit: BoxFit.cover,
+                              )
+                            : (appState.userAvatarUrl == null
+                                  ? Image.asset(
                                       'assets/images/boardmaster-square.png',
-                                      width: 68,
-                                      height: 68,
                                       fit: BoxFit.cover,
-                                    ),
-                                  )),
+                                    )
+                                  : Image.network(
+                                      appState.userAvatarUrl!,
+                                      fit: BoxFit.cover,
+                                      cacheWidth: (68 * dpr).round(),
+                                      cacheHeight: (68 * dpr).round(),
+                                      filterQuality: FilterQuality.low,
+                                      errorBuilder: (_, __, ___) => Image.asset(
+                                        'assets/images/boardmaster-square.png',
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )),
+                      ),
                     ),
                     if (_avatarBytes != null || appState.userAvatarUrl != null)
                       Positioned.fill(

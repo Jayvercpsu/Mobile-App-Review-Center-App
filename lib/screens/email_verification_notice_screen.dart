@@ -7,9 +7,14 @@ import '../state/app_state.dart';
 import 'login_screen.dart';
 
 class EmailVerificationNoticeScreen extends StatefulWidget {
-  const EmailVerificationNoticeScreen({super.key, required this.email});
+  const EmailVerificationNoticeScreen({
+    super.key,
+    required this.email,
+    this.successMessage,
+  });
 
   final String email;
+  final String? successMessage;
 
   @override
   State<EmailVerificationNoticeScreen> createState() =>
@@ -19,6 +24,23 @@ class EmailVerificationNoticeScreen extends StatefulWidget {
 class _EmailVerificationNoticeScreenState
     extends State<EmailVerificationNoticeScreen> {
   bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final String? message = widget.successMessage?.trim();
+    if (message == null || message.isEmpty) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    });
+  }
 
   Future<void> _resend() async {
     setState(() {

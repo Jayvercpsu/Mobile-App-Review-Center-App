@@ -57,6 +57,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return hasUpper && hasLower && hasDigit && hasSpecial;
   }
 
+  bool _isValidEmail(String value) {
+    final String trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(trimmed);
+  }
+
+  bool _isConnectivityIssue(String message) {
+    final String normalized = message.toLowerCase();
+    return normalized.contains('cannot connect') ||
+        normalized.contains('timeout') ||
+        normalized.contains('timed out') ||
+        normalized.contains('connection');
+  }
+
   void _updatePasswordStrength() {
     final String value = _passwordController.text;
     int score = 0;
@@ -118,6 +134,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Fill in all fields with valid details.')),
+      );
+      return;
+    }
+    if (!_isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid email address.')),
       );
       return;
     }
@@ -196,6 +218,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     if (error != null) {
+      if (_isConnectivityIssue(error)) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(
+            builder: (_) => EmailVerificationNoticeScreen(
+              email: email,
+              successMessage:
+                  'Account created successfully. Please verify your email.',
+            ),
+          ),
+          (Route<dynamic> route) => false,
+        );
+        return;
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error)));
@@ -204,7 +239,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
-        builder: (_) => EmailVerificationNoticeScreen(email: email),
+        builder: (_) => EmailVerificationNoticeScreen(
+          email: email,
+          successMessage:
+              'Account created successfully. Please verify your email.',
+        ),
       ),
       (Route<dynamic> route) => false,
     );

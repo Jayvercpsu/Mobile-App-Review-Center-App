@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -38,6 +39,7 @@ class AppState extends ChangeNotifier {
   String? referredByName;
   String? referredByEmail;
   int referralJoinedCount = 0;
+  bool trialConsumed = false;
   ReferralPoints? referralPoints;
   List<ReferralOfferItem> _referralOffers = <ReferralOfferItem>[];
   List<String> referralCategories = <String>[];
@@ -131,6 +133,7 @@ class AppState extends ChangeNotifier {
   static const String _prefsRememberMe = 'remember_me';
   static const String _prefsAuthToken = 'auth_token';
   static const String _prefsRememberedEmail = 'remembered_email';
+  static const String _prefsCachedSubjects = 'cached_practice_subjects';
 
   void finishOnboarding() {
     onboardingDone = true;
@@ -474,6 +477,7 @@ class AppState extends ChangeNotifier {
     userAvatarUrl = data.avatarUrl;
     referralCode = data.referralCode;
     referredBy = data.referredBy;
+    trialConsumed = data.trialConsumed;
     if (data.tier != null) {
       selectedTier = data.tier!;
     }
@@ -534,10 +538,22 @@ class AppState extends ChangeNotifier {
     loadingPracticeSubjects = false;
 
     if (!response.ok || response.data == null) {
+      final String fallbackMessage =
+          response.message ?? 'Unable to load practice subjects.';
+      if (_isSubscriptionAccessError(response)) {
+        final List<SubjectItem> cached =
+            await _loadCachedPracticeSubjects(lockAll: true);
+        if (cached.isNotEmpty) {
+          _practiceSubjectsLoaded = true;
+          _practiceSubjects = cached;
+          practiceSubjectsError = null;
+          notifyListeners();
+          return null;
+        }
+      }
       _practiceSubjectsLoaded = false;
       _practiceSubjects = <SubjectItem>[];
-      practiceSubjectsError =
-          response.message ?? 'Unable to load practice subjects.';
+      practiceSubjectsError = fallbackMessage;
       notifyListeners();
       return practiceSubjectsError;
     }
@@ -562,6 +578,159 @@ class AppState extends ChangeNotifier {
     _practiceSubjectsLoaded = true;
     practiceSubjectsError = null;
     notifyListeners();
+    unawaited(_cachePracticeSubjects(_practiceSubjects));
+    return null;
+  }
+
+  bool _isSubscriptionAccessError(ApiResult<List<PracticeSubjectPayload>> result) {
+    final int? code = result.statusCode;
+    if (code == 402 || code == 403 || code == 422) {
+      return true;
+    }
+    final String message = (result.message ?? '').toLowerCase();
+    if (message.isEmpty) {
+      return false;
+    }
+    return message.contains('no active subscription') ||
+        message.contains('free trial') ||
+        message.contains('choose a paid plan') ||
+        (message.contains('subscription') && message.contains('ended'));
+  }
+
+  Future<void> _cachePracticeSubjects(List<SubjectItem> subjects) async {
+    if (subjects.isEmpty) {
+      return;
+    }
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final List<Map<String, dynamic>> payload = subjects
+          .map(
+            (SubjectItem item) => <String, dynamic>{
+              'id': item.id,
+              'code': item.code,
+              'title': item.title,
+              'group_key': item.groupKey,
+              'group_label': item.groupLabel,
+              'total_questions': item.totalQuestions,
+              'max_questions_per_set': item.maxQuestionsPerSet,
+              'is_accessible': item.isAccessible,
+              'color_value': item.color.value,
+            },
+          )
+          .toList();
+      final Map<String, dynamic> wrapper = <String, dynamic>{
+        'version': 1,
+        'subjects': payload,
+      };
+      await prefs.setString(_prefsCachedSubjects, jsonEncode(wrapper));
+    } catch (_) {
+      // Ignore cache persistence errors.
+    }
+  }
+
+  Future<List<SubjectItem>> _loadCachedPracticeSubjects({
+    bool lockAll = false,
+  }) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? raw = prefs.getString(_prefsCachedSubjects);
+      if (raw == null || raw.trim().isEmpty) {
+        return <SubjectItem>[];
+      }
+      final dynamic decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return <SubjectItem>[];
+      }
+      final dynamic rawSubjects = decoded['subjects'];
+      if (rawSubjects is! List<dynamic>) {
+        return <SubjectItem>[];
+      }
+
+      int index = 0;
+      final List<SubjectItem> subjects = <SubjectItem>[];
+      for (final dynamic entry in rawSubjects) {
+        if (entry is! Map<String, dynamic>) {
+          index++;
+          continue;
+        }
+        final String id = _cachedText(entry['id']);
+        final String code = _cachedText(entry['code']);
+        final String title = _cachedText(entry['title']);
+        final String groupKey = _cachedText(entry['group_key']);
+        final String groupLabel = _cachedText(entry['group_label']);
+        final int? totalQuestions = _cachedInt(entry['total_questions']);
+        final int? maxQuestions = _cachedInt(entry['max_questions_per_set']);
+        final int? colorValue = _cachedInt(entry['color_value']);
+        final bool accessible =
+            _cachedBool(entry['is_accessible']) ?? true;
+
+        if (id.isEmpty || code.isEmpty || title.isEmpty) {
+          index++;
+          continue;
+        }
+
+        final Color fallbackColor =
+            _subjectPalette[index % _subjectPalette.length];
+        subjects.add(
+          SubjectItem(
+            id: id,
+            code: code,
+            title: title,
+            groupKey: groupKey.isNotEmpty ? groupKey : 'nursing_concepts',
+            groupLabel: groupLabel.isNotEmpty
+                ? groupLabel
+                : 'All Nursing Concepts',
+            totalQuestions: totalQuestions ?? 0,
+            maxQuestionsPerSet: maxQuestions ?? 0,
+            color: colorValue != null ? Color(colorValue) : fallbackColor,
+            isAccessible: lockAll ? false : accessible,
+          ),
+        );
+        index++;
+      }
+
+      return subjects;
+    } catch (_) {
+      return <SubjectItem>[];
+    }
+  }
+
+  String _cachedText(dynamic value) {
+    if (value == null) {
+      return '';
+    }
+    return value.toString().trim();
+  }
+
+  int? _cachedInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value.trim());
+    }
+    return null;
+  }
+
+  bool? _cachedBool(dynamic value) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value > 0;
+    }
+    if (value is String) {
+      final String normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+        return true;
+      }
+      if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+        return false;
+      }
+    }
     return null;
   }
 
@@ -926,6 +1095,7 @@ class AppState extends ChangeNotifier {
     referredByName = null;
     referredByEmail = null;
     referralJoinedCount = 0;
+    trialConsumed = false;
     referralPoints = null;
     _referralOffers = <ReferralOfferItem>[];
     referralCategories = <String>[];
@@ -986,6 +1156,18 @@ class AppState extends ChangeNotifier {
     }
     final DateTime now = DateTime.now();
     return now.isAfter(subscriptionEndDate!);
+  }
+
+  bool get isFreeTrialExpired {
+    final PlanOption plan = currentPlan;
+    if (plan.planGroup != 'free_trial') {
+      return false;
+    }
+    final DateTime now = DateTime.now();
+    if (subscriptionEndDate != null) {
+      return now.isAfter(subscriptionEndDate!);
+    }
+    return true;
   }
 
   bool get hasPremiumAccess =>

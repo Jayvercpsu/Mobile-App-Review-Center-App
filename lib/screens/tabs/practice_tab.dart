@@ -698,12 +698,6 @@ class _PracticeTabState extends State<PracticeTab>
       }
     }
 
-    if (subjects.isEmpty &&
-        (appState.loadingPracticeSubjects ||
-            !appState.practiceSubjectsLoaded)) {
-      return const _PracticeSkeletonList();
-    }
-
     if (subjects.isEmpty && appState.practiceSubjectsError != null) {
       return Center(
         child: Padding(
@@ -733,6 +727,12 @@ class _PracticeTabState extends State<PracticeTab>
           ),
         ),
       );
+    }
+
+    if (subjects.isEmpty &&
+        (appState.loadingPracticeSubjects ||
+            !appState.practiceSubjectsLoaded)) {
+      return const _PracticeSkeletonList();
     }
 
     if (subjects.isEmpty) {

@@ -1415,6 +1415,14 @@ class MobileApiService {
       return null;
     }
 
+    final bool trialConsumed =
+        _parseBool(
+          user['trial_consumed'] ??
+              dataMap?['trial_consumed'] ??
+              decoded['trial_consumed'],
+        ) ??
+        false;
+
     return AuthPayload(
       name: name,
       email: email,
@@ -1423,6 +1431,7 @@ class MobileApiService {
       planId: planId,
       billingCycle: billingCycle,
       endDate: endDate,
+      trialConsumed: trialConsumed,
       emailVerified: emailVerified,
       emailVerifiedAt: emailVerifiedAt,
       school: school,
@@ -2397,6 +2406,7 @@ class AuthPayload {
     required this.planId,
     required this.billingCycle,
     required this.endDate,
+    required this.trialConsumed,
     required this.emailVerified,
     required this.emailVerifiedAt,
     required this.school,
@@ -2416,6 +2426,7 @@ class AuthPayload {
   final int? planId;
   final String? billingCycle;
   final DateTime? endDate;
+  final bool trialConsumed;
   final bool emailVerified;
   final DateTime? emailVerifiedAt;
   final String? school;

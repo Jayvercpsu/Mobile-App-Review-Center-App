@@ -42,6 +42,8 @@ class RationalizationScreen extends StatelessWidget {
     }
 
     try {
+      final String subjectLabel =
+          subject.title.trim().isNotEmpty ? subject.title : subject.code;
       final pw.Font baseFont = await PdfGoogleFonts.manropeRegular();
       final pw.Font boldFont = await PdfGoogleFonts.manropeBold();
       final pw.TextStyle titleStyle = pw.TextStyle(
@@ -69,7 +71,7 @@ class RationalizationScreen extends StatelessWidget {
             return <pw.Widget>[
               pw.Text('Overall Rationalization', style: titleStyle),
               pw.SizedBox(height: 6),
-              pw.Text('Subject: ${subject.code}', style: sectionStyle),
+              pw.Text('Subject: $subjectLabel', style: sectionStyle),
               pw.Text(
                 'Wrong answers: $wrongCount of ${questions.length}',
                 style: bodyStyle,
@@ -181,6 +183,9 @@ class RationalizationScreen extends StatelessWidget {
       return question.rationales[key] ?? 'No rationale provided.';
     }
 
+    final String subjectLabel =
+        subject.title.trim().isNotEmpty ? subject.title : subject.code;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Overall Rationalization'),
@@ -213,7 +218,7 @@ class RationalizationScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Subject: ${subject.code}',
+                    'Subject: $subjectLabel',
                     style: GoogleFonts.redHatDisplay(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,

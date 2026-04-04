@@ -1711,7 +1711,7 @@ class _SubscriptionHistoryRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'PHP ${item.price.toStringAsFixed(0)} â€¢ ${item.billingCycle.toUpperCase()}',
+                  'PHP ${item.price.toStringAsFixed(0)} • ${item.billingCycle.toUpperCase()}',
                   style: GoogleFonts.manrope(
                     color: AppPalette.muted,
                     fontWeight: FontWeight.w600,

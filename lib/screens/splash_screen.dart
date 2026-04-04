@@ -108,7 +108,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     const SizedBox(height: 20),
                     Text(
-                          'BoardMaster',
+                          'BoardMasters',
                           style: GoogleFonts.redHatDisplay(
                             color: Colors.white,
                             fontSize: 40,

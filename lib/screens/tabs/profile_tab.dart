@@ -28,7 +28,11 @@ class ProfileTab extends StatelessWidget {
     final double dpr = MediaQuery.of(context).devicePixelRatio;
     final bool trialExpired = appState.isFreeTrialExpired;
     final bool subscriptionExpired = appState.isSubscriptionExpired;
-    final bool planExpired = trialExpired || subscriptionExpired;
+    final bool planExpired = trialExpired ||
+        subscriptionExpired ||
+        (appState.trialConsumed &&
+            !appState.hasActivePaidPlan &&
+            appState.subscriptionEndDate == null);
     final DateTime? endDate = appState.subscriptionEndDate;
     final DateFormat dateFormatter = DateFormat('MMM dd, yyyy');
 

@@ -651,12 +651,12 @@ class _PracticeTabState extends State<PracticeTab>
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
-    final List<SubjectItem> subjects = appState.practiceSubjects;
-    final List<MapEntry<String, List<SubjectItem>>> groupedSubjects =
-        _groupSubjects(subjects);
     final bool planExpired =
         appState.isFreeTrialExpired || appState.isSubscriptionExpired;
     final bool blockSubjectAccess = planExpired && !appState.hasActivePaidPlan;
+    final List<SubjectItem> subjects = appState.practiceSubjects;
+    final List<MapEntry<String, List<SubjectItem>>> groupedSubjects =
+        _groupSubjects(subjects);
     final Set<String> accessibleIds = subjects
         .where((SubjectItem item) => item.isAccessible && !blockSubjectAccess)
         .map((SubjectItem item) => item.id)
@@ -792,6 +792,33 @@ class _PracticeTabState extends State<PracticeTab>
               ),
             ),
           ),
+          if (blockSubjectAccess)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppPalette.secondary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Text(
+                    appState.isFreeTrialExpired
+                        ? 'Free trial expired. Choose a paid plan to unlock review subjects.'
+                        : 'Subscription expired. Renew your plan to unlock review subjects.',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.textDark,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           for (final MapEntry<String, List<SubjectItem>> group
               in groupedSubjects) ...<Widget>[
             SliverToBoxAdapter(

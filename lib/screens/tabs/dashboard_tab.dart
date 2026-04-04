@@ -713,11 +713,11 @@ class _DashboardTabState extends State<DashboardTab> {
       if (activePlan.planGroup == 'free_trial' ||
           activePlan.tier == PlanTier.free) {
         final DateTime? resumedEndDate = appState.subscriptionEndDate;
-        if (resumedEndDate != null && !appState.isSubscriptionExpired) {
+        if (resumedEndDate != null && !appState.isFreeTrialExpired) {
           final String until = DateFormat('MMM d, yyyy').format(resumedEndDate);
           successMessage = 'Free trial resumed. Valid until $until.';
         } else {
-          successMessage = 'You are now on the Free Trial.';
+          successMessage = 'Plan cancelled. Free trial is already expired.';
         }
       }
     }
@@ -761,6 +761,17 @@ class _DashboardTabState extends State<DashboardTab> {
               : '${appState.records.first.score}/${appState.records.first.total}');
     final DateFormat historyFormatter = DateFormat('MMM dd, yyyy');
     final DateFormat referralFormatter = DateFormat('MMM dd, yyyy');
+    const int historyPreviewLimit = 5;
+    final List<SubscriptionHistoryItem> subscriptionPreview =
+        appState.subscriptionHistory.take(historyPreviewLimit).toList();
+    final bool hasMoreSubscriptionPreview =
+        appState.subscriptionHistory.length > historyPreviewLimit ||
+        appState.hasMoreSubscriptionHistory;
+    final List<ReferralEntry> referralPreview =
+        appState.referralEntries.take(historyPreviewLimit).toList();
+    final bool hasMoreReferralPreview =
+        appState.referralEntries.length > historyPreviewLimit ||
+        appState.hasMoreReferrals;
     final List<PlanOption> explorePlans = _sortedExplorePlans(
       appState.isFreeTrialExpired
           ? appState.plans
@@ -1352,13 +1363,39 @@ class _DashboardTabState extends State<DashboardTab> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Text(
-                'Subscription History',
-                style: GoogleFonts.redHatDisplay(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppPalette.textDark,
-                ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      'Subscription History',
+                      style: GoogleFonts.redHatDisplay(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppPalette.textDark,
+                      ),
+                    ),
+                  ),
+                  if (hasMoreSubscriptionPreview)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                const SubscriptionHistoryScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Show all',
+                        style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w800,
+                          color: AppPalette.primary,
+                          decoration: TextDecoration.underline,
+                          decorationThickness: 2,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -1388,85 +1425,12 @@ class _DashboardTabState extends State<DashboardTab> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ...appState.subscriptionHistory.map(
-                      (SubscriptionHistoryItem item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            const Icon(
-                              Icons.receipt_long_rounded,
-                              color: AppPalette.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(
-                                    item.planName,
-                                    style: GoogleFonts.manrope(
-                                      fontWeight: FontWeight.w700,
-                                      color: AppPalette.textDark,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    'PHP ${item.price.toStringAsFixed(0)} • ${item.billingCycle.toUpperCase()}',
-                                    style: GoogleFonts.manrope(
-                                      color: AppPalette.muted,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Start: ${historyFormatter.format(item.startDate)}',
-                                    style: GoogleFonts.manrope(
-                                      color: AppPalette.muted,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                  if (item.endDate != null)
-                                    Text(
-                                      'End: ${historyFormatter.format(item.endDate!)}',
-                                      style: GoogleFonts.manrope(
-                                        color: AppPalette.muted,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  Text(
-                                    'Status: ${item.status}',
-                                    style: GoogleFonts.manrope(
-                                      color: AppPalette.muted,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                    ...subscriptionPreview.map(
+                      (SubscriptionHistoryItem item) => _SubscriptionHistoryRow(
+                        item: item,
+                        formatter: historyFormatter,
                       ),
                     ),
-                    if (!appState.loadingSubscriptionHistory &&
-                        appState.hasMoreSubscriptionHistory)
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            appState.loadSubscriptionHistory(loadMore: true);
-                          },
-                          child: Text(
-                            'Show more',
-                            style: GoogleFonts.manrope(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -1475,13 +1439,38 @@ class _DashboardTabState extends State<DashboardTab> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                'Referral History',
-                style: GoogleFonts.redHatDisplay(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppPalette.textDark,
-                ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      'Referral History',
+                      style: GoogleFonts.redHatDisplay(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppPalette.textDark,
+                      ),
+                    ),
+                  ),
+                  if (hasMoreReferralPreview)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ReferralHistoryScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Show all',
+                        style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w800,
+                          color: AppPalette.primary,
+                          decoration: TextDecoration.underline,
+                          decorationThickness: 2,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -1508,72 +1497,14 @@ class _DashboardTabState extends State<DashboardTab> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ...appState.referralEntries.map(
-                      (ReferralEntry entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            const Icon(
-                              Icons.verified_rounded,
-                              color: AppPalette.success,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(
-                                    entry.invitedName,
-                                    style: GoogleFonts.manrope(
-                                      fontWeight: FontWeight.w700,
-                                      color: AppPalette.textDark,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    entry.invitedEmail,
-                                    style: GoogleFonts.manrope(
-                                      color: AppPalette.muted,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  if (entry.createdAt != null)
-                                    Text(
-                                      referralFormatter.format(
-                                        entry.createdAt!,
-                                      ),
-                                      style: GoogleFonts.manrope(
-                                        color: AppPalette.muted,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                    ...referralPreview.map(
+                      (ReferralEntry entry) => _ReferralHistoryRow(
+                        entry: entry,
+                        formatter: referralFormatter,
                       ),
                     ),
                     if (appState.loadingReferrals)
                       const _ReferralSkeletonList(),
-                    if (!appState.loadingReferrals && appState.hasMoreReferrals)
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            appState.loadReferrals(loadMore: true);
-                          },
-                          child: Text(
-                            'Show more',
-                            style: GoogleFonts.manrope(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -1624,6 +1555,255 @@ class _MetricCard extends StatelessWidget {
             style: GoogleFonts.manrope(
               color: AppPalette.muted,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SubscriptionHistoryScreen extends StatelessWidget {
+  const SubscriptionHistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final AppState appState = context.watch<AppState>();
+    final DateFormat formatter = DateFormat('MMM dd, yyyy');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Subscription History',
+          style: GoogleFonts.redHatDisplay(fontWeight: FontWeight.w800),
+        ),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: <Widget>[
+            if (appState.loadingSubscriptionHistory &&
+                appState.subscriptionHistory.isEmpty)
+              const _HistorySkeletonList()
+            else if (appState.subscriptionHistory.isEmpty)
+              Text(
+                'No subscription history yet.',
+                style: GoogleFonts.manrope(
+                  color: AppPalette.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ...appState.subscriptionHistory.map(
+              (SubscriptionHistoryItem item) => _SubscriptionHistoryRow(
+                item: item,
+                formatter: formatter,
+              ),
+            ),
+            if (!appState.loadingSubscriptionHistory &&
+                appState.hasMoreSubscriptionHistory)
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    appState.loadSubscriptionHistory(loadMore: true);
+                  },
+                  child: Text(
+                    'Load more',
+                    style: GoogleFonts.manrope(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ReferralHistoryScreen extends StatelessWidget {
+  const ReferralHistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final AppState appState = context.watch<AppState>();
+    final DateFormat formatter = DateFormat('MMM dd, yyyy');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Referral History',
+          style: GoogleFonts.redHatDisplay(fontWeight: FontWeight.w800),
+        ),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: <Widget>[
+            if (appState.referralEntries.isEmpty)
+              Text(
+                'No referral history yet.',
+                style: GoogleFonts.manrope(
+                  color: AppPalette.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ...appState.referralEntries.map(
+              (ReferralEntry entry) => _ReferralHistoryRow(
+                entry: entry,
+                formatter: formatter,
+              ),
+            ),
+            if (appState.loadingReferrals) const _ReferralSkeletonList(),
+            if (!appState.loadingReferrals && appState.hasMoreReferrals)
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    appState.loadReferrals(loadMore: true);
+                  },
+                  child: Text(
+                    'Load more',
+                    style: GoogleFonts.manrope(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SubscriptionHistoryRow extends StatelessWidget {
+  const _SubscriptionHistoryRow({
+    required this.item,
+    required this.formatter,
+  });
+
+  final SubscriptionHistoryItem item;
+  final DateFormat formatter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(
+            Icons.receipt_long_rounded,
+            color: AppPalette.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  item.planName,
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.textDark,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'PHP ${item.price.toStringAsFixed(0)} â€¢ ${item.billingCycle.toUpperCase()}',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  'Start: ${formatter.format(item.startDate)}',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+                if (item.endDate != null)
+                  Text(
+                    'End: ${formatter.format(item.endDate!)}',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                Text(
+                  'Status: ${item.status}',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReferralHistoryRow extends StatelessWidget {
+  const _ReferralHistoryRow({
+    required this.entry,
+    required this.formatter,
+  });
+
+  final ReferralEntry entry;
+  final DateFormat formatter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(
+            Icons.verified_rounded,
+            color: AppPalette.success,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  entry.invitedName,
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.textDark,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  entry.invitedEmail,
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+                if (entry.createdAt != null)
+                  Text(
+                    formatter.format(entry.createdAt!),
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],

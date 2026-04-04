@@ -481,9 +481,7 @@ class AppState extends ChangeNotifier {
     if (data.tier != null) {
       selectedTier = data.tier!;
     }
-    if (data.planId != null) {
-      selectedPlanId = data.planId;
-    }
+    selectedPlanId = data.planId;
     subscriptionBillingCycle = data.billingCycle;
     subscriptionEndDate = data.endDate;
     notifyListeners();
@@ -1481,9 +1479,7 @@ class AppState extends ChangeNotifier {
     if (data.tier != null) {
       selectedTier = data.tier!;
     }
-    if (data.planId != null) {
-      selectedPlanId = data.planId;
-    }
+    selectedPlanId = data.planId;
     subscriptionBillingCycle = data.billingCycle;
     subscriptionEndDate = data.endDate;
     signedIn = true;

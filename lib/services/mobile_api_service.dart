@@ -1707,7 +1707,7 @@ class MobileApiService {
           rationales[key] ??
           (key == correctKey
               ? 'This option is correct.'
-              : 'This option does not satisfy this question.');
+              : 'This option is not a correct answer.');
     }
 
     return QuestionItem(

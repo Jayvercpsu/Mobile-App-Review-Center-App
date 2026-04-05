@@ -357,6 +357,7 @@ class RationalizationScreen extends StatelessWidget {
                       final bool optionSelected = key == selected;
 
                       return Container(
+                        width: double.infinity,
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(

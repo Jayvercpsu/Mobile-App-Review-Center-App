@@ -108,7 +108,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => const HomeShell(showOnlineMessageOnStart: true),
+        builder: (_) => const HomeShell(
+          showOnlineMessageOnStart: true,
+          startupMessage: 'Login successful.',
+        ),
       ),
     );
   }
@@ -151,7 +154,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => const HomeShell(showOnlineMessageOnStart: true),
+        builder: (_) => const HomeShell(
+          showOnlineMessageOnStart: false,
+          startupMessage: 'Login successful.',
+        ),
       ),
     );
   }
@@ -412,7 +418,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       child: Text(
-                        'Don\'t have an ACCOUNT? Click to REGISTER',
+                        'Don\'t have an account? Register',
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w700,
                           color: AppPalette.primary,

@@ -585,17 +585,22 @@ class _PracticeTabState extends State<PracticeTab>
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    subject.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Text(
+                        subject.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.manrope(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   Text(
                     NumberFormat.decimalPattern().format(
                       subject.totalQuestions,
@@ -891,7 +896,7 @@ class _PracticeTabState extends State<PracticeTab>
                     const double crossAxisSpacing = 10;
                     const double mainAxisSpacing = 10;
                     const int crossAxisCount = 2;
-                    const double childAspectRatio = 1.32;
+                    const double childAspectRatio = 1.2;
                     const double groupHorizontalPadding = 10;
                     final List<SubjectItem> previewSubjects = group.value
                         .take(4)
@@ -1623,17 +1628,22 @@ class _GroupSubjectsScreenState extends State<GroupSubjectsScreen>
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    subject.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Text(
+                        subject.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.manrope(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   Text(
                     NumberFormat.decimalPattern().format(
                       subject.totalQuestions,
@@ -1692,7 +1702,7 @@ class _GroupSubjectsScreenState extends State<GroupSubjectsScreen>
     const double crossAxisSpacing = 12;
     const double mainAxisSpacing = 12;
     const int crossAxisCount = 2;
-    const double childAspectRatio = 1.32;
+    const double childAspectRatio = 1.2;
 
     return Scaffold(
       appBar: AppBar(

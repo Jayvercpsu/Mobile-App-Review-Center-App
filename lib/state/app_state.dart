@@ -368,6 +368,11 @@ class AppState extends ChangeNotifier {
           ? googleAuth.name!.trim()
           : _nameFromEmail(fallbackEmail),
     );
+    // Google login requires a verified Google account before token acceptance.
+    if (!userEmailVerified) {
+      userEmailVerified = true;
+      userEmailVerifiedAt ??= DateTime.now();
+    }
     await _persistSession(
       token: data.token,
       email: data.email.trim().isNotEmpty ? data.email.trim() : fallbackEmail,
@@ -612,7 +617,7 @@ class AppState extends ChangeNotifier {
               'total_questions': item.totalQuestions,
               'max_questions_per_set': item.maxQuestionsPerSet,
               'is_accessible': item.isAccessible,
-              'color_value': item.color.value,
+              'color_value': item.color.toARGB32(),
             },
           )
           .toList();

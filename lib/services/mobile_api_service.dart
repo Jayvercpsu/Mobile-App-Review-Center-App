@@ -35,6 +35,8 @@ class MobileApiService {
     String? email,
     String? name,
     String? avatarUrl,
+    String? school,
+    String? phoneNumber,
   }) async {
     return _postAuth(
       path: ApiConfig.googleLogin,
@@ -44,6 +46,9 @@ class MobileApiService {
         if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
         if (avatarUrl != null && avatarUrl.trim().isNotEmpty)
           'avatar_url': avatarUrl.trim(),
+        if (school != null && school.trim().isNotEmpty) 'school': school.trim(),
+        if (phoneNumber != null && phoneNumber.trim().isNotEmpty)
+          'phone_number': phoneNumber.trim(),
       },
     );
   }

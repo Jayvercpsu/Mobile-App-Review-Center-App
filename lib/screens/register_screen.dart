@@ -65,6 +65,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(trimmed);
   }
 
+  bool _hasFullName(String value) {
+    return value.trim().split(RegExp(r'\s+')).where((String e) => e.isNotEmpty).length >= 2;
+  }
+
   bool _isConnectivityIssue(String message) {
     final String normalized = message.toLowerCase();
     return normalized.contains('cannot connect') ||
@@ -134,6 +138,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Fill in all fields with valid details.')),
+      );
+      return;
+    }
+    if (!_hasFullName(name)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter your full name (first and last name).'),
+        ),
       );
       return;
     }

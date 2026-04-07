@@ -13,6 +13,52 @@ import '../models/app_models.dart';
 import '../services/google_auth_service.dart';
 import '../services/mobile_api_service.dart';
 
+class GoogleLoginResult {
+  const GoogleLoginResult._({
+    required this.success,
+    required this.requiresProfile,
+    required this.message,
+    this.prefillName,
+    this.prefillEmail,
+  });
+
+  final bool success;
+  final bool requiresProfile;
+  final String? message;
+  final String? prefillName;
+  final String? prefillEmail;
+
+  factory GoogleLoginResult.success() {
+    return const GoogleLoginResult._(
+      success: true,
+      requiresProfile: false,
+      message: null,
+    );
+  }
+
+  factory GoogleLoginResult.failure(String message) {
+    return GoogleLoginResult._(
+      success: false,
+      requiresProfile: false,
+      message: message,
+    );
+  }
+
+  factory GoogleLoginResult.requiresProfile({
+    String? message,
+    String? prefillName,
+    String? prefillEmail,
+  }) {
+    return GoogleLoginResult._(
+      success: false,
+      requiresProfile: true,
+      message: message,
+      prefillName: prefillName,
+      prefillEmail: prefillEmail,
+    );
+  }
+}
+
 class AppState extends ChangeNotifier {
   AppState() {
     unawaited(loadPlans());
@@ -84,6 +130,7 @@ class AppState extends ChangeNotifier {
   int _referralsPage = 1;
   int _referralsPerPage = 5;
   bool _restoringSession = false;
+  GoogleAuthResult? _pendingGoogleAuth;
 
   static const PlanOption _placeholderPlan = PlanOption(
     id: -1,
@@ -323,43 +370,78 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  Future<String?> loginWithGoogle() async {
-    GoogleAuthResult? googleAuth;
+  Future<GoogleLoginResult> loginWithGoogle({
+    String? fullName,
+    String? phoneNumber,
+    String? school,
+    bool reusePendingAuth = false,
+  }) async {
+    GoogleAuthResult? googleAuth = reusePendingAuth ? _pendingGoogleAuth : null;
     try {
-      googleAuth = await _googleAuth.signIn();
+      googleAuth ??= await _googleAuth.signIn();
     } on GoogleSignInException catch (error) {
       switch (error.code) {
         case GoogleSignInExceptionCode.clientConfigurationError:
-          return 'Google sign-in is not configured correctly. Check Firebase and OAuth client setup.';
+          return GoogleLoginResult.failure(
+            'Google sign-in is not configured correctly. Check Firebase and OAuth client setup.',
+          );
         case GoogleSignInExceptionCode.uiUnavailable:
-          return 'Google sign-in UI is unavailable on this device.';
+          return GoogleLoginResult.failure(
+            'Google sign-in UI is unavailable on this device.',
+          );
         case GoogleSignInExceptionCode.userMismatch:
-          return 'Google account mismatch detected. Please try again.';
+          return GoogleLoginResult.failure(
+            'Google account mismatch detected. Please try again.',
+          );
         case GoogleSignInExceptionCode.providerConfigurationError:
-          return 'Google provider configuration error. Check package name and SHA fingerprints.';
+          return GoogleLoginResult.failure(
+            'Google provider configuration error. Check package name and SHA fingerprints.',
+          );
         default:
-          return 'Unable to complete Google sign-in. Please try again.';
+          return GoogleLoginResult.failure(
+            'Unable to complete Google sign-in. Please try again.',
+          );
       }
     } on StateError catch (error) {
-      return error.message;
+      return GoogleLoginResult.failure(error.message);
     } catch (_) {
-      return 'Unable to complete Google sign-in. Please try again.';
+      return GoogleLoginResult.failure(
+        'Unable to complete Google sign-in. Please try again.',
+      );
     }
 
     if (googleAuth == null) {
-      return 'Google sign-in was canceled or interrupted. Please try again.';
+      return GoogleLoginResult.failure(
+        'Google sign-in was canceled or interrupted. Please try again.',
+      );
     }
 
     final ApiResult<AuthPayload> response = await _api.loginWithGoogle(
       idToken: googleAuth.idToken,
       email: googleAuth.email,
-      name: googleAuth.name,
+      name: (fullName ?? googleAuth.name ?? '').trim().isEmpty
+          ? googleAuth.name
+          : fullName,
       avatarUrl: googleAuth.avatarUrl,
+      school: school,
+      phoneNumber: phoneNumber,
     );
     if (!response.ok || response.data == null) {
-      return response.message ?? 'Google login failed.';
+      if (response.statusCode == 428) {
+        _pendingGoogleAuth = googleAuth;
+        return GoogleLoginResult.requiresProfile(
+          message:
+              response.message ??
+              'Complete your profile first (full name, phone number, school).',
+          prefillName: googleAuth.name,
+          prefillEmail: googleAuth.email,
+        );
+      }
+      _pendingGoogleAuth = null;
+      return GoogleLoginResult.failure(response.message ?? 'Google login failed.');
     }
 
+    _pendingGoogleAuth = null;
     final AuthPayload data = response.data!;
     final String fallbackEmail = googleAuth.email.trim();
     _applyAuthPayload(
@@ -380,7 +462,7 @@ class AppState extends ChangeNotifier {
     );
     notifyListeners();
     unawaited(_warmupSignedInData());
-    return null;
+    return GoogleLoginResult.success();
   }
 
   Future<String?> register({

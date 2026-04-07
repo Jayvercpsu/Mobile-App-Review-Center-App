@@ -111,14 +111,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Your feedback helps us improve. Reviews are published only after admin approval.',
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  color: AppPalette.muted,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),

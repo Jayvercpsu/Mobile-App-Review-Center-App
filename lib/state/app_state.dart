@@ -82,6 +82,7 @@ class AppState extends ChangeNotifier {
   bool loadingReferrals = false;
   bool hasMoreReferrals = false;
   int _referralsPage = 1;
+  int _referralsPerPage = 5;
   bool _restoringSession = false;
 
   static const PlanOption _placeholderPlan = PlanOption(
@@ -762,7 +763,7 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  Future<String?> loadReferrals({bool loadMore = false}) async {
+  Future<String?> loadReferrals({bool loadMore = false, int? perPage}) async {
     if (!signedIn) {
       return null;
     }
@@ -773,9 +774,13 @@ class AppState extends ChangeNotifier {
     loadingReferrals = true;
     notifyListeners();
 
+    final int resolvedPerPage =
+        loadMore ? _referralsPerPage : (perPage ?? _referralsPerPage);
+    _referralsPerPage = resolvedPerPage;
+
     final int targetPage = loadMore ? _referralsPage + 1 : 1;
     final ApiResult<ReferralSummaryPayload> response = await _api
-        .fetchReferrals(page: targetPage);
+        .fetchReferrals(page: targetPage, perPage: resolvedPerPage);
     loadingReferrals = false;
 
     if (!response.ok || response.data == null) {
@@ -850,6 +855,30 @@ class AppState extends ChangeNotifier {
     _referralsPage = payload.pagination.currentPage;
     hasMoreReferrals = payload.pagination.hasMore;
     notifyListeners();
+    return null;
+  }
+
+  Future<String?> loadAllReferrals() async {
+    if (!signedIn) {
+      return null;
+    }
+    if (loadingReferrals) {
+      return null;
+    }
+
+    String? error = await loadReferrals(loadMore: false);
+    if (error != null) {
+      return error;
+    }
+
+    int guard = 0;
+    while (hasMoreReferrals && guard < 50) {
+      error = await loadReferrals(loadMore: true);
+      if (error != null) {
+        return error;
+      }
+      guard++;
+    }
     return null;
   }
 

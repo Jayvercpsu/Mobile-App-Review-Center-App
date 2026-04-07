@@ -11,6 +11,7 @@ import '../../state/app_state.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../feedback_screen.dart';
 import '../login_screen.dart';
+import '../invited_users_screen.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
@@ -514,6 +515,10 @@ class _ReferralCardState extends State<_ReferralCard> {
     final DateFormat formatter = DateFormat('MMM dd, yyyy');
     final String referralCode = appState.referralCode ?? '--';
     final bool canApply = appState.referredBy == null;
+    final List<ReferralEntry> invitedPreview =
+        appState.referralEntries.take(5).toList();
+    final bool hasInvitedOverflow =
+        appState.referralEntries.length > 5 || appState.hasMoreReferrals;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -626,12 +631,42 @@ class _ReferralCardState extends State<_ReferralCard> {
                 const SizedBox(height: 12),
               ],
             ),
-          Text(
-            'Invited users',
-            style: GoogleFonts.manrope(
-              fontWeight: FontWeight.w700,
-              color: AppPalette.textDark,
-            ),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Invited users',
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.textDark,
+                  ),
+                ),
+              ),
+              if (hasInvitedOverflow)
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const InvitedUsersScreen(),
+                      ),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppPalette.primary,
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: GoogleFonts.manrope(
+                      fontWeight: FontWeight.w800,
+                      decoration: TextDecoration.underline,
+                      decorationThickness: 2,
+                    ),
+                  ),
+                  child: const Text(
+                    'Show all',
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
           if (appState.loadingReferrals) const _InvitedSkeletonList(),
@@ -643,8 +678,8 @@ class _ReferralCardState extends State<_ReferralCard> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-          if (appState.referralEntries.isNotEmpty)
-            ...appState.referralEntries.map(
+          if (invitedPreview.isNotEmpty)
+            ...invitedPreview.map(
               (ReferralEntry entry) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
@@ -687,16 +722,7 @@ class _ReferralCardState extends State<_ReferralCard> {
                 ),
               ),
             ),
-          if (appState.hasMoreReferrals)
-            TextButton(
-              onPressed: () {
-                appState.loadReferrals(loadMore: true);
-              },
-              child: Text(
-                'Show more',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-              ),
-            ),
+          const SizedBox(height: 2),
         ],
       ),
     );

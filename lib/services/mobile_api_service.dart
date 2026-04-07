@@ -446,6 +446,7 @@ class MobileApiService {
 
   Future<ApiResult<ReferralSummaryPayload>> fetchReferrals({
     int page = 1,
+    int perPage = 5,
   }) async {
     if (_token == null || _token!.isEmpty) {
       return ApiResult<ReferralSummaryPayload>.failure(
@@ -456,7 +457,7 @@ class MobileApiService {
 
     try {
       final http.Response response = await _getWithFallback(
-        path: '${ApiConfig.referrals}?page=$page',
+        path: '${ApiConfig.referrals}?page=$page&per_page=$perPage',
       );
       final dynamic decoded = _decodeJson(response.body);
 

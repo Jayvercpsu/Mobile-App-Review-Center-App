@@ -7,6 +7,7 @@ import '../core/app_theme.dart';
 import '../state/app_state.dart';
 import 'email_verification_notice_screen.dart';
 import 'forgot_password_screen.dart';
+import 'google_profile_completion_screen.dart';
 import 'home_shell.dart';
 import 'register_screen.dart';
 
@@ -25,154 +26,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _loading = false;
   bool _googleLoading = false;
-
-  String? _normalizePhilippinesPhone(String input) {
-    final String digits = input.replaceAll(RegExp(r'\D'), '');
-    if (digits.length == 11 && digits.startsWith('09')) {
-      return digits;
-    }
-    if (digits.length == 12 &&
-        digits.startsWith('63') &&
-        digits.substring(2, 3) == '9') {
-      return '0${digits.substring(2)}';
-    }
-    return null;
-  }
-
-  bool _hasFullName(String value) {
-    return value.trim().split(RegExp(r'\s+')).where((String e) => e.isNotEmpty).length >= 2;
-  }
-
-  Future<_GoogleProfileInput?> _promptGoogleProfileCompletion(
-    GoogleLoginResult result,
-  ) async {
-    final TextEditingController nameController = TextEditingController(
-      text: (result.prefillName ?? '').trim(),
-    );
-    final TextEditingController phoneController = TextEditingController();
-    final TextEditingController schoolController = TextEditingController();
-
-    final _GoogleProfileInput? output = await showDialog<_GoogleProfileInput>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(
-            'Complete Your Profile',
-            style: GoogleFonts.redHatDisplay(
-              fontWeight: FontWeight.w800,
-              color: AppPalette.primary,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  'Google account: ${result.prefillEmail ?? ''}',
-                  style: GoogleFonts.manrope(
-                    color: AppPalette.muted,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    prefixIcon: Icon(Icons.person_outline_rounded),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number (PH)',
-                    hintText: '09XXXXXXXXX or +639XXXXXXXXX',
-                    prefixIcon: Icon(Icons.phone_rounded),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: schoolController,
-                  decoration: const InputDecoration(
-                    labelText: 'School',
-                    prefixIcon: Icon(Icons.school_outlined),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(null);
-              },
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.manrope(
-                  fontWeight: FontWeight.w700,
-                  color: AppPalette.muted,
-                ),
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                final String name = nameController.text.trim();
-                final String? phone = _normalizePhilippinesPhone(
-                  phoneController.text.trim(),
-                );
-                final String school = schoolController.text.trim();
-
-                if (!_hasFullName(name)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Enter your full name (first and last name).'),
-                    ),
-                  );
-                  return;
-                }
-                if (phone == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Enter a valid Philippine phone number.'),
-                    ),
-                  );
-                  return;
-                }
-                if (school.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('School is required.')),
-                  );
-                  return;
-                }
-
-                Navigator.of(dialogContext).pop(
-                  _GoogleProfileInput(
-                    fullName: name,
-                    phoneNumber: phone,
-                    school: school,
-                  ),
-                );
-              },
-              style: FilledButton.styleFrom(backgroundColor: AppPalette.primary),
-              child: Text(
-                'Continue',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    nameController.dispose();
-    phoneController.dispose();
-    schoolController.dispose();
-    return output;
-  }
 
   @override
   void initState() {
@@ -282,18 +135,26 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (result.requiresProfile) {
-        final _GoogleProfileInput? profile = await _promptGoogleProfileCompletion(
-          result,
+        setState(() {
+          _googleLoading = false;
+        });
+        final GoogleProfileInput? profile = await Navigator.of(context).push(
+          MaterialPageRoute<GoogleProfileInput>(
+            builder: (_) => GoogleProfileCompletionScreen(
+              prefillName: result.prefillName,
+              prefillEmail: result.prefillEmail,
+            ),
+          ),
         );
         if (!mounted) {
           return;
         }
         if (profile == null) {
-          setState(() {
-            _googleLoading = false;
-          });
           return;
         }
+        setState(() {
+          _googleLoading = true;
+        });
         result = await context.read<AppState>().loginWithGoogle(
           fullName: profile.fullName,
           phoneNumber: profile.phoneNumber,
@@ -610,16 +471,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-}
-
-class _GoogleProfileInput {
-  const _GoogleProfileInput({
-    required this.fullName,
-    required this.phoneNumber,
-    required this.school,
-  });
-
-  final String fullName;
-  final String phoneNumber;
-  final String school;
 }

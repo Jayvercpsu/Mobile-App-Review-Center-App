@@ -264,7 +264,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Signup')),
+      appBar: AppBar(title: const Text('Register')),
       body: Stack(
         children: <Widget>[
           Positioned(
@@ -291,7 +291,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Signup',
+                    'Create An Account',
                     style: GoogleFonts.redHatDisplay(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,

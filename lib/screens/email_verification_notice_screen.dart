@@ -134,7 +134,7 @@ class _EmailVerificationNoticeScreenState
                           ),
                           const TextSpan(
                             text:
-                                '. Tap the link to activate your Boardmasters account. If you do not see it, check your spam folder.',
+                                '. Tap the link to activate your BoardMasters account. If you do not see it, check your spam folder.',
                           ),
                         ],
                       ),

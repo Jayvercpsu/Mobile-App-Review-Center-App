@@ -1325,7 +1325,7 @@ class MobileApiService {
           dataMap?['email'],
         ]),
       ),
-      'Boardmasters User',
+      'BoardMasters User',
     ]);
 
     final String email = _firstNonEmpty(<dynamic>[

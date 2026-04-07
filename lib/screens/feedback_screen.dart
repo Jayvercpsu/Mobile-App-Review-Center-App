@@ -103,7 +103,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                'How was your Boardmasters experience?',
+                'How was your BoardMasters experience?',
                 style: GoogleFonts.redHatDisplay(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,

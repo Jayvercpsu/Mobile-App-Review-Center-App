@@ -823,7 +823,7 @@ class _OfferCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                offer.brand ?? 'Boardmasters',
+                offer.brand ?? 'BoardMasters',
                 style: GoogleFonts.manrope(
                   color: AppPalette.muted,
                   fontWeight: FontWeight.w600,

@@ -1199,20 +1199,11 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
+              enabled: false,
               decoration: const InputDecoration(
                 labelText: 'Email',
                 prefixIcon: Icon(Icons.mail_outline_rounded),
               ),
-              validator: (String? value) {
-                final String trimmed = value?.trim() ?? '';
-                final RegExp emailPattern = RegExp(
-                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                );
-                if (!emailPattern.hasMatch(trimmed)) {
-                  return 'Enter a valid email.';
-                }
-                return null;
-              },
             ),
             const SizedBox(height: 6),
             Container(

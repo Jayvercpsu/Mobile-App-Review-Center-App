@@ -211,22 +211,9 @@ class _QuizScreenState extends State<QuizScreen> {
                         ),
                       ),
                       const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppPalette.secondary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          _timeLabel(_remaining),
-                          style: GoogleFonts.manrope(
-                            color: AppPalette.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                      _TimePill(
+                        label: _timeLabel(_remaining),
+                        isUrgent: _remaining.inSeconds <= 30,
                       ),
                       const SizedBox(width: 10),
                       Text(
@@ -409,5 +396,61 @@ class _QuizScreenState extends State<QuizScreen> {
         ),
       ),
     );
+  }
+}
+
+class _TimePill extends StatelessWidget {
+  const _TimePill({required this.label, required this.isUrgent});
+
+  final String label;
+  final bool isUrgent;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color baseColor = isUrgent
+        ? const Color(0xFFFF5A5F)
+        : AppPalette.secondary.withValues(alpha: 0.15);
+    final Color textColor = isUrgent ? Colors.white : AppPalette.primary;
+
+    Widget pill = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: baseColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.manrope(
+          color: textColor,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+
+    if (!isUrgent) {
+      return pill;
+    }
+
+    return pill
+        .animate(onPlay: (AnimationController c) => c.repeat())
+        .scale(
+          begin: const Offset(1.0, 1.0),
+          end: const Offset(1.06, 1.06),
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeInOut,
+        )
+        .then()
+        .scale(
+          begin: const Offset(1.06, 1.06),
+          end: const Offset(1.0, 1.0),
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeInOut,
+        )
+        .fade(
+          begin: 1,
+          end: 0.92,
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeInOut,
+        );
   }
 }

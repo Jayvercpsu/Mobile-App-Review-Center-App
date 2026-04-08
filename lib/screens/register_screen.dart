@@ -66,7 +66,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   bool _hasFullName(String value) {
-    return value.trim().split(RegExp(r'\s+')).where((String e) => e.isNotEmpty).length >= 2;
+    return value
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((String e) => e.isNotEmpty)
+            .length >=
+        2;
   }
 
   bool _isConnectivityIssue(String message) {
@@ -449,7 +454,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 24),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: <Widget>[
                       Checkbox(
                         value: _agreedToTerms,
@@ -467,15 +472,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               _agreedToTerms = !_agreedToTerms;
                             });
                           },
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 13),
-                            child: Text(
-                              'By registering, you agree to the Terms & Conditions and Policy.',
-                              style: GoogleFonts.manrope(
-                                color: AppPalette.muted,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
+                          child: Text(
+                            'By registering, you agree to the Terms & Conditions and Policy.',
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.muted,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
                             ),
                           ),
                         ),

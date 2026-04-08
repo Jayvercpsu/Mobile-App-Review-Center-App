@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -24,10 +26,13 @@ class EmailVerificationNoticeScreen extends StatefulWidget {
 class _EmailVerificationNoticeScreenState
     extends State<EmailVerificationNoticeScreen> {
   bool _sending = false;
+  int _cooldownSeconds = 60;
+  Timer? _cooldownTimer;
 
   @override
   void initState() {
     super.initState();
+    _startCooldown();
     final String? message = widget.successMessage?.trim();
     if (message == null || message.isEmpty) {
       return;
@@ -42,7 +47,47 @@ class _EmailVerificationNoticeScreenState
     });
   }
 
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCooldown() {
+    _cooldownTimer?.cancel();
+    setState(() {
+      _cooldownSeconds = 60;
+    });
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_cooldownSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _cooldownSeconds = 0;
+        });
+        return;
+      }
+      setState(() {
+        _cooldownSeconds -= 1;
+      });
+    });
+  }
+
+  String _cooldownLabel() {
+    final int minutes = _cooldownSeconds ~/ 60;
+    final int seconds = _cooldownSeconds % 60;
+    final String mm = minutes.toString().padLeft(2, '0');
+    final String ss = seconds.toString().padLeft(2, '0');
+    return '$mm:$ss';
+  }
+
   Future<void> _resend() async {
+    if (_sending || _cooldownSeconds > 0) {
+      return;
+    }
     setState(() {
       _sending = true;
     });
@@ -57,6 +102,9 @@ class _EmailVerificationNoticeScreenState
     setState(() {
       _sending = false;
     });
+    if (error == null) {
+      _startCooldown();
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -170,12 +218,22 @@ class _EmailVerificationNoticeScreenState
                     ),
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: _sending ? null : _resend,
+                      onPressed: (_sending || _cooldownSeconds > 0)
+                          ? null
+                          : _resend,
                       child: _sending
                           ? const SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : _cooldownSeconds > 0
+                          ? Text(
+                              'Resend available in ${_cooldownLabel()}',
+                              style: GoogleFonts.manrope(
+                                fontWeight: FontWeight.w700,
+                                color: AppPalette.muted,
+                              ),
                             )
                           : Text(
                               'Resend verification email',

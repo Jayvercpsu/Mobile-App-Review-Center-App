@@ -124,7 +124,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    bool newAccountFlow = false;
     setState(() {
       _googleLoading = true;
       _googleLoadingMessage = 'Signing in with Google...';
@@ -142,8 +141,8 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _googleLoading = false;
         });
-        final GoogleProfileInput? profile = await Navigator.of(context).push(
-          MaterialPageRoute<GoogleProfileInput>(
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
             builder: (_) => GoogleProfileCompletionScreen(
               prefillName: result.prefillName,
               prefillEmail: result.prefillEmail,
@@ -153,20 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) {
           return;
         }
-        if (profile == null) {
-          return;
-        }
-        newAccountFlow = true;
-        setState(() {
-          _googleLoading = true;
-          _googleLoadingMessage = 'Creating account...';
-        });
-        result = await context.read<AppState>().loginWithGoogle(
-          fullName: profile.fullName,
-          phoneNumber: profile.phoneNumber,
-          school: profile.school,
-          reusePendingAuth: true,
-        );
+        return;
       }
     } catch (_) {
       result = GoogleLoginResult.failure(
@@ -195,9 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() {
       _googleLoading = true;
-      _googleLoadingMessage = newAccountFlow
-          ? 'Creating account...'
-          : 'Signing you in...';
+      _googleLoadingMessage = 'Signing you in...';
       _postGoogleTransitionLoading = true;
     });
     await Future<void>.delayed(const Duration(seconds: 5));
@@ -432,27 +416,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       child: _googleLoading
-                          ? Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: <Widget>[
-                                const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppPalette.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  _googleLoadingMessage,
-                                  style: GoogleFonts.manrope(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppPalette.primary,
-                                    decoration: TextDecoration.none,
-                                  ),
-                                ),
-                              ],
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppPalette.primary,
+                              ),
                             )
                           : Row(
                               mainAxisSize: MainAxisSize.min,

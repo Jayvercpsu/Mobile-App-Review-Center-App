@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 /// - screenshots being blocked
 /// - screen recordings / screen sharing showing a black screen
 ///
-/// No-op on Web and non-Android platforms.
+/// No-op on Web and unsupported platforms.
 class ScreenSecurity {
   static int _refCount = 0;
   static const MethodChannel _channel = MethodChannel(
@@ -15,7 +15,9 @@ class ScreenSecurity {
   );
 
   static bool get _isSupported =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   static Future<void> enable() async {
     if (!_isSupported) return;

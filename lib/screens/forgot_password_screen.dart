@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -16,14 +18,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final TextEditingController _emailController = TextEditingController();
   bool _loading = false;
   bool _sent = false;
+  Timer? _cooldownTimer;
+  int _cooldownSeconds = 0;
 
   @override
   void dispose() {
     _emailController.dispose();
+    _cooldownTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _sendReset() async {
+    if (_cooldownSeconds > 0) {
+      return;
+    }
     final String email = _emailController.text.trim();
     final RegExp emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!emailPattern.hasMatch(email)) {
@@ -65,6 +73,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _sent = true;
     });
 
+    _startCooldown();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
@@ -72,6 +81,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
       ),
     );
+  }
+
+  void _startCooldown() {
+    _cooldownTimer?.cancel();
+    setState(() {
+      _cooldownSeconds = 60;
+    });
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_cooldownSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _cooldownSeconds = 0;
+        });
+        return;
+      }
+      setState(() {
+        _cooldownSeconds -= 1;
+      });
+    });
   }
 
   @override
@@ -135,7 +167,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     width: double.infinity,
                     height: 52,
                     child: FilledButton(
-                      onPressed: _loading ? null : _sendReset,
+                      onPressed:
+                          (_loading || _cooldownSeconds > 0) ? null : _sendReset,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppPalette.primary,
                         shape: RoundedRectangleBorder(
@@ -152,7 +185,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ),
                             )
                           : Text(
-                              _sent ? 'Resend Link' : 'Send Reset Link',
+                              _cooldownSeconds > 0
+                                  ? 'Try again in $_cooldownSeconds s'
+                                  : (_sent
+                                        ? 'Resend Link'
+                                        : 'Send Reset Link'),
                               style: GoogleFonts.manrope(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,

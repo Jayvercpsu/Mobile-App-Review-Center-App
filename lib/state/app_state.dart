@@ -86,6 +86,8 @@ class AppState extends ChangeNotifier {
   String? referredByEmail;
   int referralJoinedCount = 0;
   bool trialConsumed = false;
+  bool mobileDemoSeen = false;
+  DateTime? mobileDemoSeenAt;
   ReferralPoints? referralPoints;
   List<ReferralOfferItem> _referralOffers = <ReferralOfferItem>[];
   List<String> referralCategories = <String>[];
@@ -438,7 +440,9 @@ class AppState extends ChangeNotifier {
         );
       }
       _pendingGoogleAuth = null;
-      return GoogleLoginResult.failure(response.message ?? 'Google login failed.');
+      return GoogleLoginResult.failure(
+        response.message ?? 'Google login failed.',
+      );
     }
 
     _pendingGoogleAuth = null;
@@ -566,6 +570,8 @@ class AppState extends ChangeNotifier {
     referralCode = data.referralCode;
     referredBy = data.referredBy;
     trialConsumed = data.trialConsumed;
+    mobileDemoSeen = data.mobileDemoSeen;
+    mobileDemoSeenAt = data.mobileDemoSeenAt;
     if (data.tier != null) {
       selectedTier = data.tier!;
     }
@@ -627,8 +633,9 @@ class AppState extends ChangeNotifier {
       final String fallbackMessage =
           response.message ?? 'Unable to load practice subjects.';
       if (_isSubscriptionAccessError(response)) {
-        final List<SubjectItem> cached =
-            await _loadCachedPracticeSubjects(lockAll: true);
+        final List<SubjectItem> cached = await _loadCachedPracticeSubjects(
+          lockAll: true,
+        );
         if (cached.isNotEmpty) {
           _practiceSubjectsLoaded = true;
           _practiceSubjects = cached;
@@ -668,7 +675,9 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  bool _isSubscriptionAccessError(ApiResult<List<PracticeSubjectPayload>> result) {
+  bool _isSubscriptionAccessError(
+    ApiResult<List<PracticeSubjectPayload>> result,
+  ) {
     final int? code = result.statusCode;
     if (code == 402 || code == 403 || code == 422) {
       return true;
@@ -747,8 +756,7 @@ class AppState extends ChangeNotifier {
         final int? totalQuestions = _cachedInt(entry['total_questions']);
         final int? maxQuestions = _cachedInt(entry['max_questions_per_set']);
         final int? colorValue = _cachedInt(entry['color_value']);
-        final bool accessible =
-            _cachedBool(entry['is_accessible']) ?? true;
+        final bool accessible = _cachedBool(entry['is_accessible']) ?? true;
 
         if (id.isEmpty || code.isEmpty || title.isEmpty) {
           index++;
@@ -856,8 +864,9 @@ class AppState extends ChangeNotifier {
     loadingReferrals = true;
     notifyListeners();
 
-    final int resolvedPerPage =
-        loadMore ? _referralsPerPage : (perPage ?? _referralsPerPage);
+    final int resolvedPerPage = loadMore
+        ? _referralsPerPage
+        : (perPage ?? _referralsPerPage);
     _referralsPerPage = resolvedPerPage;
 
     final int targetPage = loadMore ? _referralsPage + 1 : 1;
@@ -1210,6 +1219,8 @@ class AppState extends ChangeNotifier {
     referredByEmail = null;
     referralJoinedCount = 0;
     trialConsumed = false;
+    mobileDemoSeen = false;
+    mobileDemoSeenAt = null;
     referralPoints = null;
     _referralOffers = <ReferralOfferItem>[];
     referralCategories = <String>[];
@@ -1410,6 +1421,28 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  Future<void> markFirstAccountGuideSeen() async {
+    if (!signedIn || mobileDemoSeen) {
+      return;
+    }
+
+    mobileDemoSeen = true;
+    mobileDemoSeenAt ??= DateTime.now();
+    notifyListeners();
+
+    final ApiResult<AuthPayload> response = await _api.markDemoSeen();
+    if (!response.ok || response.data == null) {
+      return;
+    }
+
+    _applyAuthPayload(
+      response.data!,
+      emailFallback: userEmail,
+      nameFallback: userName,
+    );
+    notifyListeners();
+  }
+
   Future<ApiResult<List<QuestionItem>>> generateQuiz({
     required SubjectItem subject,
     required int count,
@@ -1592,6 +1625,8 @@ class AppState extends ChangeNotifier {
     userAvatarUrl = data.avatarUrl;
     referralCode = data.referralCode;
     referredBy = data.referredBy;
+    mobileDemoSeen = data.mobileDemoSeen;
+    mobileDemoSeenAt = data.mobileDemoSeenAt;
     if (data.tier != null) {
       selectedTier = data.tier!;
     }

@@ -215,6 +215,45 @@ class MobileApiService {
     }
   }
 
+  Future<ApiResult<AuthPayload>> markDemoSeen() async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<AuthPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.demoSeen,
+        payload: <String, dynamic>{},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<AuthPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final AuthPayload? parsed = _toAuthPayload(decoded);
+      if (parsed == null) {
+        return ApiResult<AuthPayload>.failure(
+          'Server response is missing user data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<AuthPayload>.success(parsed);
+    } catch (_) {
+      return ApiResult<AuthPayload>.failure(
+        'Cannot connect to web app. Check API url and backend server.',
+      );
+    }
+  }
+
   Future<ApiResult<List<PlanOption>>> fetchPlans() async {
     try {
       final http.Response response = await _getWithFallback(
@@ -1416,6 +1455,18 @@ class MobileApiService {
     final int? referredBy = _parseInt(
       user['referred_by'] ?? dataMap?['referred_by'] ?? decoded['referred_by'],
     );
+    final DateTime? mobileDemoSeenAt = _parseDate(
+      user['mobile_demo_seen_at'] ??
+          dataMap?['mobile_demo_seen_at'] ??
+          decoded['mobile_demo_seen_at'],
+    );
+    final bool mobileDemoSeen =
+        _parseBool(
+          user['mobile_demo_seen'] ??
+              dataMap?['mobile_demo_seen'] ??
+              decoded['mobile_demo_seen'],
+        ) ??
+        mobileDemoSeenAt != null;
 
     if (email.isEmpty && name.isEmpty) {
       return null;
@@ -1448,6 +1499,8 @@ class MobileApiService {
       avatarUrl: avatarUrl,
       referralCode: referralCode,
       referredBy: referredBy,
+      mobileDemoSeen: mobileDemoSeen,
+      mobileDemoSeenAt: mobileDemoSeenAt,
     );
   }
 
@@ -2423,6 +2476,8 @@ class AuthPayload {
     required this.avatarUrl,
     required this.referralCode,
     required this.referredBy,
+    required this.mobileDemoSeen,
+    required this.mobileDemoSeenAt,
   });
 
   final String name;
@@ -2443,6 +2498,8 @@ class AuthPayload {
   final String? avatarUrl;
   final String? referralCode;
   final int? referredBy;
+  final bool mobileDemoSeen;
+  final DateTime? mobileDemoSeenAt;
 }
 
 class PracticeSubjectPayload {

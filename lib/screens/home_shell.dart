@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_theme.dart';
 import 'tabs/dashboard_tab.dart';
@@ -157,9 +156,6 @@ class _HomeShellState extends State<HomeShell> {
     });
   }
 
-  String _guideSeenKey(String email) =>
-      'first_account_demo_seen_${email.trim().toLowerCase()}';
-
   Future<void> _maybeStartFirstAccountGuide(AppState appState) async {
     if (_guideChecked || !appState.signedIn) {
       return;
@@ -171,15 +167,16 @@ class _HomeShellState extends State<HomeShell> {
 
     _guideChecked = true;
     _guideUserEmail = email;
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final bool seen = prefs.getBool(_guideSeenKey(email)) ?? false;
-    if (seen) {
+    if (appState.mobileDemoSeen) {
       return;
     }
 
     const Duration delay = Duration(seconds: 5);
     await Future<void>.delayed(delay);
-    if (!mounted || !appState.signedIn) {
+    if (!mounted ||
+        !appState.signedIn ||
+        appState.mobileDemoSeen ||
+        _guideUserEmail != appState.userEmail.trim().toLowerCase()) {
       return;
     }
 
@@ -190,24 +187,18 @@ class _HomeShellState extends State<HomeShell> {
     _switchTo(_guideSteps.first.tabIndex);
   }
 
-  Future<void> _markGuideSeen() async {
-    final String? email = _guideUserEmail;
-    if (email == null || email.isEmpty) {
+  Future<void> _markGuideSeen(AppState appState) async {
+    if (!appState.signedIn || appState.mobileDemoSeen) {
       return;
     }
-    try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_guideSeenKey(email), true);
-    } catch (_) {
-      // Ignore persistence failures; guide can reappear if storage fails.
-    }
+    await appState.markFirstAccountGuideSeen();
   }
 
   Future<void> _cancelGuide() async {
     setState(() {
       _guideActive = false;
     });
-    await _markGuideSeen();
+    await _markGuideSeen(context.read<AppState>());
   }
 
   Future<void> _nextGuideStep() async {
@@ -215,7 +206,7 @@ class _HomeShellState extends State<HomeShell> {
       setState(() {
         _guideActive = false;
       });
-      await _markGuideSeen();
+      await _markGuideSeen(context.read<AppState>());
       return;
     }
     final int nextIndex = _guideStepIndex + 1;

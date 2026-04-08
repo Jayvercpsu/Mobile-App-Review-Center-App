@@ -26,6 +26,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _loading = false;
   bool _googleLoading = false;
+  bool _postGoogleTransitionLoading = false;
+  String _googleLoadingMessage = 'Signing in with Google...';
 
   @override
   void initState() {
@@ -122,8 +124,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    bool newAccountFlow = false;
     setState(() {
       _googleLoading = true;
+      _googleLoadingMessage = 'Signing in with Google...';
     });
 
     GoogleLoginResult result;
@@ -152,8 +156,10 @@ class _LoginScreenState extends State<LoginScreen> {
         if (profile == null) {
           return;
         }
+        newAccountFlow = true;
         setState(() {
           _googleLoading = true;
+          _googleLoadingMessage = 'Creating account...';
         });
         result = await context.read<AppState>().loginWithGoogle(
           fullName: profile.fullName,
@@ -166,12 +172,6 @@ class _LoginScreenState extends State<LoginScreen> {
       result = GoogleLoginResult.failure(
         'Unable to complete Google sign-in. Please try again.',
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _googleLoading = false;
-        });
-      }
     }
 
     if (!mounted) {
@@ -180,6 +180,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final AppState appState = context.read<AppState>();
     if (!appState.signedIn) {
+      setState(() {
+        _googleLoading = false;
+        _googleLoadingMessage = 'Signing in with Google...';
+      });
       final String? error = result.message;
       if (error != null && error.trim().isNotEmpty) {
         ScaffoldMessenger.of(
@@ -188,6 +192,23 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       return;
     }
+
+    setState(() {
+      _googleLoading = true;
+      _googleLoadingMessage = newAccountFlow
+          ? 'Creating account...'
+          : 'Signing you in...';
+      _postGoogleTransitionLoading = true;
+    });
+    await Future<void>.delayed(const Duration(seconds: 5));
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _postGoogleTransitionLoading = false;
+      _googleLoading = false;
+      _googleLoadingMessage = 'Signing in with Google...';
+    });
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
@@ -203,6 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
           Positioned(
             top: -160,
@@ -401,18 +423,36 @@ class _LoginScreenState extends State<LoginScreen> {
                         side: BorderSide(
                           color: AppPalette.primary.withValues(alpha: 0.25),
                         ),
+                        textStyle: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w700,
+                          decoration: TextDecoration.none,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       child: _googleLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppPalette.primary,
-                              ),
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: <Widget>[
+                                const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppPalette.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  _googleLoadingMessage,
+                                  style: GoogleFonts.manrope(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppPalette.primary,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ],
                             )
                           : Row(
                               mainAxisSize: MainAxisSize.min,
@@ -428,6 +468,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   style: GoogleFonts.manrope(
                                     fontWeight: FontWeight.w700,
                                     color: AppPalette.textDark,
+                                    decoration: TextDecoration.none,
                                   ),
                                 ),
                               ],
@@ -467,6 +508,41 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+          if (_postGoogleTransitionLoading)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: SizedBox.expand(
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.52),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            _googleLoadingMessage,
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              fontSize: 16,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ],
+                      ).animate().fadeIn(duration: 220.ms),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

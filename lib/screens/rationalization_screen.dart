@@ -24,6 +24,7 @@ class RationalizationScreen extends StatelessWidget {
       final String? selected = answers[entry.key];
       return selected != entry.value.correctKey;
     }).length;
+    final int correctCount = questions.length - wrongCount;
 
     String choiceText(QuestionItem question, String? key) {
       if (key == null) {
@@ -39,13 +40,12 @@ class RationalizationScreen extends StatelessWidget {
       return question.rationales[key] ?? 'No rationale provided.';
     }
 
-    final String subjectLabel =
-        subject.title.trim().isNotEmpty ? subject.title : subject.code;
+    final String subjectLabel = subject.title.trim().isNotEmpty
+        ? subject.title
+        : subject.code;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Overall Rationalization'),
-      ),
+      appBar: AppBar(title: const Text('Overall Rationalization')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -72,7 +72,7 @@ class RationalizationScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Wrong answers: $wrongCount of ${questions.length}',
+                    'Correct answers: $correctCount of ${questions.length}',
                     style: GoogleFonts.manrope(
                       color: AppPalette.muted,
                       fontWeight: FontWeight.w700,
@@ -212,7 +212,13 @@ class RationalizationScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: optionSelected
-                                ? AppPalette.secondary.withValues(alpha: 0.35)
+                                ? (optionIsCorrect
+                                      ? AppPalette.success.withValues(
+                                          alpha: 0.35,
+                                        )
+                                      : AppPalette.secondary.withValues(
+                                          alpha: 0.35,
+                                        ))
                                 : AppPalette.primary.withValues(alpha: 0.08),
                           ),
                         ),
@@ -236,4 +242,3 @@ class RationalizationScreen extends StatelessWidget {
     );
   }
 }
-

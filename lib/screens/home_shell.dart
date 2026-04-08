@@ -16,12 +16,14 @@ class HomeShell extends StatefulWidget {
     this.initialPlanId,
     this.showOnlineMessageOnStart = false,
     this.startupMessage,
+    this.showWelcomeBackOnStart = false,
   });
 
   final int initialIndex;
   final int? initialPlanId;
   final bool showOnlineMessageOnStart;
   final String? startupMessage;
+  final bool showWelcomeBackOnStart;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -33,6 +35,7 @@ class _HomeShellState extends State<HomeShell> {
   bool? _lastOffline;
   bool _pendingOnlineMessage = false;
   String? _pendingStartupMessage;
+  bool _showWelcomeBackOnStart = false;
   bool _guideChecked = false;
   bool _guideActive = false;
   int _guideStepIndex = 0;
@@ -75,6 +78,7 @@ class _HomeShellState extends State<HomeShell> {
     _index = widget.initialIndex;
     _pageController = PageController(initialPage: _index);
     _pendingOnlineMessage = widget.showOnlineMessageOnStart;
+    _showWelcomeBackOnStart = widget.showWelcomeBackOnStart;
     final String startupMessage = (widget.startupMessage ?? '').trim();
     _pendingStartupMessage = startupMessage.isEmpty ? null : startupMessage;
   }
@@ -118,7 +122,7 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
-  void _showWelcomeCelebration(String userName) {
+  void _showWelcomeCelebration(String userName, {required bool welcomeBack}) {
     final OverlayState? overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) {
       return;
@@ -138,7 +142,10 @@ class _HomeShellState extends State<HomeShell> {
                   padding: EdgeInsets.only(top: topInset),
                   child: SizedBox(
                     width: double.infinity,
-                    child: _CelebrationCard(userName: userName),
+                    child: _CelebrationCard(
+                      userName: userName,
+                      welcomeBack: welcomeBack,
+                    ),
                   ),
                 ),
               ),
@@ -308,7 +315,10 @@ class _HomeShellState extends State<HomeShell> {
           return;
         }
         if (message.isNotEmpty) {
-          _showWelcomeCelebration(appState.userName);
+          _showWelcomeCelebration(
+            appState.userName,
+            welcomeBack: _showWelcomeBackOnStart,
+          );
         }
       });
     }
@@ -393,9 +403,10 @@ class _HomeShellState extends State<HomeShell> {
 }
 
 class _CelebrationCard extends StatelessWidget {
-  const _CelebrationCard({required this.userName});
+  const _CelebrationCard({required this.userName, required this.welcomeBack});
 
   final String userName;
+  final bool welcomeBack;
 
   @override
   Widget build(BuildContext context) {
@@ -444,7 +455,7 @@ class _CelebrationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Welcome $name!',
+                      welcomeBack ? 'Welcome back $name' : 'Welcome $name!',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 20,

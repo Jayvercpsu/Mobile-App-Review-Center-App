@@ -109,11 +109,15 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    final AppState appState = context.read<AppState>();
+    final bool isReturningUser = appState.mobileDemoSeen;
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => const HomeShell(
+        builder: (_) => HomeShell(
           showOnlineMessageOnStart: true,
           startupMessage: 'Login successful.',
+          showWelcomeBackOnStart: isReturningUser,
         ),
       ),
     );
@@ -194,11 +198,14 @@ class _LoginScreenState extends State<LoginScreen> {
       _googleLoadingMessage = 'Signing in with Google...';
     });
 
+    final bool isReturningUser = appState.mobileDemoSeen;
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => const HomeShell(
+        builder: (_) => HomeShell(
           showOnlineMessageOnStart: false,
           startupMessage: 'Login successful.',
+          showWelcomeBackOnStart: isReturningUser,
         ),
       ),
     );

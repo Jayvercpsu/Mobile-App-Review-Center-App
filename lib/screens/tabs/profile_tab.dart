@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
+import 'package:flutter_native_contact_picker/model/contact.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_theme.dart';
@@ -29,7 +32,8 @@ class ProfileTab extends StatelessWidget {
     final double dpr = MediaQuery.of(context).devicePixelRatio;
     final bool trialExpired = appState.isFreeTrialExpired;
     final bool subscriptionExpired = appState.isSubscriptionExpired;
-    final bool planExpired = trialExpired ||
+    final bool planExpired =
+        trialExpired ||
         subscriptionExpired ||
         (appState.trialConsumed &&
             !appState.hasActivePaidPlan &&
@@ -228,10 +232,10 @@ class ProfileTab extends StatelessWidget {
                       endDate == null
                           ? 'No end date'
                           : (trialExpired
-                              ? 'Free trial ended on ${dateFormatter.format(endDate)}'
-                              : (subscriptionExpired
-                                  ? 'Expired on ${dateFormatter.format(endDate)}'
-                                  : 'Valid until ${dateFormatter.format(endDate)}')),
+                                ? 'Free trial ended on ${dateFormatter.format(endDate)}'
+                                : (subscriptionExpired
+                                      ? 'Expired on ${dateFormatter.format(endDate)}'
+                                      : 'Valid until ${dateFormatter.format(endDate)}')),
                       style: GoogleFonts.manrope(
                         color: Colors.white.withValues(alpha: 0.9),
                         fontWeight: FontWeight.w700,
@@ -515,8 +519,9 @@ class _ReferralCardState extends State<_ReferralCard> {
     final DateFormat formatter = DateFormat('MMM dd, yyyy');
     final String referralCode = appState.referralCode ?? '--';
     final bool canApply = appState.referredBy == null;
-    final List<ReferralEntry> invitedPreview =
-        appState.referralEntries.take(5).toList();
+    final List<ReferralEntry> invitedPreview = appState.referralEntries
+        .take(5)
+        .toList();
     final bool hasInvitedOverflow =
         appState.referralEntries.length > 5 || appState.hasMoreReferrals;
 
@@ -662,9 +667,7 @@ class _ReferralCardState extends State<_ReferralCard> {
                       decorationThickness: 2,
                     ),
                   ),
-                  child: const Text(
-                    'Show all',
-                  ),
+                  child: const Text('Show all'),
                 ),
             ],
           ),
@@ -799,6 +802,8 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
+  final FlutterNativeContactPicker _contactPicker =
+      FlutterNativeContactPicker();
   DateTime? _birthdate;
   String? _gender;
   Uint8List? _avatarBytes;
@@ -1061,6 +1066,107 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
     return trimmed.isEmpty ? null : trimmed;
   }
 
+  String _normalizeContactPhone(String input) {
+    final String trimmed = input.trim();
+    final String digits = trimmed.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      return trimmed;
+    }
+    if (digits.length == 11 && digits.startsWith('09')) {
+      return digits;
+    }
+    if (digits.length == 10 && digits.startsWith('9')) {
+      return '0$digits';
+    }
+    if (digits.length == 12 && digits.startsWith('63') && digits[2] == '9') {
+      return '0${digits.substring(2)}';
+    }
+    if (digits.length == 13 && digits.startsWith('6309')) {
+      return digits.substring(2);
+    }
+    return digits;
+  }
+
+  Future<void> _pickPhoneFromContacts() async {
+    if (_saving) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    try {
+      final PermissionStatus status = await Permission.contacts.status;
+      if (!status.isGranted) {
+        final PermissionStatus requested = await Permission.contacts.request();
+        if (!requested.isGranted) {
+          if (!mounted) {
+            return;
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                requested.isPermanentlyDenied
+                    ? 'Contacts permission is blocked. Enable it in Settings to use contact picker.'
+                    : 'Contacts permission is required to pick a phone number.',
+              ),
+              action: requested.isPermanentlyDenied
+                  ? SnackBarAction(
+                      label: 'Settings',
+                      onPressed: openAppSettings,
+                    )
+                  : null,
+            ),
+          );
+          return;
+        }
+      }
+
+      final Contact? contact = await _contactPicker.selectPhoneNumber();
+      final String raw = (contact?.selectedPhoneNumber ?? '').trim();
+      if (raw.isEmpty) {
+        return;
+      }
+      final String normalized = _normalizeContactPhone(raw);
+      if (normalized.isEmpty) {
+        return;
+      }
+      _phoneController.text = normalized;
+    } on MissingPluginException {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Contact picker is not available yet. Please fully restart the app and try again.',
+          ),
+        ),
+      );
+    } on PlatformException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final String normalizedCode = error.code.trim().toLowerCase();
+      final String message = (error.message ?? '').trim().isNotEmpty
+          ? error.message!.trim()
+          : (normalizedCode.contains('intent') ||
+                normalizedCode.contains('activity'))
+          ? 'No contacts app found on this device.'
+          : 'Unable to open contacts. Please try again.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open contacts. Please try again.'),
+        ),
+      );
+    }
+  }
+
   bool _isValidPhilippinesPhone(String value) {
     final String digits = value.replaceAll(RegExp(r'\D'), '');
     if (digits.isEmpty) {
@@ -1107,10 +1213,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                       child: SizedBox.square(
                         dimension: 68,
                         child: _avatarBytes != null
-                            ? Image.memory(
-                                _avatarBytes!,
-                                fit: BoxFit.cover,
-                              )
+                            ? Image.memory(_avatarBytes!, fit: BoxFit.cover)
                             : (appState.userAvatarUrl == null
                                   ? Image.asset(
                                       'assets/images/boardmaster-square.png',
@@ -1305,9 +1408,14 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Phone Number',
-                prefixIcon: Icon(Icons.phone_outlined),
+                prefixIcon: const Icon(Icons.phone_outlined),
+                suffixIcon: IconButton(
+                  onPressed: _saving ? null : _pickPhoneFromContacts,
+                  icon: const Icon(Icons.contact_phone_rounded),
+                  tooltip: 'Pick from contacts',
+                ),
               ),
               validator: (String? value) {
                 final String trimmed = value?.trim() ?? '';

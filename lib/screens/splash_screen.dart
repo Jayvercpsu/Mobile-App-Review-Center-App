@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../state/app_state.dart';
 import 'home_shell.dart';
@@ -18,6 +20,32 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+
+  static const String _prefsStartupPermissionsPrompted =
+      'startup_permissions_prompted_v1';
+
+  Future<void> _maybePromptStartupPermissions() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final bool prompted =
+          prefs.getBool(_prefsStartupPermissionsPrompted) ?? false;
+      if (prompted) {
+        return;
+      }
+      await prefs.setBool(_prefsStartupPermissionsPrompted, true);
+    } catch (_) {
+      // Ignore preference failures; we still try requesting once per boot.
+    }
+
+    try {
+      final PermissionStatus status = await Permission.contacts.status;
+      if (!status.isGranted) {
+        await Permission.contacts.request();
+      }
+    } catch (_) {
+      // Ignore permission request failures.
+    }
+  }
 
   @override
   void initState() {
@@ -41,9 +69,16 @@ class _SplashScreenState extends State<SplashScreen>
           : (appState.onboardingDone
                 ? const LoginScreen()
                 : const OnboardingScreen());
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute<void>(builder: (_) => target));
+      if (!appState.signedIn) {
+        await _maybePromptStartupPermissions();
+        if (!mounted) {
+          return;
+        }
+      }
+      final NavigatorState navigator = Navigator.of(context);
+      navigator.pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => target),
+      );
     });
   }
 

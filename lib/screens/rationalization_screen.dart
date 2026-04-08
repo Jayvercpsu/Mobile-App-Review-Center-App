@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/app_theme.dart';
+import '../core/screen_security.dart';
 import '../models/app_models.dart';
 
-class RationalizationScreen extends StatelessWidget {
+class RationalizationScreen extends StatefulWidget {
   const RationalizationScreen({
     super.key,
     required this.subject,
@@ -17,14 +20,31 @@ class RationalizationScreen extends StatelessWidget {
   final Map<int, String> answers;
 
   @override
+  State<RationalizationScreen> createState() => _RationalizationScreenState();
+}
+
+class _RationalizationScreenState extends State<RationalizationScreen> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(ScreenSecurity.enable());
+  }
+
+  @override
+  void dispose() {
+    unawaited(ScreenSecurity.disable());
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final int wrongCount = questions.asMap().entries.where((
+    final int wrongCount = widget.questions.asMap().entries.where((
       MapEntry<int, QuestionItem> entry,
     ) {
-      final String? selected = answers[entry.key];
+      final String? selected = widget.answers[entry.key];
       return selected != entry.value.correctKey;
     }).length;
-    final int correctCount = questions.length - wrongCount;
+    final int correctCount = widget.questions.length - wrongCount;
 
     String choiceText(QuestionItem question, String? key) {
       if (key == null) {
@@ -40,9 +60,9 @@ class RationalizationScreen extends StatelessWidget {
       return question.rationales[key] ?? 'No rationale provided.';
     }
 
-    final String subjectLabel = subject.title.trim().isNotEmpty
-        ? subject.title
-        : subject.code;
+    final String subjectLabel = widget.subject.title.trim().isNotEmpty
+        ? widget.subject.title
+        : widget.subject.code;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Overall Rationalization')),
@@ -72,7 +92,7 @@ class RationalizationScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Correct answers: $correctCount of ${questions.length}',
+                    'Correct answers: $correctCount of ${widget.questions.length}',
                     style: GoogleFonts.manrope(
                       color: AppPalette.muted,
                       fontWeight: FontWeight.w700,
@@ -82,12 +102,12 @@ class RationalizationScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            ...questions.asMap().entries.map((
+            ...widget.questions.asMap().entries.map((
               MapEntry<int, QuestionItem> item,
             ) {
               final int index = item.key;
               final QuestionItem question = item.value;
-              final String? selected = answers[index];
+              final String? selected = widget.answers[index];
               final bool isCorrect = selected == question.correctKey;
               final List<String> keys = question.choices.keys.toList()..sort();
 

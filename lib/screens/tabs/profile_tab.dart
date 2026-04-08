@@ -1348,7 +1348,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               key: ValueKey<String?>(_gender),
-              value: _gender,
+              initialValue: _gender,
               decoration: const InputDecoration(
                 labelText: 'Gender',
                 prefixIcon: Icon(Icons.wc_rounded),

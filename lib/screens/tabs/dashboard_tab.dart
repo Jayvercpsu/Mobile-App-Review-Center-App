@@ -748,7 +748,13 @@ class _DashboardTabState extends State<DashboardTab> {
     final DateTime? endDate = appState.subscriptionEndDate;
     final String? formattedEndDate = endDate == null
         ? null
-        : DateFormat('MMM d, yyyy').format(endDate);
+        : () {
+            final DateTime local = endDate.toLocal();
+            final String formattedDate = DateFormat('MMM d, yyyy').format(local);
+            final String formattedTime =
+                DateFormat('h:mma').format(local).toLowerCase();
+            return '$formattedDate at $formattedTime';
+          }();
     final bool lockFreePlan =
         appState.currentPlan.isPaid && !appState.isSubscriptionExpired;
     final bool hasActivePaidPlan = appState.hasActivePaidPlan;

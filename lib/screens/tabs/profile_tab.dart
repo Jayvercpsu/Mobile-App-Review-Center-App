@@ -640,7 +640,7 @@ class _ReferralCardState extends State<_ReferralCard> {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  'Invited users',
+                  'Invited Users',
                   style: GoogleFonts.manrope(
                     fontWeight: FontWeight.w700,
                     color: AppPalette.textDark,

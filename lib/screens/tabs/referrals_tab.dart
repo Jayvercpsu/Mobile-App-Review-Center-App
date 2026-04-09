@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_theme.dart';
@@ -53,15 +54,14 @@ class _ReferralsTabState extends State<ReferralsTab> {
   }
 
   String _formatExpiryStatus(DateTime value) {
-    final Duration diff = value.difference(DateTime.now());
-    if (diff.inSeconds <= 0) {
-      return 'Expires today';
+    final DateTime local = value.toLocal();
+    final String formattedDate = DateFormat('MMM d, yyyy').format(local);
+    final String formattedTime = DateFormat('h:mma').format(local).toLowerCase();
+    final String formatted = '$formattedDate at $formattedTime';
+    if (value.isBefore(DateTime.now())) {
+      return 'Expired $formatted';
     }
-    final int days = (diff.inHours / 24).ceil();
-    if (days <= 1) {
-      return 'Expires in 1 day';
-    }
-    return 'Expires in $days days';
+    return 'Expires $formatted';
   }
 
   void _showOfferDetails(
@@ -265,9 +265,10 @@ class _ReferralsTabState extends State<ReferralsTab> {
     final List<ReferralOfferItem> featured = filteredOffers
         .where((offer) => offer.isFeatured)
         .toList();
-    final List<ReferralOfferItem> recommended = featured.isNotEmpty
-        ? featured
-        : filteredOffers.take(4).toList();
+    final List<ReferralOfferItem> recommended = featured;
+    final List<ReferralOfferItem> otherOffers = filteredOffers
+        .where((offer) => !offer.isFeatured)
+        .toList();
 
     return RefreshIndicator(
       onRefresh: () => _refreshReferrals(appState),
@@ -495,7 +496,7 @@ class _ReferralsTabState extends State<ReferralsTab> {
                   crossAxisCount: 2,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 0.62,
+                  childAspectRatio: 0.66,
                 ),
                 delegate: SliverChildBuilderDelegate((
                   BuildContext context,
@@ -523,82 +524,81 @@ class _ReferralsTabState extends State<ReferralsTab> {
                 }, childCount: recommended.length),
               ),
             ),
-          if (appState.referralCategories.isNotEmpty)
+          if (!(appState.loadingReferrals && filteredOffers.isEmpty)) ...[
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Categories',
-                      style: GoogleFonts.redHatDisplay(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppPalette.textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: appState.referralCategories
-                          .map(
-                            (category) => Chip(
-                              label: Text(
-                                category,
-                                style: GoogleFonts.manrope(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              backgroundColor: AppPalette.primary.withValues(
-                                alpha: 0.1,
-                              ),
-                              labelStyle: TextStyle(color: AppPalette.primary),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ],
+                child: Text(
+                  'Other Offers',
+                  style: GoogleFonts.redHatDisplay(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppPalette.textDark,
+                  ),
                 ),
               ),
             ),
-          if (appState.referralBrands.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Brands',
-                      style: GoogleFonts.redHatDisplay(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppPalette.textDark,
+            if (otherOffers.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppPalette.primary.withValues(alpha: 0.08),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: appState.referralBrands
-                          .map(
-                            (brand) => Chip(
-                              label: Text(
-                                brand,
-                                style: GoogleFonts.manrope(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
+                    child: Text(
+                      'No other offers right now. Please check back soon.',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.66,
+                  ),
+                  delegate: SliverChildBuilderDelegate((
+                    BuildContext context,
+                    int index,
+                  ) {
+                    final ReferralOfferItem offer = otherOffers[index];
+                    final ReferralRewardItem? activeReward =
+                        activeByOffer[offer.id];
+                    final bool canRedeem =
+                        points.available >= offer.pointsCost &&
+                        activeReward == null;
+                    return _OfferCard(
+                      offer: offer,
+                      canRedeem: canRedeem,
+                      activeReward: activeReward,
+                      onRedeem: () => _redeemOffer(appState, offer),
+                      onOpenDetails: () => _showOfferDetails(
+                        context,
+                        appState,
+                        offer,
+                        points,
+                        activeReward,
+                      ),
+                    );
+                  }, childCount: otherOffers.length),
                 ),
               ),
-            ),
+          ],
           if (appState.activeRewards.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -654,22 +654,33 @@ class _ReferralsTabState extends State<ReferralsTab> {
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Text(
-                                '$title (limit ${reward.questionLimit ?? 'No limit'})',
-                                style: GoogleFonts.manrope(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppPalette.textDark,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    '$title (limit ${reward.questionLimit ?? 'No limit'})',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.manrope(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppPalette.textDark,
+                                    ),
+                                  ),
+                                  if (reward.expiresAt != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _formatExpiryStatus(reward.expiresAt!),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.visible,
+                                      style: GoogleFonts.manrope(
+                                        color: AppPalette.muted,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
-                            if (reward.expiresAt != null)
-                              Text(
-                                _formatExpiryStatus(reward.expiresAt!),
-                                style: GoogleFonts.manrope(
-                                  color: AppPalette.muted,
-                                  fontSize: 12,
-                                ),
-                              ),
                           ],
                         ),
                       );
@@ -770,7 +781,6 @@ class _OfferCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isRedeemed = activeReward != null;
-    final double dpr = MediaQuery.of(context).devicePixelRatio;
     final String? expiryLabel = isRedeemed
         ? (activeReward?.expiresAt == null
               ? 'Redeemed'
@@ -803,27 +813,18 @@ class _OfferCard extends StatelessWidget {
                     color: AppPalette.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: offer.imageUrl == null || offer.imageUrl!.isEmpty
-                      ? const Icon(
-                          Icons.school_rounded,
-                          color: AppPalette.primary,
-                          size: 30,
-                        )
-                      : ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.network(
-                            offer.imageUrl!,
-                            fit: BoxFit.cover,
-                            cacheWidth: (64 * dpr).round(),
-                            cacheHeight: (64 * dpr).round(),
-                            filterQuality: FilterQuality.low,
-                          ),
-                        ),
+                  child: const Icon(
+                    Icons.school_rounded,
+                    color: AppPalette.primary,
+                    size: 30,
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
               Text(
                 offer.brand ?? 'BoardMasters',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.manrope(
                   color: AppPalette.muted,
                   fontWeight: FontWeight.w600,
@@ -844,6 +845,8 @@ class _OfferCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   expiryLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
                     color: AppPalette.muted,
                     fontWeight: FontWeight.w600,
@@ -859,13 +862,16 @@ class _OfferCard extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 8),
+              const Spacer(),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: canRedeem ? onRedeem : onOpenDetails,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppPalette.primary,
+                    backgroundColor: isRedeemed
+                        ? AppPalette.primary.withValues(alpha: 0.12)
+                        : AppPalette.primary,
+                    foregroundColor: isRedeemed ? AppPalette.muted : Colors.white,
                     minimumSize: const Size.fromHeight(36),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
@@ -891,15 +897,10 @@ class _OfferCard extends StatelessWidget {
 }
 
 String _formatExpiryLabel(DateTime value) {
-  final Duration diff = value.difference(DateTime.now());
-  if (diff.inSeconds <= 0) {
-    return 'Redeemed - Expires today';
-  }
-  final int days = (diff.inHours / 24).ceil();
-  if (days <= 1) {
-    return 'Redeemed - Expires in 1 day';
-  }
-  return 'Redeemed - Expires in $days days';
+  final DateTime local = value.toLocal();
+  final String formattedDate = DateFormat('MMM d, yyyy').format(local);
+  final String formattedTime = DateFormat('h:mma').format(local).toLowerCase();
+  return 'Redeemed - Expires $formattedDate at $formattedTime';
 }
 
 String _formatUnit(int value, String singular) {

@@ -9,12 +9,9 @@ import 'package:flutter_native_contact_picker/model/contact.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_theme.dart';
-import '../../models/app_models.dart';
 import '../../state/app_state.dart';
-import '../../widgets/skeleton_widgets.dart';
 import '../feedback_screen.dart';
 import '../login_screen.dart';
-import '../invited_users_screen.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
@@ -516,14 +513,8 @@ class _ReferralCardState extends State<_ReferralCard> {
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
-    final DateFormat formatter = DateFormat('MMM dd, yyyy');
     final String referralCode = appState.referralCode ?? '--';
     final bool canApply = appState.referredBy == null;
-    final List<ReferralEntry> invitedPreview = appState.referralEntries
-        .take(5)
-        .toList();
-    final bool hasInvitedOverflow =
-        appState.referralEntries.length > 5 || appState.hasMoreReferrals;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -636,151 +627,8 @@ class _ReferralCardState extends State<_ReferralCard> {
                 const SizedBox(height: 12),
               ],
             ),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  'Invited Users',
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w700,
-                    color: AppPalette.textDark,
-                  ),
-                ),
-              ),
-              if (hasInvitedOverflow)
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const InvitedUsersScreen(),
-                      ),
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppPalette.primary,
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 0),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    textStyle: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w800,
-                      decoration: TextDecoration.underline,
-                      decorationThickness: 2,
-                    ),
-                  ),
-                  child: const Text('Show all'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (appState.loadingReferrals) const _InvitedSkeletonList(),
-          if (!appState.loadingReferrals && appState.referralEntries.isEmpty)
-            Text(
-              'No referrals yet.',
-              style: GoogleFonts.manrope(
-                color: AppPalette.muted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          if (invitedPreview.isNotEmpty)
-            ...invitedPreview.map(
-              (ReferralEntry entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Icon(Icons.check_circle, color: AppPalette.success),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            entry.invitedName,
-                            style: GoogleFonts.manrope(
-                              fontWeight: FontWeight.w700,
-                              color: AppPalette.textDark,
-                            ),
-                          ),
-                          Text(
-                            entry.invitedEmail,
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                          if (entry.createdAt != null)
-                            Text(
-                              formatter.format(entry.createdAt!),
-                              style: GoogleFonts.manrope(
-                                color: AppPalette.muted,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 11,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           const SizedBox(height: 2),
         ],
-      ),
-    );
-  }
-}
-
-class _InvitedSkeletonList extends StatelessWidget {
-  const _InvitedSkeletonList();
-
-  @override
-  Widget build(BuildContext context) {
-    return SkeletonShimmer(
-      child: Column(
-        children: List<Widget>.generate(
-          3,
-          (int index) => Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppPalette.primary.withValues(alpha: 0.06),
-              ),
-            ),
-            child: Row(
-              children: <Widget>[
-                const SkeletonBox.circle(size: 34),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const SkeletonBox(
-                        height: 12,
-                        width: double.infinity,
-                        borderRadius: 8,
-                      ),
-                      const SizedBox(height: 8),
-                      const SkeletonBox(
-                        height: 10,
-                        width: 150,
-                        borderRadius: 6,
-                      ),
-                      const SizedBox(height: 6),
-                      const SkeletonBox(height: 8, width: 90, borderRadius: 6),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const SkeletonBox(height: 18, width: 54, borderRadius: 999),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

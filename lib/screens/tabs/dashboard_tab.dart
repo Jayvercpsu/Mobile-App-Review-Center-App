@@ -427,6 +427,11 @@ class _DashboardTabState extends State<DashboardTab> {
                       },
                       style: FilledButton.styleFrom(
                         backgroundColor: AppPalette.secondary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor:
+                            AppPalette.secondary.withValues(alpha: 0.45),
+                        disabledForegroundColor:
+                            Colors.white.withValues(alpha: 0.85),
                       ),
                       child: Text(
                         'PAY NOW',
@@ -1242,6 +1247,16 @@ class _DashboardTabState extends State<DashboardTab> {
                                           backgroundColor: selected && !canRenew
                                               ? AppPalette.success
                                               : AppPalette.primary,
+                                          foregroundColor: Colors.white,
+                                          disabledBackgroundColor:
+                                              (selected && !canRenew
+                                                      ? AppPalette.success
+                                                      : AppPalette.primary)
+                                                  .withValues(alpha: 0.45),
+                                          disabledForegroundColor:
+                                              Colors.white.withValues(
+                                                alpha: 0.85,
+                                              ),
                                         ),
                                         child: busy
                                             ? const SizedBox(

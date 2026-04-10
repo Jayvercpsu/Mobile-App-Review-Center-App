@@ -639,28 +639,42 @@ class _DashboardTabState extends State<DashboardTab> {
     required BuildContext context,
     required String? formattedEndDate,
   }) async {
-    final String message = formattedEndDate == null
+    final String detail = formattedEndDate == null
         ? 'Your premium access will end immediately and you will return to the free plan.'
-        : 'Your premium access is valid until $formattedEndDate, '
-              'but cancelling will end it immediately and return you to the free plan.';
+        : 'Your premium access is valid until $formattedEndDate, but cancelling will end it immediately and return you to the free plan.';
 
     return await showDialog<bool>(
           context: context,
+          barrierDismissible: false,
           builder: (BuildContext dialogContext) {
             return AlertDialog(
               title: Text(
-                'Cancel Plan?',
+                'Cancel Plan',
                 style: GoogleFonts.redHatDisplay(
                   fontWeight: FontWeight.w800,
                   color: AppPalette.primary,
                 ),
               ),
-              content: Text(
-                message,
-                style: GoogleFonts.manrope(
-                  color: AppPalette.textDark,
-                  fontWeight: FontWeight.w600,
-                ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Do you want to proceed with cancellation?',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.textDark,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    detail,
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
               actions: <Widget>[
                 TextButton(
@@ -1016,6 +1030,10 @@ class _DashboardTabState extends State<DashboardTab> {
                             backgroundColor: Colors.white.withValues(
                               alpha: 0.12,
                             ),
+                            disabledForegroundColor:
+                                Colors.white.withValues(alpha: 0.75),
+                            disabledBackgroundColor:
+                                Colors.white.withValues(alpha: 0.06),
                             side: BorderSide(
                               color: Colors.white.withValues(alpha: 0.5),
                             ),
@@ -1117,6 +1135,7 @@ class _DashboardTabState extends State<DashboardTab> {
                               (selected && !canRenew) ||
                               lockedFreePlan ||
                               lockedByActivePlan;
+                          final bool selectedDisabled = selected && !canRenew;
                           final String buttonLabel = selected
                               ? (canRenew ? 'Renew Plan' : 'Selected')
                               : (lockedByActivePlan
@@ -1244,19 +1263,26 @@ class _DashboardTabState extends State<DashboardTab> {
                                                 plan: plan,
                                               ),
                                         style: FilledButton.styleFrom(
-                                          backgroundColor: selected && !canRenew
-                                              ? AppPalette.success
+                                          backgroundColor: selectedDisabled
+                                              ? Colors.black.withValues(
+                                                  alpha: 0.08,
+                                                )
                                               : AppPalette.primary,
-                                          foregroundColor: Colors.white,
-                                          disabledBackgroundColor:
-                                              (selected && !canRenew
-                                                      ? AppPalette.success
-                                                      : AppPalette.primary)
-                                                  .withValues(alpha: 0.45),
-                                          disabledForegroundColor:
-                                              Colors.white.withValues(
-                                                alpha: 0.85,
-                                              ),
+                                          foregroundColor: selectedDisabled
+                                              ? AppPalette.muted
+                                              : Colors.white,
+                                          disabledBackgroundColor: selectedDisabled
+                                              ? Colors.black.withValues(
+                                                  alpha: 0.08,
+                                                )
+                                              : AppPalette.primary.withValues(
+                                                  alpha: 0.45,
+                                                ),
+                                          disabledForegroundColor: selectedDisabled
+                                              ? AppPalette.muted
+                                              : Colors.white.withValues(
+                                                  alpha: 0.85,
+                                                ),
                                         ),
                                         child: busy
                                             ? const SizedBox(

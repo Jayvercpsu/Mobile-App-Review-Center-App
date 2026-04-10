@@ -152,6 +152,7 @@ class SubscriptionHistoryItem {
     required this.startDate,
     required this.endDate,
     required this.status,
+    required this.paymentMethod,
   });
 
   final int id;
@@ -161,6 +162,7 @@ class SubscriptionHistoryItem {
   final DateTime startDate;
   final DateTime? endDate;
   final String status;
+  final String? paymentMethod;
 }
 
 class ReferralEntry {

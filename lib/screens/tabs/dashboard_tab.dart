@@ -1852,6 +1852,14 @@ class _SubscriptionHistoryRow extends StatelessWidget {
                     ),
                   ),
                 Text(
+                  'Method: ${item.paymentMethod ?? '—'}',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+                Text(
                   'Status: ${item.status}',
                   style: GoogleFonts.manrope(
                     color: AppPalette.muted,

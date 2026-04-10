@@ -2160,6 +2160,7 @@ class MobileApiService {
             startDate: startDate,
             endDate: _parseDate(item['end_date']),
             status: _nullableText(item['status']) ?? 'active',
+            paymentMethod: _nullableText(item['payment_method']),
           );
         })
         .whereType<SubscriptionHistoryEntryPayload>()
@@ -2796,6 +2797,7 @@ class SubscriptionHistoryEntryPayload {
     required this.startDate,
     required this.endDate,
     required this.status,
+    required this.paymentMethod,
   });
 
   final int id;
@@ -2805,6 +2807,7 @@ class SubscriptionHistoryEntryPayload {
   final DateTime startDate;
   final DateTime? endDate;
   final String status;
+  final String? paymentMethod;
 }
 
 class PaginationPayload {

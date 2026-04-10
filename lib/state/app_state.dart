@@ -1048,6 +1048,7 @@ class AppState extends ChangeNotifier {
         startDate: item.startDate,
         endDate: item.endDate,
         status: item.status,
+        paymentMethod: item.paymentMethod,
       );
     }).toList();
 

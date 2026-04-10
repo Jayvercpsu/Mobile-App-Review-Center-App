@@ -57,7 +57,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Thanks for your feedback! It will show on the website once approved.',
+          'Feedback submitted successfully. Thank you for helping us improve the app.',
         ),
       ),
     );

@@ -8,7 +8,7 @@ import '../../models/app_models.dart';
 import '../../state/app_state.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../home_shell.dart';
-import '../quiz_screen.dart';
+import '../preparing_review_screen.dart';
 import '../rationalization_screen.dart';
 
 class PracticeTab extends StatefulWidget {
@@ -292,7 +292,9 @@ class _PracticeTabState extends State<PracticeTab>
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton(
-                            onPressed: () => Navigator.of(modalContext).pop(),
+                            onPressed: starting
+                                ? null
+                                : () => Navigator.of(modalContext).pop(),
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(
                                 color: AppPalette.primary.withValues(
@@ -319,58 +321,18 @@ class _PracticeTabState extends State<PracticeTab>
                                     setModalState(() {
                                       starting = true;
                                     });
-                                    final ScaffoldMessengerState messenger =
-                                        ScaffoldMessenger.of(this.context);
+
                                     final NavigatorState rootNavigator =
                                         Navigator.of(this.context);
                                     final NavigatorState sheetNavigator =
                                         Navigator.of(modalContext);
 
-                                    final response = await appState
-                                        .generateQuiz(
-                                          subject: subject,
-                                          count: chosenCount,
-                                        );
-
-                                    if (!mounted) {
-                                      return;
-                                    }
-
-                                    setModalState(() {
-                                      starting = false;
-                                    });
-
-                                    if (!response.ok || response.data == null) {
-                                      messenger.showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            response.message ??
-                                                'Unable to load quiz from server.',
-                                          ),
-                                        ),
-                                      );
-                                      return;
-                                    }
-
-                                    final int requestedCount = chosenCount;
-                                    final int servedCount =
-                                        response.data!.length;
-                                    if (servedCount < requestedCount) {
-                                      messenger.showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Plan limit applied: $servedCount of $requestedCount questions served.',
-                                          ),
-                                        ),
-                                      );
-                                    }
-
                                     sheetNavigator.pop();
                                     rootNavigator.push(
                                       MaterialPageRoute<void>(
-                                        builder: (_) => QuizScreen(
+                                        builder: (_) => PreparingReviewScreen(
                                           subject: subject,
-                                          questions: response.data!,
+                                          count: chosenCount,
                                           secondsPerQuestion:
                                               chosenSecondsPerQuestion,
                                         ),
@@ -400,7 +362,7 @@ class _PracticeTabState extends State<PracticeTab>
                                 : FittedBox(
                                     fit: BoxFit.scaleDown,
                                     child: Text(
-                                      'START THE TEST NOW',
+                                      'Start Review',
                                       maxLines: 1,
                                       textAlign: TextAlign.center,
                                       style: GoogleFonts.manrope(
@@ -1353,37 +1315,36 @@ class _GroupSubjectsScreenState extends State<GroupSubjectsScreen>
                 top: false,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            subject.title,
-                            style: GoogleFonts.redHatDisplay(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: AppPalette.primary,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(modalContext).pop(),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ],
+                    Text(
+                      subject.title,
+                      style: GoogleFonts.redHatDisplay(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppPalette.primary,
+                      ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Number of items and time allotted for each question.',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     Row(
                       children: <Widget>[
                         Expanded(
                           child: _SelectorColumn(
-                            title: 'Questions',
-                            titleColor: AppPalette.primary,
+                            title: 'Number of Items',
+                            titleColor: const Color(0xFF13A44A),
                             options: itemCountOptions
                                 .map(
-                                  (int value) => _SelectorOption(
-                                    value: value,
-                                    label: '$value',
+                                  (int count) => _SelectorOption(
+                                    value: count,
+                                    label: '$count',
                                   ),
                                 )
                                 .toList(),
@@ -1395,16 +1356,23 @@ class _GroupSubjectsScreenState extends State<GroupSubjectsScreen>
                             },
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: _SelectorColumn(
-                            title: 'Seconds',
-                            titleColor: AppPalette.secondary,
+                            title: 'Time allotted for each question',
+                            titleColor: AppPalette.primary,
                             options: secondOptions
                                 .map(
-                                  (int value) => _SelectorOption(
-                                    value: value,
-                                    label: '$value',
+                                  (int seconds) => _SelectorOption(
+                                    value: seconds,
+                                    label: switch (seconds) {
+                                      30 => '30 seconds',
+                                      45 => '45 seconds',
+                                      60 => '1 minute',
+                                      90 => '1 minute & 30 seconds',
+                                      120 => '2 minutes',
+                                      _ => '$seconds seconds',
+                                    },
                                   ),
                                 )
                                 .toList(),
@@ -1418,93 +1386,109 @@ class _GroupSubjectsScreenState extends State<GroupSubjectsScreen>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: FilledButton(
-                        onPressed: starting
-                            ? null
-                            : () async {
-                                setModalState(() {
-                                  starting = true;
-                                });
-
-                                final ScaffoldMessengerState messenger =
-                                    ScaffoldMessenger.of(this.context);
-                                final NavigatorState rootNavigator =
-                                    Navigator.of(this.context);
-                                final NavigatorState sheetNavigator =
-                                    Navigator.of(modalContext);
-
-                                final response = await appState.generateQuiz(
-                                  subject: subject,
-                                  count: chosenCount,
-                                );
-
-                                if (!mounted) {
-                                  return;
-                                }
-
-                                setModalState(() {
-                                  starting = false;
-                                });
-
-                                if (!response.ok || response.data == null) {
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        response.message ??
-                                            'Unable to load quiz from server.',
-                                      ),
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                final int requestedCount = chosenCount;
-                                final int servedCount = response.data!.length;
-                                if (servedCount < requestedCount) {
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Plan limit applied: $servedCount of $requestedCount questions served.',
-                                      ),
-                                    ),
-                                  );
-                                }
-
-                                sheetNavigator.pop();
-                                rootNavigator.push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => QuizScreen(
-                                      subject: subject,
-                                      questions: response.data!,
-                                      secondsPerQuestion:
-                                          chosenSecondsPerQuestion,
-                                    ),
-                                  ),
-                                );
-                              },
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppPalette.primary,
-                        ),
-                        child: starting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                'Start Practice',
-                                style: GoogleFonts.manrope(
-                                  fontWeight: FontWeight.w700,
+                    Text(
+                      'Plan limit for ${subject.code}: ${subject.maxQuestionsPerSet} unique questions per set.',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'If you request more, we will serve up to the plan limit.',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Column(
+                      children: <Widget>[
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: starting
+                                ? null
+                                : () => Navigator.of(modalContext).pop(),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: AppPalette.primary.withValues(
+                                  alpha: 0.2,
                                 ),
                               ),
-                      ),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: starting
+                                ? null
+                                : () async {
+                                    setModalState(() {
+                                      starting = true;
+                                    });
+
+                                    final NavigatorState rootNavigator =
+                                        Navigator.of(this.context);
+                                    final NavigatorState sheetNavigator =
+                                        Navigator.of(modalContext);
+
+                                    sheetNavigator.pop();
+                                    rootNavigator.push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => PreparingReviewScreen(
+                                          subject: subject,
+                                          count: chosenCount,
+                                          secondsPerQuestion:
+                                              chosenSecondsPerQuestion,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppPalette.primary,
+                              minimumSize: const Size.fromHeight(50),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: starting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'Start Review',
+                                      maxLines: 1,
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.manrope(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

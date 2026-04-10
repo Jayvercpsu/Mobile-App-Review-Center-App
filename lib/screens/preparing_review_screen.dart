@@ -27,7 +27,7 @@ class PreparingReviewScreen extends StatefulWidget {
 }
 
 class _PreparingReviewScreenState extends State<PreparingReviewScreen> {
-  static const Duration _minDelay = Duration(seconds: 10);
+  static const Duration _minDelay = Duration(seconds: 5);
 
   bool _minDelayPassed = false;
   bool _navigated = false;

@@ -1045,6 +1045,7 @@ class AppState extends ChangeNotifier {
         planName: item.planName,
         price: item.price,
         billingCycle: item.billingCycle,
+        providerPaymentId: item.providerPaymentId,
         startDate: item.startDate,
         endDate: item.endDate,
         status: item.status,

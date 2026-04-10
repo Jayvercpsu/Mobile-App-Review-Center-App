@@ -149,6 +149,7 @@ class SubscriptionHistoryItem {
     required this.planName,
     required this.price,
     required this.billingCycle,
+    required this.providerPaymentId,
     required this.startDate,
     required this.endDate,
     required this.status,
@@ -159,6 +160,7 @@ class SubscriptionHistoryItem {
   final String planName;
   final double price;
   final String billingCycle;
+  final String? providerPaymentId;
   final DateTime startDate;
   final DateTime? endDate;
   final String status;

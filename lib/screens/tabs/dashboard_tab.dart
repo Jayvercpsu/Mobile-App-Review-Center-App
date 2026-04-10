@@ -596,11 +596,16 @@ class _DashboardTabState extends State<DashboardTab> {
     }
 
     if (result == PaymentResult.success) {
-      final String? refreshError = await appState.refreshCurrentUser();
+      final String? refreshError = await _refreshAfterSubscriptionChange(
+        appState: appState,
+      );
       if (!context.mounted) {
         return;
       }
       if (refreshError == null) {
+        setState(() {
+          _previewPlanId = appState.currentPlan.id;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -627,7 +632,9 @@ class _DashboardTabState extends State<DashboardTab> {
     required BuildContext context,
     required AppState appState,
   }) async {
-    final String? error = await appState.refreshCurrentUser();
+    final String? error = await _refreshAfterSubscriptionChange(
+      appState: appState,
+    );
     if (!context.mounted) {
       return;
     }
@@ -641,6 +648,35 @@ class _DashboardTabState extends State<DashboardTab> {
         _previewPlanId = appState.currentPlan.id;
       });
     }
+  }
+
+  Future<String?> _refreshAfterSubscriptionChange({
+    required AppState appState,
+  }) async {
+    final String? userError = await appState.refreshCurrentUser();
+    final String? metricsError = await appState.loadDashboardMetrics(force: true);
+    final String? historyError = await appState.loadSubscriptionHistory(
+      loadMore: false,
+    );
+    final String? referralError = await appState.loadReferrals(loadMore: false);
+    final String? quizError = await appState.loadQuizAttempts(loadMore: false);
+
+    if (userError != null) {
+      return userError;
+    }
+    if (metricsError != null) {
+      return metricsError;
+    }
+    if (historyError != null) {
+      return historyError;
+    }
+    if (referralError != null) {
+      return referralError;
+    }
+    if (quizError != null) {
+      return quizError;
+    }
+    return null;
   }
 
   Future<_CancelPlanResult> _confirmCancelPlan({
@@ -1801,8 +1837,28 @@ class _SubscriptionHistoryRow extends StatelessWidget {
   final SubscriptionHistoryItem item;
   final DateFormat formatter;
 
+  String _sentenceCase(String value) {
+    final String normalized = value.trim().replaceAll('_', ' ');
+    if (normalized.isEmpty) {
+      return normalized;
+    }
+    final String lower = normalized.toLowerCase();
+    return '${lower[0].toUpperCase()}${lower.substring(1)}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final String statusLabel = _sentenceCase(item.status);
+    final String statusKey = item.status.trim().toLowerCase();
+    final Color statusColor = switch (statusKey) {
+      'active' => AppPalette.success,
+      'inactive' => Colors.red,
+      _ => AppPalette.muted,
+    };
+    final String providerPaymentId = (item.providerPaymentId ?? '').trim();
+    final String paymentIdLabel = providerPaymentId.isEmpty
+        ? '—'
+        : providerPaymentId;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -1835,6 +1891,14 @@ class _SubscriptionHistoryRow extends StatelessWidget {
                   ),
                 ),
                 Text(
+                  'Payment ID: $paymentIdLabel',
+                  style: GoogleFonts.manrope(
+                    color: AppPalette.muted,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+                Text(
                   'Start: ${formatter.format(item.startDate)}',
                   style: GoogleFonts.manrope(
                     color: AppPalette.muted,
@@ -1859,8 +1923,19 @@ class _SubscriptionHistoryRow extends StatelessWidget {
                     fontSize: 11,
                   ),
                 ),
-                Text(
-                  'Status: ${item.status}',
+                Text.rich(
+                  TextSpan(
+                    children: <InlineSpan>[
+                      const TextSpan(text: 'Status: '),
+                      TextSpan(
+                        text: statusLabel,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                   style: GoogleFonts.manrope(
                     color: AppPalette.muted,
                     fontWeight: FontWeight.w600,

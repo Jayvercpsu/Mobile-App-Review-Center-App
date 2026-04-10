@@ -2157,6 +2157,9 @@ class MobileApiService {
             planName: planName,
             price: _parseDouble(item['price']) ?? 0,
             billingCycle: _nullableText(item['billing_cycle']) ?? 'monthly',
+            providerPaymentId: _nullableText(
+              item['provider_payment_id'] ?? item['providerPaymentId'],
+            ),
             startDate: startDate,
             endDate: _parseDate(item['end_date']),
             status: _nullableText(item['status']) ?? 'active',
@@ -2794,6 +2797,7 @@ class SubscriptionHistoryEntryPayload {
     required this.planName,
     required this.price,
     required this.billingCycle,
+    required this.providerPaymentId,
     required this.startDate,
     required this.endDate,
     required this.status,
@@ -2804,6 +2808,7 @@ class SubscriptionHistoryEntryPayload {
   final String planName;
   final double price;
   final String billingCycle;
+  final String? providerPaymentId;
   final DateTime startDate;
   final DateTime? endDate;
   final String status;

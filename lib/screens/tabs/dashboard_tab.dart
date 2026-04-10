@@ -12,6 +12,13 @@ import '../../screens/payment_webview.dart';
 import '../../state/app_state.dart';
 import '../../widgets/skeleton_widgets.dart';
 
+class _CancelPlanResult {
+  const _CancelPlanResult({required this.proceed, this.error});
+
+  final bool proceed;
+  final String? error;
+}
+
 class DashboardTab extends StatefulWidget {
   const DashboardTab({
     super.key,
@@ -28,6 +35,7 @@ class DashboardTab extends StatefulWidget {
 
 class _DashboardTabState extends State<DashboardTab> {
   int? _previewPlanId;
+  int? _processingPlanId;
 
   @override
   void initState() {
@@ -434,7 +442,7 @@ class _DashboardTabState extends State<DashboardTab> {
                             Colors.white.withValues(alpha: 0.85),
                       ),
                       child: Text(
-                        'PAY NOW',
+                        'PROCEED NOW',
                         style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
                       ),
                     ),
@@ -635,73 +643,117 @@ class _DashboardTabState extends State<DashboardTab> {
     }
   }
 
-  Future<bool> _confirmCancelPlan({
+  Future<_CancelPlanResult> _confirmCancelPlan({
     required BuildContext context,
+    required AppState appState,
     required String? formattedEndDate,
   }) async {
     final String detail = formattedEndDate == null
         ? 'Your premium access will end immediately and you will return to the free plan.'
         : 'Your premium access is valid until $formattedEndDate, but cancelling will end it immediately and return you to the free plan.';
 
-    return await showDialog<bool>(
+    final _CancelPlanResult? decision = await showDialog<_CancelPlanResult>(
           context: context,
           barrierDismissible: false,
           builder: (BuildContext dialogContext) {
-            return AlertDialog(
-              title: Text(
-                'Cancel Plan',
-                style: GoogleFonts.redHatDisplay(
-                  fontWeight: FontWeight.w800,
-                  color: AppPalette.primary,
-                ),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Do you want to proceed with cancellation?',
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.textDark,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    detail,
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.muted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: Text(
-                    'Keep Plan',
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.muted,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppPalette.secondary,
-                  ),
-                  child: Text(
+            bool submitting = false;
+            return StatefulBuilder(
+              builder: (BuildContext _, void Function(void Function()) setState) {
+                return AlertDialog(
+                  title: Text(
                     'Cancel Plan',
-                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                    style: GoogleFonts.redHatDisplay(
+                      fontWeight: FontWeight.w800,
+                      color: AppPalette.primary,
+                    ),
                   ),
-                ),
-              ],
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Do you want to proceed with cancellation?',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.textDark,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        detail,
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: submitting
+                          ? null
+                          : () => Navigator.of(dialogContext).pop(
+                                const _CancelPlanResult(proceed: false),
+                              ),
+                      child: Text(
+                        'Keep Plan',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.muted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: submitting
+                          ? null
+                          : () async {
+                              setState(() {
+                                submitting = true;
+                              });
+                              final String? error =
+                                  await appState.cancelCurrentPlan();
+                              if (!dialogContext.mounted) {
+                                return;
+                              }
+                              Navigator.of(dialogContext).pop(
+                                _CancelPlanResult(
+                                  proceed: true,
+                                  error: error,
+                                ),
+                              );
+                            },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppPalette.secondary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor:
+                            AppPalette.secondary.withValues(alpha: 0.45),
+                        disabledForegroundColor:
+                            Colors.white.withValues(alpha: 0.85),
+                      ),
+                      child: submitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              'Cancel Plan',
+                              style: GoogleFonts.manrope(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
+                  ],
+                );
+              },
             );
           },
-        ) ??
-        false;
+        );
+
+    return decision ?? const _CancelPlanResult(proceed: false);
   }
 
   Future<void> _cancelPlan({
@@ -713,15 +765,16 @@ class _DashboardTabState extends State<DashboardTab> {
       return;
     }
 
-    final bool confirmed = await _confirmCancelPlan(
+    final _CancelPlanResult decision = await _confirmCancelPlan(
       context: context,
+      appState: appState,
       formattedEndDate: formattedEndDate,
     );
-    if (!confirmed) {
+    if (!decision.proceed) {
       return;
     }
 
-    final String? error = await appState.cancelCurrentPlan();
+    final String? error = decision.error;
     if (!context.mounted) {
       return;
     }
@@ -805,6 +858,18 @@ class _DashboardTabState extends State<DashboardTab> {
           : appState.plans,
     );
     final bool plansLoading = appState.loadingPlans && explorePlans.isEmpty;
+    final bool busy = appState.selectingPlan || appState.creatingCheckout;
+
+    if (!busy && _processingPlanId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _processingPlanId = null;
+        });
+      });
+    }
 
     return RefreshIndicator(
       onRefresh: () => _refreshDashboard(appState),
@@ -1126,9 +1191,8 @@ class _DashboardTabState extends State<DashboardTab> {
                               selected &&
                               plan.isPaid &&
                               appState.isSubscriptionExpired;
-                          final bool busy =
-                              appState.selectingPlan ||
-                              appState.creatingCheckout;
+                          final bool showLoading =
+                              busy && _processingPlanId == plan.id;
                           final bool disabled =
                               busy ||
                               trialExpiredForPlan ||
@@ -1256,12 +1320,17 @@ class _DashboardTabState extends State<DashboardTab> {
                                       child: FilledButton(
                                         onPressed: disabled
                                             ? null
-                                            : () => _handleChoosePlan(
-                                                context: context,
-                                                appState: context
-                                                    .read<AppState>(),
-                                                plan: plan,
-                                              ),
+                                            : () async {
+                                                setState(() {
+                                                  _processingPlanId = plan.id;
+                                                });
+                                                await _handleChoosePlan(
+                                                  context: context,
+                                                  appState: context
+                                                      .read<AppState>(),
+                                                  plan: plan,
+                                                );
+                                              },
                                         style: FilledButton.styleFrom(
                                           backgroundColor: selectedDisabled
                                               ? Colors.black.withValues(
@@ -1284,7 +1353,7 @@ class _DashboardTabState extends State<DashboardTab> {
                                                   alpha: 0.85,
                                                 ),
                                         ),
-                                        child: busy
+                                        child: showLoading
                                             ? const SizedBox(
                                                 width: 18,
                                                 height: 18,

@@ -387,8 +387,8 @@ class _HomeShellState extends State<HomeShell> {
             label: 'Reviews',
           ),
           NavigationDestination(
-            icon: Icon(Icons.card_giftcard_outlined),
-            selectedIcon: Icon(Icons.card_giftcard_rounded),
+            icon: Icon(Icons.local_activity_outlined),
+            selectedIcon: Icon(Icons.local_activity),
             label: 'Offers',
           ),
           NavigationDestination(

@@ -93,7 +93,7 @@ class MobileApiService {
       return ApiResult<bool>.success(true);
     } catch (_) {
       return ApiResult<bool>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -117,7 +117,7 @@ class MobileApiService {
       return ApiResult<bool>.success(true);
     } catch (_) {
       return ApiResult<bool>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -141,7 +141,7 @@ class MobileApiService {
       return ApiResult<bool>.success(true);
     } catch (_) {
       return ApiResult<bool>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -174,7 +174,7 @@ class MobileApiService {
       return ApiResult<bool>.success(available);
     } catch (_) {
       return ApiResult<bool>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -210,7 +210,7 @@ class MobileApiService {
       return ApiResult<AuthPayload>.success(parsed);
     } catch (_) {
       return ApiResult<AuthPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -249,7 +249,7 @@ class MobileApiService {
       return ApiResult<AuthPayload>.success(parsed);
     } catch (_) {
       return ApiResult<AuthPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -293,7 +293,7 @@ class MobileApiService {
       return ApiResult<List<PlanOption>>.success(parsed);
     } catch (_) {
       return ApiResult<List<PlanOption>>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -339,7 +339,7 @@ class MobileApiService {
       return ApiResult<PlanSelectionPayload>.success(payload);
     } catch (_) {
       return ApiResult<PlanSelectionPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -397,7 +397,7 @@ class MobileApiService {
       return ApiResult<CheckoutPayload>.success(payload);
     } catch (_) {
       return ApiResult<CheckoutPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -443,7 +443,7 @@ class MobileApiService {
       return ApiResult<List<PracticeSubjectPayload>>.success(parsed);
     } catch (_) {
       return ApiResult<List<PracticeSubjectPayload>>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -483,7 +483,7 @@ class MobileApiService {
       return ApiResult<DashboardMetricsPayload>.success(payload);
     } catch (_) {
       return ApiResult<DashboardMetricsPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -526,7 +526,7 @@ class MobileApiService {
       return ApiResult<ReferralSummaryPayload>.success(payload);
     } catch (_) {
       return ApiResult<ReferralSummaryPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -557,7 +557,7 @@ class MobileApiService {
       return ApiResult<bool>.success(true);
     } catch (_) {
       return ApiResult<bool>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -600,7 +600,7 @@ class MobileApiService {
       return ApiResult<ReferralRedemptionPayload>.success(payload);
     } catch (_) {
       return ApiResult<ReferralRedemptionPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -642,7 +642,7 @@ class MobileApiService {
       return ApiResult<SubscriptionHistoryPayload>.success(payload);
     } catch (_) {
       return ApiResult<SubscriptionHistoryPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -684,7 +684,7 @@ class MobileApiService {
       return ApiResult<QuizAttemptHistoryPayload>.success(payload);
     } catch (_) {
       return ApiResult<QuizAttemptHistoryPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -726,7 +726,7 @@ class MobileApiService {
       return ApiResult<QuizAttemptDetailPayload>.success(payload);
     } catch (_) {
       return ApiResult<QuizAttemptDetailPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -770,7 +770,7 @@ class MobileApiService {
       return ApiResult<int>.success(deleted);
     } catch (_) {
       return ApiResult<int>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -803,7 +803,7 @@ class MobileApiService {
       return ApiResult<int>.success(deleted);
     } catch (_) {
       return ApiResult<int>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -862,7 +862,7 @@ class MobileApiService {
       return ApiResult<List<QuestionItem>>.success(parsed);
     } catch (_) {
       return ApiResult<List<QuestionItem>>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -909,7 +909,7 @@ class MobileApiService {
       return ApiResult<QuizSubmitPayload>.success(payload);
     } catch (_) {
       return ApiResult<QuizSubmitPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -992,7 +992,7 @@ class MobileApiService {
       return ApiResult<AuthPayload>.success(parsed);
     } catch (_) {
       return ApiResult<AuthPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -1026,7 +1026,7 @@ class MobileApiService {
       return ApiResult<bool>.success(true);
     } catch (_) {
       return ApiResult<bool>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -1064,7 +1064,7 @@ class MobileApiService {
       return ApiResult<AuthPayload>.success(parsed);
     } catch (_) {
       return ApiResult<AuthPayload>.failure(
-        'Cannot connect to web app. Check API url and backend server.',
+        'Something went wrong. Please try again.',
       );
     }
   }

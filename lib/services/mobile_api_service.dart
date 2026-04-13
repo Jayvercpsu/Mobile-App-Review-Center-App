@@ -101,6 +101,7 @@ class MobileApiService {
       final http.Response response = await _postWithFallback(
         path: ApiConfig.forgotPassword,
         payload: <String, dynamic>{'email': email.trim()},
+        timeout: const Duration(seconds: 25),
       );
       final dynamic decoded = _decodeJson(response.body);
 
@@ -112,6 +113,10 @@ class MobileApiService {
         );
       }
 
+      return ApiResult<bool>.success(true);
+    } on TimeoutException {
+      // Password-reset emails can still be sent even if the client times out.
+      // Treat as success so the UX matches real-world behavior.
       return ApiResult<bool>.success(true);
     } catch (_) {
       return ApiResult<bool>.failure('Something went wrong. Please try again.');
@@ -1126,6 +1131,7 @@ class MobileApiService {
   Future<http.Response> _postWithFallback({
     required String path,
     required Map<String, dynamic> payload,
+    Duration? timeout,
   }) async {
     Object? lastError;
     http.Response? fallbackResponse;
@@ -1138,7 +1144,7 @@ class MobileApiService {
               headers: _headers(),
               body: jsonEncode(payload),
             )
-            .timeout(_requestTimeout);
+            .timeout(timeout ?? _requestTimeout);
         if (response.statusCode == 404) {
           fallbackResponse = response;
           continue;

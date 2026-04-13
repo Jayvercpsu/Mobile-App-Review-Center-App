@@ -8,7 +8,9 @@ import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart
 import 'package:flutter_native_contact_picker/model/contact.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/api_config.dart';
 import '../../core/app_theme.dart';
+import '../../core/url_helper.dart';
 import '../../state/app_state.dart';
 import '../feedback_screen.dart';
 import '../login_screen.dart';
@@ -21,6 +23,20 @@ class ProfileTab extends StatelessWidget {
     await appState.refreshCurrentUser();
     await appState.loadReferrals(loadMore: false);
     await appState.loadSubscriptionHistory(loadMore: false);
+  }
+
+  Future<void> _openLegalPage(
+    BuildContext context,
+    String path,
+    String label,
+  ) async {
+    final bool opened = await openExternalUrl(ApiConfig.marketingUri(path));
+    if (!context.mounted || opened) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Unable to open $label. Please try again.')),
+    );
   }
 
   @override
@@ -329,84 +345,128 @@ class ProfileTab extends StatelessWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: OutlinedButton(
-                  onPressed: () async {
-                    final bool? shouldLogout = await showDialog<bool>(
-                      context: context,
-                      builder: (BuildContext dialogContext) {
-                        return AlertDialog(
-                          title: Text(
-                            'Logout',
-                            style: GoogleFonts.redHatDisplay(
-                              fontWeight: FontWeight.w800,
-                              color: AppPalette.primary,
-                            ),
-                          ),
-                          content: Text(
-                            'Are you sure you want to logout from your account?',
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.textDark,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          actions: <Widget>[
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(false),
-                              child: Text(
-                                'Cancel',
-                                style: GoogleFonts.manrope(
-                                  color: AppPalette.muted,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            FilledButton(
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(true),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: AppPalette.secondary,
-                              ),
-                              child: Text(
+              child: Column(
+                children: <Widget>[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final bool? shouldLogout = await showDialog<bool>(
+                          context: context,
+                          builder: (BuildContext dialogContext) {
+                            return AlertDialog(
+                              title: Text(
                                 'Logout',
-                                style: GoogleFonts.manrope(
-                                  fontWeight: FontWeight.w700,
+                                style: GoogleFonts.redHatDisplay(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppPalette.primary,
                                 ),
                               ),
-                            ),
-                          ],
+                              content: Text(
+                                'Are you sure you want to logout from your account?',
+                                style: GoogleFonts.manrope(
+                                  color: AppPalette.textDark,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              actions: <Widget>[
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop(false),
+                                  child: Text(
+                                    'Cancel',
+                                    style: GoogleFonts.manrope(
+                                      color: AppPalette.muted,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                FilledButton(
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop(true),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: AppPalette.secondary,
+                                  ),
+                                  child: Text(
+                                    'Logout',
+                                    style: GoogleFonts.manrope(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+
+                        if (shouldLogout != true || !context.mounted) {
+                          return;
+                        }
+                        context.read<AppState>().logout();
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                const LoginScreen(showLogoutMessage: true),
+                          ),
+                          (Route<dynamic> route) => false,
                         );
                       },
-                    );
-
-                    if (shouldLogout != true || !context.mounted) {
-                      return;
-                    }
-                    context.read<AppState>().logout();
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            const LoginScreen(showLogoutMessage: true),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: AppPalette.secondary.withValues(alpha: 0.3),
+                        ),
                       ),
-                      (Route<dynamic> route) => false,
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: AppPalette.secondary.withValues(alpha: 0.3),
+                      child: Text(
+                        'Logout',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.secondary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    'Logout',
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.secondary,
-                      fontWeight: FontWeight.w800,
+                  const SizedBox(height: 10),
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 14,
+                      runSpacing: 8,
+                      children: <Widget>[
+                        TextButton(
+                          onPressed: () => _openLegalPage(
+                            context,
+                            '/terms-of-use',
+                            'Terms of Use',
+                          ),
+                          child: Text(
+                            'Terms of Use',
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.primary,
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _openLegalPage(
+                            context,
+                            '/privacy-policy',
+                            'Privacy Policy',
+                          ),
+                          child: Text(
+                            'Privacy Policy',
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.primary,
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ),

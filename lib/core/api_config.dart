@@ -5,6 +5,10 @@ class ApiConfig {
     'API_BASE_URL',
     defaultValue: '',
   );
+  static const String _configuredWebsiteBaseUrl = String.fromEnvironment(
+    'WEBSITE_BASE_URL',
+    defaultValue: '',
+  );
   static const String _configuredFallbackBaseUrls = String.fromEnvironment(
     'API_FALLBACK_BASE_URLS',
     defaultValue: '',
@@ -60,6 +64,24 @@ class ApiConfig {
     return urls.toList(growable: false);
   }
 
+  static String get websiteBaseUrl {
+    final String fromDartDefine = _normalizeWebsiteBaseUrl(
+      _configuredWebsiteBaseUrl,
+    );
+    if (fromDartDefine.isNotEmpty) {
+      return fromDartDefine;
+    }
+
+    final String fromRuntimeEnv = _normalizeWebsiteBaseUrl(
+      RuntimeEnv.get('WEBSITE_BASE_URL'),
+    );
+    if (fromRuntimeEnv.isNotEmpty) {
+      return fromRuntimeEnv;
+    }
+
+    return _deriveWebsiteBaseUrlFromApi(baseUrl);
+  }
+
   static const String login = '/mobile/login';
   static const String googleLogin = '/mobile/login/google';
   static const String register = '/mobile/register';
@@ -95,6 +117,24 @@ class ApiConfig {
     return Uri.parse('$normalizedBase$normalizedPath');
   }
 
+  static Uri marketingUri(String path, {String? overrideWebsiteBaseUrl}) {
+    final String sourceBase = (overrideWebsiteBaseUrl ?? websiteBaseUrl).trim();
+    final Uri websiteUri = Uri.parse(sourceBase);
+    final List<String> baseSegments = List<String>.from(websiteUri.pathSegments)
+      ..removeWhere((String segment) => segment.isEmpty);
+    final List<String> pathSegments = path
+        .split('/')
+        .map((String segment) => segment.trim())
+        .where((String segment) => segment.isNotEmpty)
+        .toList(growable: false);
+
+    return websiteUri.replace(
+      pathSegments: <String>[...baseSegments, ...pathSegments],
+      query: null,
+      fragment: null,
+    );
+  }
+
   static String _normalizeBaseUrl(String value) {
     String normalized = value.trim();
     if (normalized.isEmpty) {
@@ -110,6 +150,34 @@ class ApiConfig {
     }
 
     return normalized;
+  }
+
+  static String _normalizeWebsiteBaseUrl(String value) {
+    String normalized = value.trim();
+    if (normalized.isEmpty) {
+      return '';
+    }
+
+    if (normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+
+    return normalized;
+  }
+
+  static String _deriveWebsiteBaseUrlFromApi(String apiBaseUrl) {
+    final Uri apiUri = Uri.parse(apiBaseUrl);
+    final List<String> segments = List<String>.from(apiUri.pathSegments);
+    if (segments.isNotEmpty && segments.last.toLowerCase() == 'api') {
+      segments.removeLast();
+    }
+
+    final Uri websiteUri = apiUri.replace(
+      pathSegments: segments,
+      query: null,
+      fragment: null,
+    );
+    return _normalizeWebsiteBaseUrl(websiteUri.toString());
   }
 
   static Iterable<String> _splitCandidates(String raw) sync* {

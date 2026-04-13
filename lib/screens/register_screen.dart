@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../core/api_config.dart';
 import '../core/app_theme.dart';
+import '../core/url_helper.dart';
 import '../state/app_state.dart';
 import 'email_verification_notice_screen.dart';
 
@@ -128,6 +130,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return '0${digits.substring(2)}';
     }
     return null;
+  }
+
+  Future<void> _openLegalPage(String path, String label) async {
+    final bool opened = await openExternalUrl(ApiConfig.marketingUri(path));
+    if (!mounted || opened) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Unable to open $label. Please try again.')),
+    );
   }
 
   Future<void> _register() async {
@@ -466,20 +478,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         },
                       ),
                       Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _agreedToTerms = !_agreedToTerms;
-                            });
-                          },
-                          child: Text(
-                            'By registering, you agree to the Terms & Conditions and Policy.',
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: <Widget>[
+                            Text(
+                              'By registering, you agree to the ',
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
+                            InkWell(
+                              onTap: () => _openLegalPage(
+                                '/terms-of-use',
+                                'Terms & Conditions',
+                              ),
+                              child: Text(
+                                'Terms & Conditions',
+                                style: GoogleFonts.manrope(
+                                  color: AppPalette.primary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              ' and ',
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => _openLegalPage(
+                                '/privacy-policy',
+                                'Privacy Policy',
+                              ),
+                              child: Text(
+                                'Privacy Policy',
+                                style: GoogleFonts.manrope(
+                                  color: AppPalette.primary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '. ',
+                              style: GoogleFonts.manrope(
+                                color: AppPalette.muted,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

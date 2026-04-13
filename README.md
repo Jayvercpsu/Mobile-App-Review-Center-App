@@ -28,6 +28,10 @@ Edit `.env` (gitignored) and set `API_BASE_URL`:
 - Android emulator: `http://10.0.2.2:8000/api`
 - Flutter web on same machine: `http://127.0.0.1:8000/api`
 
+Optional for Terms/Privacy links inside the app:
+
+- `WEBSITE_BASE_URL=https://<YOUR_DOMAIN>` (for example `https://boardmasterreview.com`)
+
 ## Run Backend + Web + Flutter Together
 
 1. Start Laravel API/backend (shared by web and mobile):

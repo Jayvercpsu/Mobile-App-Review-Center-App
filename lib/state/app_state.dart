@@ -68,6 +68,7 @@ class AppState extends ChangeNotifier {
 
   bool onboardingDone = false;
   bool signedIn = false;
+  bool signedInWithGoogle = false;
   bool rememberMe = false;
   String? rememberedEmail;
   String userName = 'Future Topnotcher';
@@ -104,6 +105,7 @@ class AppState extends ChangeNotifier {
   bool selectingPlan = false;
   bool creatingCheckout = false;
   bool updatingProfile = false;
+  bool deletingAccount = false;
   bool isOffline = false;
   bool loadingPlans = false;
   final MobileApiService _api = MobileApiService();
@@ -183,6 +185,7 @@ class AppState extends ChangeNotifier {
   static const String _prefsRememberMe = 'remember_me';
   static const String _prefsAuthToken = 'auth_token';
   static const String _prefsRememberedEmail = 'remembered_email';
+  static const String _prefsAuthProvider = 'auth_provider';
   static const String _prefsCachedSubjects = 'cached_practice_subjects';
 
   void finishOnboarding() {
@@ -209,6 +212,7 @@ class AppState extends ChangeNotifier {
       await prefs.setBool(_prefsRememberMe, value);
       if (!value) {
         await prefs.remove(_prefsAuthToken);
+        await prefs.remove(_prefsAuthProvider);
       }
     } catch (_) {
       // Ignore preference persistence errors.
@@ -224,6 +228,11 @@ class AppState extends ChangeNotifier {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       rememberMe = prefs.getBool(_prefsRememberMe) ?? false;
       rememberedEmail = prefs.getString(_prefsRememberedEmail);
+      final String authProvider =
+          (prefs.getString(_prefsAuthProvider) ?? 'password')
+              .trim()
+              .toLowerCase();
+      signedInWithGoogle = authProvider == 'google';
       final String? token = prefs.getString(_prefsAuthToken);
       if (!rememberMe || token == null || token.isEmpty) {
         _restoringSession = false;
@@ -236,6 +245,7 @@ class AppState extends ChangeNotifier {
       if (!response.ok || response.data == null) {
         _api.setAuthToken(null);
         await prefs.remove(_prefsAuthToken);
+        await prefs.remove(_prefsAuthProvider);
         _restoringSession = false;
         notifyListeners();
         return false;
@@ -363,9 +373,11 @@ class AppState extends ChangeNotifier {
       emailFallback: email.trim(),
       nameFallback: _nameFromEmail(email),
     );
+    signedInWithGoogle = false;
     await _persistSession(
       token: data.token,
       email: data.email.trim().isNotEmpty ? data.email.trim() : email.trim(),
+      authProvider: 'password',
     );
     notifyListeners();
     unawaited(_warmupSignedInData());
@@ -455,6 +467,7 @@ class AppState extends ChangeNotifier {
           ? googleAuth.name!.trim()
           : _nameFromEmail(fallbackEmail),
     );
+    signedInWithGoogle = true;
     // Google login requires a verified Google account before token acceptance.
     if (!userEmailVerified) {
       userEmailVerified = true;
@@ -463,6 +476,7 @@ class AppState extends ChangeNotifier {
     await _persistSession(
       token: data.token,
       email: data.email.trim().isNotEmpty ? data.email.trim() : fallbackEmail,
+      authProvider: 'google',
     );
     notifyListeners();
     unawaited(_warmupSignedInData());
@@ -607,6 +621,35 @@ class AppState extends ChangeNotifier {
         return 'Session expired. Please login again.';
       }
       return response.message ?? 'Unable to send feedback.';
+    }
+
+    return null;
+  }
+
+  Future<String?> deleteAccount({String? password}) async {
+    if (!signedIn) {
+      return 'Please login first.';
+    }
+    if (deletingAccount) {
+      return null;
+    }
+
+    deletingAccount = true;
+    notifyListeners();
+
+    ApiResult<bool> response;
+    try {
+      response = await _api.deleteAccount(password: password);
+    } finally {
+      deletingAccount = false;
+      notifyListeners();
+    }
+
+    if (!response.ok || response.data != true) {
+      if (response.statusCode == 401) {
+        return 'Session expired. Please login again.';
+      }
+      return response.message ?? 'Unable to delete account.';
     }
 
     return null;
@@ -1201,12 +1244,25 @@ class AppState extends ChangeNotifier {
   }
 
   void logout() {
+    _resetSessionState(notify: true, signOutGoogle: true);
+  }
+
+  void clearSessionAfterAccountDeletion() {
+    _resetSessionState(notify: false, signOutGoogle: false);
+  }
+
+  void _resetSessionState({
+    required bool notify,
+    required bool signOutGoogle,
+  }) {
     signedIn = false;
+    signedInWithGoogle = false;
     selectedPlanId = null;
     subscriptionBillingCycle = null;
     subscriptionEndDate = null;
     selectingPlan = false;
     creatingCheckout = false;
+    deletingAccount = false;
     userSchool = '';
     userEmailVerified = false;
     userEmailVerifiedAt = null;
@@ -1251,9 +1307,41 @@ class AppState extends ChangeNotifier {
     hasMoreReferrals = false;
     _referralsPage = 1;
     _api.setAuthToken(null);
-    unawaited(_googleAuth.signOut());
-    unawaited(_clearStoredSession());
-    notifyListeners();
+    if (signOutGoogle) {
+      unawaited(_signOutGoogleSafely());
+    }
+    unawaited(_clearStoredSessionSafely());
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _signOutGoogleSafely() async {
+    try {
+      await _googleAuth.signOut();
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'AppState Google sign-out',
+        ),
+      );
+    }
+  }
+
+  Future<void> _clearStoredSessionSafely() async {
+    try {
+      await _clearStoredSession();
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'AppState clear stored session',
+        ),
+      );
+    }
   }
 
   PlanOption get currentPlan {
@@ -1641,11 +1729,13 @@ class AppState extends ChangeNotifier {
   Future<void> _persistSession({
     required String? token,
     required String email,
+    required String authProvider,
   }) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_prefsRememberMe, rememberMe);
       await prefs.setString(_prefsRememberedEmail, email);
+      await prefs.setString(_prefsAuthProvider, authProvider.trim());
       if (rememberMe && token != null && token.trim().isNotEmpty) {
         await prefs.setString(_prefsAuthToken, token.trim());
       } else {
@@ -1660,6 +1750,7 @@ class AppState extends ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.remove(_prefsAuthToken);
+      await prefs.remove(_prefsAuthProvider);
     } catch (_) {
       // Ignore storage cleanup errors.
     }

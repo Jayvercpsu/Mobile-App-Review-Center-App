@@ -92,9 +92,7 @@ class MobileApiService {
 
       return ApiResult<bool>.success(true);
     } catch (_) {
-      return ApiResult<bool>.failure(
-        'Something went wrong. Please try again.',
-      );
+      return ApiResult<bool>.failure('Something went wrong. Please try again.');
     }
   }
 
@@ -116,9 +114,7 @@ class MobileApiService {
 
       return ApiResult<bool>.success(true);
     } catch (_) {
-      return ApiResult<bool>.failure(
-        'Something went wrong. Please try again.',
-      );
+      return ApiResult<bool>.failure('Something went wrong. Please try again.');
     }
   }
 
@@ -140,9 +136,7 @@ class MobileApiService {
 
       return ApiResult<bool>.success(true);
     } catch (_) {
-      return ApiResult<bool>.failure(
-        'Something went wrong. Please try again.',
-      );
+      return ApiResult<bool>.failure('Something went wrong. Please try again.');
     }
   }
 
@@ -173,9 +167,7 @@ class MobileApiService {
           decoded is Map<String, dynamic> && decoded['available'] == true;
       return ApiResult<bool>.success(available);
     } catch (_) {
-      return ApiResult<bool>.failure(
-        'Something went wrong. Please try again.',
-      );
+      return ApiResult<bool>.failure('Something went wrong. Please try again.');
     }
   }
 
@@ -251,6 +243,38 @@ class MobileApiService {
       return ApiResult<AuthPayload>.failure(
         'Something went wrong. Please try again.',
       );
+    }
+  }
+
+  Future<ApiResult<bool>> deleteAccount({String? password}) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<bool>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _deleteWithFallback(
+        path: ApiConfig.accountDelete,
+        payload: <String, dynamic>{
+          if (password != null && password.trim().isNotEmpty)
+            'password': password.trim(),
+        },
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<bool>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<bool>.success(true);
+    } catch (_) {
+      return ApiResult<bool>.failure('Something went wrong. Please try again.');
     }
   }
 
@@ -556,9 +580,7 @@ class MobileApiService {
 
       return ApiResult<bool>.success(true);
     } catch (_) {
-      return ApiResult<bool>.failure(
-        'Something went wrong. Please try again.',
-      );
+      return ApiResult<bool>.failure('Something went wrong. Please try again.');
     }
   }
 
@@ -769,9 +791,7 @@ class MobileApiService {
 
       return ApiResult<int>.success(deleted);
     } catch (_) {
-      return ApiResult<int>.failure(
-        'Something went wrong. Please try again.',
-      );
+      return ApiResult<int>.failure('Something went wrong. Please try again.');
     }
   }
 
@@ -802,9 +822,7 @@ class MobileApiService {
           0;
       return ApiResult<int>.success(deleted);
     } catch (_) {
-      return ApiResult<int>.failure(
-        'Something went wrong. Please try again.',
-      );
+      return ApiResult<int>.failure('Something went wrong. Please try again.');
     }
   }
 
@@ -1025,9 +1043,7 @@ class MobileApiService {
 
       return ApiResult<bool>.success(true);
     } catch (_) {
-      return ApiResult<bool>.failure(
-        'Something went wrong. Please try again.',
-      );
+      return ApiResult<bool>.failure('Something went wrong. Please try again.');
     }
   }
 
@@ -1121,6 +1137,39 @@ class MobileApiService {
               ApiConfig.uri(path, overrideBaseUrl: baseUrl),
               headers: _headers(),
               body: jsonEncode(payload),
+            )
+            .timeout(_requestTimeout);
+        if (response.statusCode == 404) {
+          fallbackResponse = response;
+          continue;
+        }
+        _resolvedBaseUrl = baseUrl;
+        return response;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (fallbackResponse != null) {
+      return fallbackResponse;
+    }
+    throw lastError ?? Exception('Cannot connect to any configured API host.');
+  }
+
+  Future<http.Response> _deleteWithFallback({
+    required String path,
+    Map<String, dynamic>? payload,
+  }) async {
+    Object? lastError;
+    http.Response? fallbackResponse;
+
+    for (final String baseUrl in _candidateBaseUrls()) {
+      try {
+        final http.Response response = await _client
+            .delete(
+              ApiConfig.uri(path, overrideBaseUrl: baseUrl),
+              headers: _headers(),
+              body: jsonEncode(payload ?? <String, dynamic>{}),
             )
             .timeout(_requestTimeout);
         if (response.statusCode == 404) {

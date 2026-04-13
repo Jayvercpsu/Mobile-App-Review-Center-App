@@ -39,6 +39,74 @@ class ProfileTab extends StatelessWidget {
     );
   }
 
+  Future<String?> _promptDeleteAccount(BuildContext context) async {
+    final AppState appState = context.read<AppState>();
+    final bool showPasswordField = !appState.signedInWithGoogle;
+    return showDialog<String?>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => _DeleteAccountDialog(showPasswordField: showPasswordField),
+    );
+  }
+
+  Future<void> _deleteAccountFlow(BuildContext context) async {
+    try {
+      final String? password = await _promptDeleteAccount(context);
+      if (!context.mounted || password == null) {
+        return;
+      }
+
+      // Let the dialog route fully dispose before we notify listeners.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!context.mounted) {
+        return;
+      }
+
+      final AppState appState = context.read<AppState>();
+      final String? error = await appState.deleteAccount(
+        password: password.isEmpty ? null : password,
+      );
+      if (!context.mounted) {
+        return;
+      }
+
+      if (error != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
+        return;
+      }
+
+      if (!context.mounted) {
+        return;
+      }
+
+      // Clear auth/session first (no notify) then reset the navigation stack.
+      appState.clearSessionAfterAccountDeletion();
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              const LoginScreen(statusMessage: 'Account deleted successfully.'),
+        ),
+        (Route<dynamic> route) => false,
+      );
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'ProfileTab delete account',
+        ),
+      );
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to delete account right now.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
@@ -351,67 +419,72 @@ class ProfileTab extends StatelessWidget {
                     width: double.infinity,
                     height: 50,
                     child: OutlinedButton(
-                      onPressed: () async {
-                        final bool? shouldLogout = await showDialog<bool>(
-                          context: context,
-                          builder: (BuildContext dialogContext) {
-                            return AlertDialog(
-                              title: Text(
-                                'Logout',
-                                style: GoogleFonts.redHatDisplay(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppPalette.primary,
-                                ),
-                              ),
-                              content: Text(
-                                'Are you sure you want to logout from your account?',
-                                style: GoogleFonts.manrope(
-                                  color: AppPalette.textDark,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              actions: <Widget>[
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(dialogContext).pop(false),
-                                  child: Text(
-                                    'Cancel',
-                                    style: GoogleFonts.manrope(
-                                      color: AppPalette.muted,
-                                      fontWeight: FontWeight.w700,
+                      onPressed: appState.deletingAccount
+                          ? null
+                          : () async {
+                              final bool? shouldLogout = await showDialog<bool>(
+                                context: context,
+                                builder: (BuildContext dialogContext) {
+                                  return AlertDialog(
+                                    title: Text(
+                                      'Logout',
+                                      style: GoogleFonts.redHatDisplay(
+                                        fontWeight: FontWeight.w800,
+                                        color: AppPalette.primary,
+                                      ),
                                     ),
-                                  ),
-                                ),
-                                FilledButton(
-                                  onPressed: () =>
-                                      Navigator.of(dialogContext).pop(true),
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: AppPalette.secondary,
-                                  ),
-                                  child: Text(
-                                    'Logout',
-                                    style: GoogleFonts.manrope(
-                                      fontWeight: FontWeight.w700,
+                                    content: Text(
+                                      'Are you sure you want to logout from your account?',
+                                      style: GoogleFonts.manrope(
+                                        color: AppPalette.textDark,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        );
+                                    actions: <Widget>[
+                                      TextButton(
+                                        onPressed: () => Navigator.of(
+                                          dialogContext,
+                                        ).pop(false),
+                                        child: Text(
+                                          'Cancel',
+                                          style: GoogleFonts.manrope(
+                                            color: AppPalette.muted,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () => Navigator.of(
+                                          dialogContext,
+                                        ).pop(true),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: AppPalette.secondary,
+                                        ),
+                                        child: Text(
+                                          'Logout',
+                                          style: GoogleFonts.manrope(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
 
-                        if (shouldLogout != true || !context.mounted) {
-                          return;
-                        }
-                        context.read<AppState>().logout();
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                const LoginScreen(showLogoutMessage: true),
-                          ),
-                          (Route<dynamic> route) => false,
-                        );
-                      },
+                              if (shouldLogout != true || !context.mounted) {
+                                return;
+                              }
+                              context.read<AppState>().logout();
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const LoginScreen(
+                                    showLogoutMessage: true,
+                                  ),
+                                ),
+                                (Route<dynamic> route) => false,
+                              );
+                            },
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
                           color: AppPalette.secondary.withValues(alpha: 0.3),
@@ -419,6 +492,43 @@ class ProfileTab extends StatelessWidget {
                       ),
                       child: Text(
                         'Logout',
+                        style: GoogleFonts.manrope(
+                          color: AppPalette.secondary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: appState.deletingAccount
+                          ? null
+                          : () => _deleteAccountFlow(context),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: AppPalette.secondary.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      icon: appState.deletingAccount
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppPalette.secondary,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.delete_forever_rounded,
+                              color: AppPalette.secondary,
+                            ),
+                      label: Text(
+                        appState.deletingAccount
+                            ? 'Deleting account...'
+                            : 'Delete Account',
                         style: GoogleFonts.manrope(
                           color: AppPalette.secondary,
                           fontWeight: FontWeight.w800,
@@ -472,6 +582,116 @@ class ProfileTab extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DeleteAccountDialog extends StatefulWidget {
+  const _DeleteAccountDialog({required this.showPasswordField});
+
+  final bool showPasswordField;
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final TextEditingController _confirmController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  bool get _canDelete => _confirmController.text.trim().toUpperCase() == 'DELETE';
+
+  @override
+  void dispose() {
+    _confirmController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        'Delete Account',
+        style: GoogleFonts.redHatDisplay(
+          fontWeight: FontWeight.w800,
+          color: AppPalette.secondary,
+        ),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'This action permanently deletes your account and cannot be undone.',
+              style: GoogleFonts.manrope(
+                color: AppPalette.textDark,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _confirmController,
+              onChanged: (_) => setState(() {}),
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Type DELETE to confirm',
+              ),
+            ),
+            if (widget.showPasswordField) ...<Widget>[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  helperText: 'Required for email login accounts.',
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            'Cancel',
+            style: GoogleFonts.manrope(
+              color: AppPalette.muted,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        FilledButton(
+          onPressed: !_canDelete
+              ? null
+              : () => Navigator.of(context).pop(
+                  widget.showPasswordField
+                      ? _passwordController.text.trim()
+                      : '',
+                ),
+          style: FilledButton.styleFrom(backgroundColor: AppPalette.secondary),
+          child: Text(
+            'Delete Account',
+            style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -702,7 +922,8 @@ class _ProfileSettingsCard extends StatefulWidget {
 }
 
 class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey =
+      GlobalKey<FormState>(debugLabel: 'profile_settings_form');
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _schoolController = TextEditingController();

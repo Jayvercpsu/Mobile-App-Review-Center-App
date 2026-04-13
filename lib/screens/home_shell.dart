@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -40,6 +42,8 @@ class _HomeShellState extends State<HomeShell> {
   bool _guideActive = false;
   int _guideStepIndex = 0;
   String? _guideUserEmail;
+  OverlayEntry? _celebrationEntry;
+  Timer? _celebrationTimer;
 
   static const List<_GuideStep> _guideSteps = <_GuideStep>[
     _GuideStep(
@@ -85,6 +89,11 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    _celebrationTimer?.cancel();
+    if (_celebrationEntry?.mounted == true) {
+      _celebrationEntry?.remove();
+    }
+    _celebrationEntry = null;
     _pageController.dispose();
     super.dispose();
   }
@@ -128,6 +137,11 @@ class _HomeShellState extends State<HomeShell> {
       return;
     }
 
+    _celebrationTimer?.cancel();
+    if (_celebrationEntry?.mounted == true) {
+      _celebrationEntry?.remove();
+    }
+
     const Duration toastDuration = Duration(seconds: 5);
     final double topInset = MediaQuery.of(context).padding.top + 16;
     final OverlayEntry entry = OverlayEntry(
@@ -155,11 +169,14 @@ class _HomeShellState extends State<HomeShell> {
       },
     );
 
+    _celebrationEntry = entry;
     overlay.insert(entry);
-    Future<void>.delayed(toastDuration, () {
-      if (entry.mounted) {
-        entry.remove();
+    _celebrationTimer = Timer(toastDuration, () {
+      if (_celebrationEntry?.mounted == true) {
+        _celebrationEntry?.remove();
       }
+      _celebrationEntry = null;
+      _celebrationTimer = null;
     });
   }
 

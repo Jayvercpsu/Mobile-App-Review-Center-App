@@ -12,9 +12,14 @@ import 'home_shell.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.showLogoutMessage = false});
+  const LoginScreen({
+    super.key,
+    this.showLogoutMessage = false,
+    this.statusMessage,
+  });
 
   final bool showLogoutMessage;
+  final String? statusMessage;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -45,6 +50,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Logged out successfully.')),
         );
+      } else {
+        final String message = (widget.statusMessage ?? '').trim();
+        if (message.isNotEmpty && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        }
       }
     });
   }

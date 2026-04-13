@@ -90,6 +90,7 @@ class ApiConfig {
   static const String resendVerification =
       '/mobile/email/verification-notification';
   static const String me = '/mobile/me';
+  static const String accountDelete = '/mobile/account';
   static const String demoSeen = '/mobile/demo/seen';
   static const String plans = '/mobile/plans';
   static const String profile = '/mobile/profile';

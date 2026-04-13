@@ -35,7 +35,8 @@ class GoogleProfileCompletionScreen extends StatefulWidget {
 
 class _GoogleProfileCompletionScreenState
     extends State<GoogleProfileCompletionScreen> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey =
+      GlobalKey<FormState>(debugLabel: 'google_profile_completion_form');
   late final TextEditingController _nameController;
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _schoolController = TextEditingController();

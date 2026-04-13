@@ -79,6 +79,7 @@ class MobileApiService {
       final http.Response response = await _postWithFallback(
         path: ApiConfig.register,
         payload: payload,
+        timeout: const Duration(seconds: 25),
       );
       final dynamic decoded = _decodeJson(response.body);
 
@@ -91,6 +92,27 @@ class MobileApiService {
       }
 
       return ApiResult<bool>.success(true);
+    } on TimeoutException {
+      // The server may have created the account + emailed verification even if
+      // the client timed out. Try to confirm by checking email availability.
+      try {
+        final ApiResult<bool> availability = await isEmailAvailable(
+          email: email,
+        );
+        if (availability.ok && availability.data == false) {
+          return ApiResult<bool>.success(true);
+        }
+        if (availability.ok && availability.data == true) {
+          return ApiResult<bool>.failure(
+            'Unable to complete registration. Please try again.',
+          );
+        }
+      } catch (_) {
+        // Fall through to the timeout message.
+      }
+      return ApiResult<bool>.failure(
+        'Request timed out. Check your email for verification, then try logging in.',
+      );
     } catch (_) {
       return ApiResult<bool>.failure('Something went wrong. Please try again.');
     }
@@ -128,6 +150,7 @@ class MobileApiService {
       final http.Response response = await _postWithFallback(
         path: ApiConfig.resendVerification,
         payload: <String, dynamic>{'email': email.trim()},
+        timeout: const Duration(seconds: 25),
       );
       final dynamic decoded = _decodeJson(response.body);
 
@@ -139,6 +162,9 @@ class MobileApiService {
         );
       }
 
+      return ApiResult<bool>.success(true);
+    } on TimeoutException {
+      // Verification email can still be sent even if the client times out.
       return ApiResult<bool>.success(true);
     } catch (_) {
       return ApiResult<bool>.failure('Something went wrong. Please try again.');

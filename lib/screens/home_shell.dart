@@ -123,11 +123,7 @@ class _HomeShellState extends State<HomeShell> {
     });
 
     if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeInOutCubic,
-      );
+      _pageController.jumpToPage(index);
     }
   }
 

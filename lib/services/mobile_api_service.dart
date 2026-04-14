@@ -53,6 +53,32 @@ class MobileApiService {
     );
   }
 
+  Future<ApiResult<AuthPayload>> loginWithApple({
+    required String idToken,
+    String? email,
+    String? name,
+    String? avatarUrl,
+    String? school,
+    String? phoneNumber,
+    String? appleUserId,
+  }) async {
+    return _postAuth(
+      path: ApiConfig.appleLogin,
+      payload: <String, dynamic>{
+        'id_token': idToken.trim(),
+        if (appleUserId != null && appleUserId.trim().isNotEmpty)
+          'apple_user_id': appleUserId.trim(),
+        if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        if (avatarUrl != null && avatarUrl.trim().isNotEmpty)
+          'avatar_url': avatarUrl.trim(),
+        if (school != null && school.trim().isNotEmpty) 'school': school.trim(),
+        if (phoneNumber != null && phoneNumber.trim().isNotEmpty)
+          'phone_number': phoneNumber.trim(),
+      },
+    );
+  }
+
   Future<ApiResult<bool>> register({
     required String name,
     required String email,

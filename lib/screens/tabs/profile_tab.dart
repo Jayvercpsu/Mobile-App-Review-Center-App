@@ -41,11 +41,12 @@ class ProfileTab extends StatelessWidget {
 
   Future<String?> _promptDeleteAccount(BuildContext context) async {
     final AppState appState = context.read<AppState>();
-    final bool showPasswordField = !appState.signedInWithGoogle;
+    final bool showPasswordField = !appState.signedInWithSocial;
     return showDialog<String?>(
       context: context,
       useRootNavigator: true,
-      builder: (_) => _DeleteAccountDialog(showPasswordField: showPasswordField),
+      builder: (_) =>
+          _DeleteAccountDialog(showPasswordField: showPasswordField),
     );
   }
 
@@ -600,7 +601,8 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  bool get _canDelete => _confirmController.text.trim().toUpperCase() == 'DELETE';
+  bool get _canDelete =>
+      _confirmController.text.trim().toUpperCase() == 'DELETE';
 
   @override
   void dispose() {
@@ -922,8 +924,9 @@ class _ProfileSettingsCard extends StatefulWidget {
 }
 
 class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
-  final GlobalKey<FormState> _formKey =
-      GlobalKey<FormState>(debugLabel: 'profile_settings_form');
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>(
+    debugLabel: 'profile_settings_form',
+  );
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _schoolController = TextEditingController();

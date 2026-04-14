@@ -84,6 +84,7 @@ class ApiConfig {
 
   static const String login = '/mobile/login';
   static const String googleLogin = '/mobile/login/google';
+  static const String appleLogin = '/mobile/login/apple';
   static const String register = '/mobile/register';
   static const String forgotPassword = '/mobile/password/forgot';
   static const String checkEmail = '/mobile/email/check';

@@ -7,9 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../core/app_theme.dart';
 import '../models/app_models.dart';
+import '../services/apple_auth_service.dart';
 import '../services/google_auth_service.dart';
 import '../services/mobile_api_service.dart';
 
@@ -59,6 +61,52 @@ class GoogleLoginResult {
   }
 }
 
+class AppleLoginResult {
+  const AppleLoginResult._({
+    required this.success,
+    required this.requiresProfile,
+    required this.message,
+    this.prefillName,
+    this.prefillEmail,
+  });
+
+  final bool success;
+  final bool requiresProfile;
+  final String? message;
+  final String? prefillName;
+  final String? prefillEmail;
+
+  factory AppleLoginResult.success() {
+    return const AppleLoginResult._(
+      success: true,
+      requiresProfile: false,
+      message: null,
+    );
+  }
+
+  factory AppleLoginResult.failure(String message) {
+    return AppleLoginResult._(
+      success: false,
+      requiresProfile: false,
+      message: message,
+    );
+  }
+
+  factory AppleLoginResult.requiresProfile({
+    String? message,
+    String? prefillName,
+    String? prefillEmail,
+  }) {
+    return AppleLoginResult._(
+      success: false,
+      requiresProfile: true,
+      message: message,
+      prefillName: prefillName,
+      prefillEmail: prefillEmail,
+    );
+  }
+}
+
 class AppState extends ChangeNotifier {
   AppState() {
     unawaited(loadPlans());
@@ -69,6 +117,7 @@ class AppState extends ChangeNotifier {
   bool onboardingDone = false;
   bool signedIn = false;
   bool signedInWithGoogle = false;
+  bool signedInWithApple = false;
   bool rememberMe = false;
   String? rememberedEmail;
   String userName = 'Future Topnotcher';
@@ -110,6 +159,7 @@ class AppState extends ChangeNotifier {
   bool loadingPlans = false;
   final MobileApiService _api = MobileApiService();
   final GoogleAuthService _googleAuth = GoogleAuthService();
+  final AppleAuthService _appleAuth = AppleAuthService();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _plansLoaded = false;
   bool loadingPracticeSubjects = false;
@@ -135,6 +185,7 @@ class AppState extends ChangeNotifier {
   int _referralsPerPage = 5;
   bool _restoringSession = false;
   GoogleAuthResult? _pendingGoogleAuth;
+  AppleAuthResult? _pendingAppleAuth;
 
   static const PlanOption _placeholderPlan = PlanOption(
     id: -1,
@@ -179,6 +230,7 @@ class AppState extends ChangeNotifier {
       List<ReferralOfferItem>.unmodifiable(_referralOffers);
   List<ReferralRewardItem> get activeRewards =>
       List<ReferralRewardItem>.unmodifiable(_activeRewards);
+  bool get signedInWithSocial => signedInWithGoogle || signedInWithApple;
 
   final List<QuizRecord> records = <QuizRecord>[];
 
@@ -233,6 +285,7 @@ class AppState extends ChangeNotifier {
               .trim()
               .toLowerCase();
       signedInWithGoogle = authProvider == 'google';
+      signedInWithApple = authProvider == 'apple';
       final String? token = prefs.getString(_prefsAuthToken);
       if (!rememberMe || token == null || token.isEmpty) {
         _restoringSession = false;
@@ -374,6 +427,9 @@ class AppState extends ChangeNotifier {
       nameFallback: _nameFromEmail(email),
     );
     signedInWithGoogle = false;
+    signedInWithApple = false;
+    _pendingGoogleAuth = null;
+    _pendingAppleAuth = null;
     await _persistSession(
       token: data.token,
       email: data.email.trim().isNotEmpty ? data.email.trim() : email.trim(),
@@ -468,6 +524,8 @@ class AppState extends ChangeNotifier {
           : _nameFromEmail(fallbackEmail),
     );
     signedInWithGoogle = true;
+    signedInWithApple = false;
+    _pendingAppleAuth = null;
     // Google login requires a verified Google account before token acceptance.
     if (!userEmailVerified) {
       userEmailVerified = true;
@@ -481,6 +539,94 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     unawaited(_warmupSignedInData());
     return GoogleLoginResult.success();
+  }
+
+  Future<AppleLoginResult> loginWithApple({
+    String? fullName,
+    String? phoneNumber,
+    String? school,
+    bool reusePendingAuth = false,
+  }) async {
+    AppleAuthResult? appleAuth = reusePendingAuth ? _pendingAppleAuth : null;
+    try {
+      appleAuth ??= await _appleAuth.signIn();
+    } on SignInWithAppleAuthorizationException catch (error) {
+      if (error.code == AuthorizationErrorCode.canceled) {
+        return AppleLoginResult.failure(
+          'Apple sign-in was canceled. Please try again.',
+        );
+      }
+      return AppleLoginResult.failure(
+        'Unable to complete Apple sign-in. Please try again.',
+      );
+    } on StateError catch (error) {
+      return AppleLoginResult.failure(error.message);
+    } catch (_) {
+      return AppleLoginResult.failure(
+        'Unable to complete Apple sign-in. Please try again.',
+      );
+    }
+
+    if (appleAuth == null) {
+      return AppleLoginResult.failure(
+        'Apple sign-in was canceled or interrupted. Please try again.',
+      );
+    }
+
+    final String effectiveName = (fullName ?? appleAuth.name ?? '').trim();
+    final ApiResult<AuthPayload> response = await _api.loginWithApple(
+      idToken: appleAuth.idToken,
+      appleUserId: appleAuth.userIdentifier,
+      email: appleAuth.email,
+      name: effectiveName.isEmpty ? appleAuth.name : effectiveName,
+      school: school,
+      phoneNumber: phoneNumber,
+    );
+    if (!response.ok || response.data == null) {
+      if (response.statusCode == 428) {
+        _pendingAppleAuth = appleAuth;
+        final String prefillEmail = appleAuth.email.trim();
+        return AppleLoginResult.requiresProfile(
+          message:
+              response.message ??
+              'Complete your profile first (full name, phone number, school).',
+          prefillName: appleAuth.name,
+          prefillEmail: prefillEmail.isEmpty ? null : prefillEmail,
+        );
+      }
+      _pendingAppleAuth = null;
+      return AppleLoginResult.failure(
+        response.message ?? 'Apple login failed.',
+      );
+    }
+
+    _pendingAppleAuth = null;
+    final AuthPayload data = response.data!;
+    final String fallbackEmail = appleAuth.email.trim();
+    _applyAuthPayload(
+      data,
+      emailFallback: fallbackEmail.isNotEmpty ? fallbackEmail : rememberedEmail,
+      nameFallback: (appleAuth.name ?? '').trim().isNotEmpty
+          ? appleAuth.name!.trim()
+          : _nameFromEmail(
+              (fallbackEmail.isNotEmpty ? fallbackEmail : 'apple_user'),
+            ),
+    );
+    signedInWithGoogle = false;
+    signedInWithApple = true;
+    _pendingGoogleAuth = null;
+    if (!userEmailVerified) {
+      userEmailVerified = true;
+      userEmailVerifiedAt ??= DateTime.now();
+    }
+    await _persistSession(
+      token: data.token,
+      email: data.email.trim().isNotEmpty ? data.email.trim() : fallbackEmail,
+      authProvider: 'apple',
+    );
+    notifyListeners();
+    unawaited(_warmupSignedInData());
+    return AppleLoginResult.success();
   }
 
   Future<String?> register({
@@ -1251,12 +1397,10 @@ class AppState extends ChangeNotifier {
     _resetSessionState(notify: false, signOutGoogle: false);
   }
 
-  void _resetSessionState({
-    required bool notify,
-    required bool signOutGoogle,
-  }) {
+  void _resetSessionState({required bool notify, required bool signOutGoogle}) {
     signedIn = false;
     signedInWithGoogle = false;
+    signedInWithApple = false;
     selectedPlanId = null;
     subscriptionBillingCycle = null;
     subscriptionEndDate = null;
@@ -1306,6 +1450,8 @@ class AppState extends ChangeNotifier {
     loadingReferrals = false;
     hasMoreReferrals = false;
     _referralsPage = 1;
+    _pendingGoogleAuth = null;
+    _pendingAppleAuth = null;
     _api.setAuthToken(null);
     if (signOutGoogle) {
       unawaited(_signOutGoogleSafely());

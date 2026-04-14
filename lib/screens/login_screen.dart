@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import 'apple_profile_completion_screen.dart';
 import '../core/app_theme.dart';
 import '../state/app_state.dart';
 import 'email_verification_notice_screen.dart';
@@ -31,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _loading = false;
   bool _googleLoading = false;
+  bool _appleLoading = false;
   bool _postGoogleTransitionLoading = false;
   String _googleLoadingMessage = 'Signing in with Google...';
 
@@ -53,9 +56,9 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         final String message = (widget.statusMessage ?? '').trim();
         if (message.isNotEmpty && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
         }
       }
     });
@@ -136,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithGoogle() async {
-    if (_loading || _googleLoading) {
+    if (_loading || _googleLoading || _appleLoading) {
       return;
     }
 
@@ -223,8 +226,101 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Future<void> _loginWithApple() async {
+    if (_loading || _googleLoading || _appleLoading) {
+      return;
+    }
+
+    setState(() {
+      _appleLoading = true;
+      _googleLoadingMessage = 'Signing in with Apple...';
+    });
+
+    AppleLoginResult result;
+    try {
+      result = await context.read<AppState>().loginWithApple();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (result.requiresProfile) {
+        setState(() {
+          _appleLoading = false;
+        });
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => AppleProfileCompletionScreen(
+              prefillName: result.prefillName,
+              prefillEmail: result.prefillEmail,
+            ),
+          ),
+        );
+        if (!mounted) {
+          return;
+        }
+        return;
+      }
+    } catch (_) {
+      result = AppleLoginResult.failure(
+        'Unable to complete Apple sign-in. Please try again.',
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final AppState appState = context.read<AppState>();
+    if (!appState.signedIn) {
+      setState(() {
+        _appleLoading = false;
+        _googleLoadingMessage = 'Signing in with Google...';
+      });
+      final String? error = result.message;
+      if (error != null && error.trim().isNotEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
+      }
+      return;
+    }
+
+    setState(() {
+      _appleLoading = true;
+      _googleLoadingMessage = 'Signing you in...';
+      _postGoogleTransitionLoading = true;
+    });
+    await Future<void>.delayed(const Duration(seconds: 5));
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _postGoogleTransitionLoading = false;
+      _appleLoading = false;
+      _googleLoadingMessage = 'Signing in with Google...';
+    });
+
+    final bool isReturningUser = appState.mobileDemoSeen;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => HomeShell(
+          showOnlineMessageOnStart: false,
+          startupMessage: 'Login successful.',
+          showWelcomeBackOnStart: isReturningUser,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final TargetPlatform platform = Theme.of(context).platform;
+    final bool showAppleSignin =
+        !kIsWeb &&
+        (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS);
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
@@ -418,7 +514,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     height: 52,
                     child: OutlinedButton(
-                      onPressed: (_loading || _googleLoading)
+                      onPressed: (_loading || _googleLoading || _appleLoading)
                           ? null
                           : _loginWithGoogle,
                       style: OutlinedButton.styleFrom(
@@ -464,6 +560,57 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                     ),
                   ),
+                  if (showAppleSignin) ...<Widget>[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton(
+                        onPressed: (_loading || _googleLoading || _appleLoading)
+                            ? null
+                            : _loginWithApple,
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          side: const BorderSide(color: Colors.black12),
+                          textStyle: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.none,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: _appleLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  const Icon(
+                                    Icons.apple_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Sign in with Apple',
+                                    style: GoogleFonts.manrope(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      decoration: TextDecoration.none,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,

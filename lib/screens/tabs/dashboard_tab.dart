@@ -255,6 +255,15 @@ class _DashboardTabState extends State<DashboardTab> {
       return;
     }
 
+    if (plan.usesInAppPurchase) {
+      await _openInAppPurchase(
+        context: context,
+        appState: appState,
+        plan: plan,
+      );
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -436,10 +445,11 @@ class _DashboardTabState extends State<DashboardTab> {
                       style: FilledButton.styleFrom(
                         backgroundColor: AppPalette.secondary,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                            AppPalette.secondary.withValues(alpha: 0.45),
-                        disabledForegroundColor:
-                            Colors.white.withValues(alpha: 0.85),
+                        disabledBackgroundColor: AppPalette.secondary
+                            .withValues(alpha: 0.45),
+                        disabledForegroundColor: Colors.white.withValues(
+                          alpha: 0.85,
+                        ),
                       ),
                       child: Text(
                         'PROCEED NOW',
@@ -515,6 +525,50 @@ class _DashboardTabState extends State<DashboardTab> {
           },
         ) ??
         false;
+  }
+
+  Future<void> _openInAppPurchase({
+    required BuildContext context,
+    required AppState appState,
+    required PlanOption plan,
+  }) async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'In-app purchase is only available on Android and iOS apps.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final String? error = await appState.purchasePlanWithInAppPurchase(
+      plan: plan,
+      billingCycle: plan.billingCycle,
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    setState(() {
+      _previewPlanId = appState.currentPlan.id;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Successfully chose ${plan.groupLabel} - ${plan.subPlanLabel}.',
+        ),
+      ),
+    );
   }
 
   Future<void> _openPaidCheckout({
@@ -654,7 +708,9 @@ class _DashboardTabState extends State<DashboardTab> {
     required AppState appState,
   }) async {
     final String? userError = await appState.refreshCurrentUser();
-    final String? metricsError = await appState.loadDashboardMetrics(force: true);
+    final String? metricsError = await appState.loadDashboardMetrics(
+      force: true,
+    );
     final String? historyError = await appState.loadSubscriptionHistory(
       loadMore: false,
     );
@@ -689,105 +745,104 @@ class _DashboardTabState extends State<DashboardTab> {
         : 'Your premium access is valid until $formattedEndDate, but cancelling will end it immediately and return you to the free plan.';
 
     final _CancelPlanResult? decision = await showDialog<_CancelPlanResult>(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext dialogContext) {
-            bool submitting = false;
-            return StatefulBuilder(
-              builder: (BuildContext _, void Function(void Function()) setState) {
-                return AlertDialog(
-                  title: Text(
-                    'Cancel Plan',
-                    style: GoogleFonts.redHatDisplay(
-                      fontWeight: FontWeight.w800,
-                      color: AppPalette.primary,
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        bool submitting = false;
+        return StatefulBuilder(
+          builder: (BuildContext _, void Function(void Function()) setState) {
+            return AlertDialog(
+              title: Text(
+                'Cancel Plan',
+                style: GoogleFonts.redHatDisplay(
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.primary,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Do you want to proceed with cancellation?',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.textDark,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Do you want to proceed with cancellation?',
-                        style: GoogleFonts.manrope(
-                          color: AppPalette.textDark,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        detail,
-                        style: GoogleFonts.manrope(
-                          color: AppPalette.muted,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 8),
+                  Text(
+                    detail,
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: submitting
-                          ? null
-                          : () => Navigator.of(dialogContext).pop(
-                                const _CancelPlanResult(proceed: false),
-                              ),
-                      child: Text(
-                        'Keep Plan',
-                        style: GoogleFonts.manrope(
-                          color: AppPalette.muted,
-                          fontWeight: FontWeight.w700,
+                ],
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: submitting
+                      ? null
+                      : () => Navigator.of(
+                          dialogContext,
+                        ).pop(const _CancelPlanResult(proceed: false)),
+                  child: Text(
+                    'Keep Plan',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                FilledButton(
+                  onPressed: submitting
+                      ? null
+                      : () async {
+                          setState(() {
+                            submitting = true;
+                          });
+                          final String? error = await appState
+                              .cancelCurrentPlan();
+                          if (!dialogContext.mounted) {
+                            return;
+                          }
+                          Navigator.of(
+                            dialogContext,
+                          ).pop(_CancelPlanResult(proceed: true, error: error));
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppPalette.secondary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppPalette.secondary.withValues(
+                      alpha: 0.45,
+                    ),
+                    disabledForegroundColor: Colors.white.withValues(
+                      alpha: 0.85,
+                    ),
+                  ),
+                  child: submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Cancel Plan',
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                    ),
-                    FilledButton(
-                      onPressed: submitting
-                          ? null
-                          : () async {
-                              setState(() {
-                                submitting = true;
-                              });
-                              final String? error =
-                                  await appState.cancelCurrentPlan();
-                              if (!dialogContext.mounted) {
-                                return;
-                              }
-                              Navigator.of(dialogContext).pop(
-                                _CancelPlanResult(
-                                  proceed: true,
-                                  error: error,
-                                ),
-                              );
-                            },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppPalette.secondary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                            AppPalette.secondary.withValues(alpha: 0.45),
-                        disabledForegroundColor:
-                            Colors.white.withValues(alpha: 0.85),
-                      ),
-                      child: submitting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              'Cancel Plan',
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ],
-                );
-              },
+                ),
+              ],
             );
           },
         );
+      },
+    );
 
     return decision ?? const _CancelPlanResult(proceed: false);
   }
@@ -858,9 +913,12 @@ class _DashboardTabState extends State<DashboardTab> {
         ? null
         : () {
             final DateTime local = endDate.toLocal();
-            final String formattedDate = DateFormat('MMM d, yyyy').format(local);
-            final String formattedTime =
-                DateFormat('h:mma').format(local).toLowerCase();
+            final String formattedDate = DateFormat(
+              'MMM d, yyyy',
+            ).format(local);
+            final String formattedTime = DateFormat(
+              'h:mma',
+            ).format(local).toLowerCase();
             return '$formattedDate at $formattedTime';
           }();
     final bool lockFreePlan =
@@ -876,21 +934,24 @@ class _DashboardTabState extends State<DashboardTab> {
     final DateFormat historyFormatter = DateFormat('MMM dd, yyyy');
     final DateFormat referralFormatter = DateFormat('MMM dd, yyyy');
     const int historyPreviewLimit = 5;
-    final List<SubscriptionHistoryItem> subscriptionPreview =
-        appState.subscriptionHistory.take(historyPreviewLimit).toList();
+    final List<SubscriptionHistoryItem> subscriptionPreview = appState
+        .subscriptionHistory
+        .take(historyPreviewLimit)
+        .toList();
     final bool hasMoreSubscriptionPreview =
         appState.subscriptionHistory.length > historyPreviewLimit ||
         appState.hasMoreSubscriptionHistory;
-    final List<ReferralEntry> referralPreview =
-        appState.referralEntries.take(historyPreviewLimit).toList();
+    final List<ReferralEntry> referralPreview = appState.referralEntries
+        .take(historyPreviewLimit)
+        .toList();
     final bool hasMoreReferralPreview =
         appState.referralEntries.length > historyPreviewLimit ||
         appState.hasMoreReferrals;
     final List<PlanOption> explorePlans = _sortedExplorePlans(
       appState.isFreeTrialExpired
           ? appState.plans
-              .where((PlanOption plan) => plan.planGroup != 'free_trial')
-              .toList()
+                .where((PlanOption plan) => plan.planGroup != 'free_trial')
+                .toList()
           : appState.plans,
     );
     final bool plansLoading = appState.loadingPlans && explorePlans.isEmpty;
@@ -1088,17 +1149,19 @@ class _DashboardTabState extends State<DashboardTab> {
                       width: double.infinity,
                       height: 46,
                       child: FilledButton(
-                        onPressed: (appState.isSubscriptionExpired ||
+                        onPressed:
+                            (appState.isSubscriptionExpired ||
                                 appState.isFreeTrialExpired)
                             ? null
                             : widget.onOpenPractice,
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: AppPalette.primary,
-                          disabledBackgroundColor:
-                              Colors.white.withValues(alpha: 0.7),
-                          disabledForegroundColor:
-                              AppPalette.primary.withValues(alpha: 0.45),
+                          disabledBackgroundColor: Colors.white.withValues(
+                            alpha: 0.7,
+                          ),
+                          disabledForegroundColor: AppPalette.primary
+                              .withValues(alpha: 0.45),
                         ),
                         child: Text(
                           (appState.isSubscriptionExpired ||
@@ -1131,10 +1194,12 @@ class _DashboardTabState extends State<DashboardTab> {
                             backgroundColor: Colors.white.withValues(
                               alpha: 0.12,
                             ),
-                            disabledForegroundColor:
-                                Colors.white.withValues(alpha: 0.75),
-                            disabledBackgroundColor:
-                                Colors.white.withValues(alpha: 0.06),
+                            disabledForegroundColor: Colors.white.withValues(
+                              alpha: 0.75,
+                            ),
+                            disabledBackgroundColor: Colors.white.withValues(
+                              alpha: 0.06,
+                            ),
                             side: BorderSide(
                               color: Colors.white.withValues(alpha: 0.5),
                             ),
@@ -1376,14 +1441,16 @@ class _DashboardTabState extends State<DashboardTab> {
                                           foregroundColor: selectedDisabled
                                               ? AppPalette.muted
                                               : Colors.white,
-                                          disabledBackgroundColor: selectedDisabled
+                                          disabledBackgroundColor:
+                                              selectedDisabled
                                               ? Colors.black.withValues(
                                                   alpha: 0.08,
                                                 )
                                               : AppPalette.primary.withValues(
                                                   alpha: 0.45,
                                                 ),
-                                          disabledForegroundColor: selectedDisabled
+                                          disabledForegroundColor:
+                                              selectedDisabled
                                               ? AppPalette.muted
                                               : Colors.white.withValues(
                                                   alpha: 0.85,
@@ -1532,8 +1599,7 @@ class _DashboardTabState extends State<DashboardTab> {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) =>
-                                const SubscriptionHistoryScreen(),
+                            builder: (_) => const SubscriptionHistoryScreen(),
                           ),
                         );
                       },
@@ -1746,10 +1812,8 @@ class SubscriptionHistoryScreen extends StatelessWidget {
                 ),
               ),
             ...appState.subscriptionHistory.map(
-              (SubscriptionHistoryItem item) => _SubscriptionHistoryRow(
-                item: item,
-                formatter: formatter,
-              ),
+              (SubscriptionHistoryItem item) =>
+                  _SubscriptionHistoryRow(item: item, formatter: formatter),
             ),
             if (!appState.loadingSubscriptionHistory &&
                 appState.hasMoreSubscriptionHistory)
@@ -1760,9 +1824,7 @@ class SubscriptionHistoryScreen extends StatelessWidget {
                   },
                   child: Text(
                     'Load more',
-                    style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -1801,10 +1863,8 @@ class ReferralHistoryScreen extends StatelessWidget {
                 ),
               ),
             ...appState.referralEntries.map(
-              (ReferralEntry entry) => _ReferralHistoryRow(
-                entry: entry,
-                formatter: formatter,
-              ),
+              (ReferralEntry entry) =>
+                  _ReferralHistoryRow(entry: entry, formatter: formatter),
             ),
             if (appState.loadingReferrals) const _ReferralSkeletonList(),
             if (!appState.loadingReferrals && appState.hasMoreReferrals)
@@ -1815,9 +1875,7 @@ class ReferralHistoryScreen extends StatelessWidget {
                   },
                   child: Text(
                     'Load more',
-                    style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -1829,10 +1887,7 @@ class ReferralHistoryScreen extends StatelessWidget {
 }
 
 class _SubscriptionHistoryRow extends StatelessWidget {
-  const _SubscriptionHistoryRow({
-    required this.item,
-    required this.formatter,
-  });
+  const _SubscriptionHistoryRow({required this.item, required this.formatter});
 
   final SubscriptionHistoryItem item;
   final DateFormat formatter;
@@ -1864,10 +1919,7 @@ class _SubscriptionHistoryRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(
-            Icons.receipt_long_rounded,
-            color: AppPalette.primary,
-          ),
+          const Icon(Icons.receipt_long_rounded, color: AppPalette.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -1952,10 +2004,7 @@ class _SubscriptionHistoryRow extends StatelessWidget {
 }
 
 class _ReferralHistoryRow extends StatelessWidget {
-  const _ReferralHistoryRow({
-    required this.entry,
-    required this.formatter,
-  });
+  const _ReferralHistoryRow({required this.entry, required this.formatter});
 
   final ReferralEntry entry;
   final DateFormat formatter;
@@ -1967,10 +2016,7 @@ class _ReferralHistoryRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(
-            Icons.verified_rounded,
-            color: AppPalette.success,
-          ),
+          const Icon(Icons.verified_rounded, color: AppPalette.success),
           const SizedBox(width: 8),
           Expanded(
             child: Column(

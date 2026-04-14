@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -13,6 +15,7 @@ import '../core/app_theme.dart';
 import '../models/app_models.dart';
 import '../services/apple_auth_service.dart';
 import '../services/google_auth_service.dart';
+import '../services/in_app_purchase_service.dart';
 import '../services/mobile_api_service.dart';
 
 class GoogleLoginResult {
@@ -158,6 +161,7 @@ class AppState extends ChangeNotifier {
   bool isOffline = false;
   bool loadingPlans = false;
   final MobileApiService _api = MobileApiService();
+  final InAppPurchaseService _inAppPurchase = InAppPurchaseService();
   final GoogleAuthService _googleAuth = GoogleAuthService();
   final AppleAuthService _appleAuth = AppleAuthService();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
@@ -203,6 +207,9 @@ class AppState extends ChangeNotifier {
     sortOrder: 0,
     description: 'Waiting for server data.',
     features: <String>[],
+    paymentProvider: 'paymongo',
+    inAppProductIdAndroid: null,
+    inAppProductIdIos: null,
   );
   static const List<Color> _subjectPalette = <Color>[
     Color(0xFF9F76C0),
@@ -1586,19 +1593,72 @@ class AppState extends ChangeNotifier {
     }
 
     final PlanSelectionPayload payload = response.data!;
-    selectedPlanId = payload.planId;
-    selectedTier = payload.tier ?? plan.tier;
-    subscriptionBillingCycle =
-        payload.billingCycle ?? billingCycle ?? plan.billingCycle;
-    subscriptionEndDate = payload.endDate;
+    await _applyPlanSelectionAndRefresh(
+      payload: payload,
+      plan: plan,
+      billingCycle: billingCycle,
+    );
+    return null;
+  }
 
-    await loadPlans(force: true);
-    await loadPracticeSubjects(force: true);
-    await loadDashboardMetrics(force: true);
-    await loadSubscriptionHistory(loadMore: false);
-    await loadReferrals(loadMore: false);
-    await loadQuizAttempts(loadMore: false);
+  Future<String?> purchasePlanWithInAppPurchase({
+    required PlanOption plan,
+    String? billingCycle,
+  }) async {
+    if (!plan.usesInAppPurchase) {
+      return 'This plan is not configured for in-app purchase.';
+    }
+
+    final String? productId = _resolveInAppProductId(plan);
+    if (productId == null || productId.trim().isEmpty) {
+      return 'In-app product ID is not configured for this platform and plan.';
+    }
+
+    creatingCheckout = true;
     notifyListeners();
+
+    final InAppPurchaseAttemptResult storeResult = await _inAppPurchase
+        .buyProduct(productId: productId);
+    if (!storeResult.success) {
+      creatingCheckout = false;
+      notifyListeners();
+      if (storeResult.cancelled) {
+        return storeResult.message ?? 'Purchase was cancelled.';
+      }
+      return storeResult.message ?? 'Unable to complete in-app purchase.';
+    }
+
+    final ApiResult<PlanSelectionPayload> completion = await _api
+        .completeInAppPurchase(
+          planId: plan.id,
+          billingCycle: billingCycle ?? plan.billingCycle,
+          platform: storeResult.platform ?? '',
+          productId: storeResult.productId ?? productId,
+          purchaseId: storeResult.purchaseId,
+          verificationData: storeResult.verificationData ?? '',
+          verificationSource: storeResult.verificationSource,
+          transactionDateMillis: storeResult.transactionDateMillis,
+        );
+
+    creatingCheckout = false;
+
+    if (!completion.ok || completion.data == null) {
+      notifyListeners();
+      if (completion.statusCode == 401) {
+        return 'Session expired. Please login again.';
+      }
+      if (completion.statusCode == 500) {
+        return 'Server error. Please try again later.';
+      }
+      return completion.message ??
+          'Unable to activate plan after in-app purchase.';
+    }
+
+    await _applyPlanSelectionAndRefresh(
+      payload: completion.data!,
+      plan: plan,
+      billingCycle: billingCycle,
+    );
     return null;
   }
 
@@ -1632,6 +1692,37 @@ class AppState extends ChangeNotifier {
     creatingCheckout = false;
     notifyListeners();
     return response;
+  }
+
+  Future<void> _applyPlanSelectionAndRefresh({
+    required PlanSelectionPayload payload,
+    required PlanOption plan,
+    String? billingCycle,
+  }) async {
+    selectedPlanId = payload.planId;
+    selectedTier = payload.tier ?? plan.tier;
+    subscriptionBillingCycle =
+        payload.billingCycle ?? billingCycle ?? plan.billingCycle;
+    subscriptionEndDate = payload.endDate;
+
+    await loadPlans(force: true);
+    await loadPracticeSubjects(force: true);
+    await loadDashboardMetrics(force: true);
+    await loadSubscriptionHistory(loadMore: false);
+    await loadReferrals(loadMore: false);
+    await loadQuizAttempts(loadMore: false);
+    notifyListeners();
+  }
+
+  String? _resolveInAppProductId(PlanOption plan) {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return plan.inAppProductIdAndroid;
+      case TargetPlatform.iOS:
+        return plan.inAppProductIdIos;
+      default:
+        return null;
+    }
   }
 
   Future<String?> refreshCurrentUser() async {

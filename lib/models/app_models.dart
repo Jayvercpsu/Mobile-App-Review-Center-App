@@ -19,6 +19,9 @@ class PlanOption {
     required this.sortOrder,
     required this.description,
     required this.features,
+    required this.paymentProvider,
+    required this.inAppProductIdAndroid,
+    required this.inAppProductIdIos,
   });
 
   final int id;
@@ -36,9 +39,13 @@ class PlanOption {
   final int sortOrder;
   final String description;
   final List<String> features;
+  final String paymentProvider;
+  final String? inAppProductIdAndroid;
+  final String? inAppProductIdIos;
 
   bool get isPaid => price > 0;
   bool get isTrial => tier == PlanTier.free;
+  bool get usesInAppPurchase => paymentProvider == 'in_app_purchase';
 }
 
 class SubjectItem {

@@ -483,6 +483,68 @@ class MobileApiService {
     }
   }
 
+  Future<ApiResult<PlanSelectionPayload>> completeInAppPurchase({
+    required int planId,
+    required String platform,
+    required String productId,
+    required String verificationData,
+    String? billingCycle,
+    String? purchaseId,
+    String? verificationSource,
+    int? transactionDateMillis,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<PlanSelectionPayload>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.inAppPurchasesComplete,
+        payload: <String, dynamic>{
+          'plan_id': planId,
+          'platform': platform.trim().toLowerCase(),
+          'product_id': productId.trim(),
+          'verification_data': verificationData.trim(),
+          if (billingCycle != null && billingCycle.trim().isNotEmpty)
+            'billing_cycle': billingCycle.trim().toLowerCase(),
+          if (purchaseId != null && purchaseId.trim().isNotEmpty)
+            'purchase_id': purchaseId.trim(),
+          if (verificationSource != null &&
+              verificationSource.trim().isNotEmpty)
+            'verification_source': verificationSource.trim(),
+          if (transactionDateMillis != null)
+            'transaction_date': transactionDateMillis,
+        },
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<PlanSelectionPayload>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      final PlanSelectionPayload? payload = _toPlanSelectionPayload(decoded);
+      if (payload == null) {
+        return ApiResult<PlanSelectionPayload>.failure(
+          'In-app purchase completion response is missing data.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<PlanSelectionPayload>.success(payload);
+    } catch (_) {
+      return ApiResult<PlanSelectionPayload>.failure(
+        'Something went wrong. Please try again.',
+      );
+    }
+  }
+
   Future<ApiResult<List<PracticeSubjectPayload>>>
   fetchPracticeSubjects() async {
     if (_token == null || _token!.isEmpty) {
@@ -1674,6 +1736,24 @@ class MobileApiService {
     final int durationDays = _parseInt(raw['duration_days']) ?? 0;
     final int sortOrder = _parseInt(raw['sort_order']) ?? 0;
     final String description = _firstNonEmpty(<dynamic>[raw['description']]);
+    final String providerRaw = _firstNonEmpty(<dynamic>[
+      raw['payment_provider'],
+      raw['payment_type'],
+      'paymongo',
+    ]).toLowerCase();
+    final String paymentProvider = providerRaw == 'in_app_purchase'
+        ? 'in_app_purchase'
+        : 'paymongo';
+    final String? inAppProductIdAndroid = _nullableText(
+      raw['in_app_product_id_android'] ??
+          raw['android_product_id'] ??
+          raw['android_product'],
+    );
+    final String? inAppProductIdIos = _nullableText(
+      raw['in_app_product_id_ios'] ??
+          raw['ios_product_id'] ??
+          raw['ios_product'],
+    );
 
     final List<String> features = _toFeatureList(raw['features']);
 
@@ -1692,6 +1772,9 @@ class MobileApiService {
       durationDays: durationDays,
       sortOrder: sortOrder,
       description: description,
+      paymentProvider: paymentProvider,
+      inAppProductIdAndroid: inAppProductIdAndroid,
+      inAppProductIdIos: inAppProductIdIos,
       features: features.isEmpty
           ? <String>[
               tier == PlanTier.free

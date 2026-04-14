@@ -102,6 +102,8 @@ class ApiConfig {
   static const String referralRedeem = '/mobile/referrals/redeem';
   static const String subscriptionHistory = '/mobile/subscriptions/history';
   static const String paymongoCheckout = '/paymongo/checkout';
+  static const String inAppPurchasesComplete =
+      '/mobile/in-app-purchases/complete';
   static const String subjects = '/mobile/subjects';
   static const String quizGenerate = '/mobile/quiz/generate';
   static const String quizSubmit = '/mobile/quiz/submit';

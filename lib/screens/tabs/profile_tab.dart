@@ -1418,15 +1418,6 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                         onPressed: _pickAvatar,
                         child: const Text('Change Photo'),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Photo library access is optional and only used when you choose an image.',
-                        style: GoogleFonts.manrope(
-                          color: AppPalette.muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -1575,15 +1566,6 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
                 }
                 return null;
               },
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Contacts access is optional and only used if you tap the contact picker.',
-              style: GoogleFonts.manrope(
-                color: AppPalette.muted,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
             ),
             const SizedBox(height: 12),
             TextFormField(

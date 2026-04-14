@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSContactsUsageDescription</key>
+	<string>We use contacts only when you tap “Pick from contacts” to fill your phone number in your profile.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We use your photo library only when you choose a profile photo to upload.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

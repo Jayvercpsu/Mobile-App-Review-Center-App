@@ -540,6 +540,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ],
                   ),
+                  Text(
+                    'Privacy highlights: we process account/profile data and social login identifiers (Google/Apple). Contacts and photo access are optional and requested only when you use those features. You can delete your account anytime in Profile > Delete Account.',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.muted.withValues(alpha: 0.88),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,

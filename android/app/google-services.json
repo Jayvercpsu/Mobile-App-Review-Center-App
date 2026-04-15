@@ -1,41 +1,41 @@
 {
   "project_info": {
-    "project_number": "166616643070",
-    "project_id": "boardmasters-ec6b5",
-    "storage_bucket": "boardmasters-ec6b5.firebasestorage.app"
+    "project_number": "384525131506",
+    "project_id": "boardmaster-app-review-center",
+    "storage_bucket": "boardmaster-app-review-center.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:166616643070:android:2b250051dfb6e9f189bcaf",
+        "mobilesdk_app_id": "1:384525131506:android:0707305768a293631bba6b",
         "android_client_info": {
           "package_name": "ph.boardmaster.app_review_center"
         }
       },
       "oauth_client": [
         {
-          "client_id": "166616643070-vahneq77vemsftfj73k7gflgs0s2emrk.apps.googleusercontent.com",
+          "client_id": "384525131506-7449fga5gm1lui8quaaop1udc3dau0cm.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "ph.boardmaster.app_review_center",
-            "certificate_hash": "f63da91a4b4e14ee6b1e8ac435c670558893d37a"
+            "certificate_hash": "6704ac72847a37683213f39a0b9c3631c76e5554"
           }
         },
         {
-          "client_id": "166616643070-cu88d2jpq3mhk4t0nn8p93cv9mgvg4q7.apps.googleusercontent.com",
+          "client_id": "384525131506-rum3j2iqd2jrcl45nm16430ecbtkgiv8.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBa4_mzdcQLIgXlHk0i_anS0LbhKHi7rb0"
+          "current_key": "AIzaSyCAbqBvPko3z0mZZWE1VWfeOFntgazk3Wk"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "166616643070-cu88d2jpq3mhk4t0nn8p93cv9mgvg4q7.apps.googleusercontent.com",
+              "client_id": "384525131506-rum3j2iqd2jrcl45nm16430ecbtkgiv8.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

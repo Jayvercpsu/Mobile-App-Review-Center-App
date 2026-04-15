@@ -1,0 +1,15 @@
+# Copy this file to `key.properties` (do not commit it) and fill in real values.
+#
+# Recommended keystore location:
+#   mobile/android/app/upload-keystore.jks
+#
+# Example:
+# storeFile=app/upload-keystore.jks
+# storePassword=your_store_password
+# keyPassword=your_key_password
+# keyAlias=upload
+
+storeFile=app/upload-keystore.jks
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=upload

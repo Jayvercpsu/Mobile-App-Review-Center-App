@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../models/app_models.dart';
 import '../../state/app_state.dart';
+import '../../widgets/pass_fail_pill.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../home_shell.dart';
 import '../preparing_review_screen.dart';
@@ -1133,13 +1134,24 @@ class _PracticeTabState extends State<PracticeTab>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: <Widget>[
-                                      Text(
-                                        '${item.score}/${item.total}  $percent%',
-                                        style: GoogleFonts.redHatDisplay(
-                                          color: AppPalette.textDark,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 20,
-                                        ),
+                                      Row(
+                                        children: <Widget>[
+                                          Text(
+                                            '${item.score}/${item.total}  $percent%',
+                                            style: GoogleFonts.redHatDisplay(
+                                              color: AppPalette.textDark,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 20,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          PassFailPill(
+                                            percent: percent,
+                                            compact: true,
+                                            plain: true,
+                                          ),
+                                          const Spacer(),
+                                        ],
                                       ),
                                       Text(
                                         item.subjectTitle,

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/app_theme.dart';
 import '../core/screen_security.dart';
 import '../models/app_models.dart';
+import '../widgets/pass_fail_pill.dart';
 
 class RationalizationScreen extends StatefulWidget {
   const RationalizationScreen({
@@ -45,6 +46,9 @@ class _RationalizationScreenState extends State<RationalizationScreen> {
       return selected != entry.value.correctKey;
     }).length;
     final int correctCount = widget.questions.length - wrongCount;
+    final int percent = widget.questions.isEmpty
+        ? 0
+        : ((correctCount / widget.questions.length) * 100).round();
 
     String choiceText(QuestionItem question, String? key) {
       if (key == null) {
@@ -64,6 +68,9 @@ class _RationalizationScreenState extends State<RationalizationScreen> {
         ? widget.subject.title
         : widget.subject.code;
 
+    final bool passed = percent >= 75;
+    final Color barColor = passed ? AppPalette.success : AppPalette.secondary;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Overall Rationalization')),
       body: SafeArea(
@@ -82,20 +89,41 @@ class _RationalizationScreenState extends State<RationalizationScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          'Subject: $subjectLabel',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.redHatDisplay(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: AppPalette.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      PassFailPill(percent: percent, showPercent: true),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   Text(
-                    'Subject: $subjectLabel',
-                    style: GoogleFonts.redHatDisplay(
-                      fontSize: 24,
+                    'Score: $correctCount / ${widget.questions.length}',
+                    style: GoogleFonts.manrope(
+                      color: AppPalette.textDark,
                       fontWeight: FontWeight.w800,
-                      color: AppPalette.primary,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Correct answers: $correctCount of ${widget.questions.length}',
-                    style: GoogleFonts.manrope(
-                      color: AppPalette.muted,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: percent / 100,
+                      minHeight: 10,
+                      color: barColor,
+                      backgroundColor: barColor.withValues(alpha: 0.12),
                     ),
                   ),
                 ],

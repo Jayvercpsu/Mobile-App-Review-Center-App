@@ -2638,7 +2638,14 @@ class MobileApiService {
       return trimmed;
     }
     final String host = parsed.host.toLowerCase();
-    if (host != 'localhost' && host != '127.0.0.1' && host != '0.0.0.0') {
+    final bool shouldRewriteLocalHost =
+        host == 'localhost' ||
+        host == '127.0.0.1' ||
+        host == '0.0.0.0' ||
+        host == 'boardmasters.local' ||
+        host.endsWith('.local');
+
+    if (!shouldRewriteLocalHost) {
       return trimmed;
     }
 

@@ -33,6 +33,7 @@ class _QuizScreenState extends State<QuizScreen> {
   Timer? _timer;
   int _index = 0;
   bool _submitting = false;
+  bool _nextLoading = false;
 
   Future<bool> _confirmExitQuiz() async {
     if (!mounted) {
@@ -134,6 +135,19 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() {
       _answers[_index] = key;
     });
+  }
+
+  bool _isAnsweredIndex(int idx) {
+    return _answers[idx] != null;
+  }
+
+  bool _allAnswered() {
+    for (int i = 0; i < widget.questions.length; i++) {
+      if (_answers[i] == null) {
+        return false;
+      }
+    }
+    return true;
   }
 
   void _goBack() {
@@ -428,13 +442,40 @@ class _QuizScreenState extends State<QuizScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: FilledButton(
-                            onPressed: hasSelection
+                            onPressed: hasSelection && !_nextLoading && !_submitting
                                 ? () {
                                     if (isLast) {
-                                      _finish();
-                                    } else {
+                                      if (_allAnswered()) {
+                                        _finish();
+                                        return;
+                                      }
                                       setState(() {
-                                        _index += 1;
+                                        _nextLoading = true;
+                                      });
+                                      Future.delayed(const Duration(milliseconds: 500), () {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _nextLoading = false;
+                                        });
+                                        _finish();
+                                      });
+                                    } else {
+                                      final int target = _index + 1;
+                                      if (_isAnsweredIndex(target)) {
+                                        setState(() {
+                                          _index = target;
+                                        });
+                                        return;
+                                      }
+                                      setState(() {
+                                        _nextLoading = true;
+                                      });
+                                      Future.delayed(const Duration(milliseconds: 500), () {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _index = target;
+                                          _nextLoading = false;
+                                        });
                                       });
                                     }
                                   }
@@ -447,16 +488,27 @@ class _QuizScreenState extends State<QuizScreen> {
                               ),
                               minimumSize: const Size.fromHeight(48),
                             ),
-                            child: Text(
-                              isLast ? 'Submit Answers' : 'Next Question',
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                              ),
-                            ),
+                            child: _nextLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    isLast ? 'Submit Answers' : 'Next Question',
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.manrope(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],

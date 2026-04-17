@@ -922,13 +922,28 @@ class _PracticeTabState extends State<PracticeTab>
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-              child: Text(
-                'Recent Attempts',
-                style: GoogleFonts.redHatDisplay(
-                  fontSize: 23,
-                  fontWeight: FontWeight.w800,
-                  color: AppPalette.primary,
-                ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      'Recent Attempts',
+                      style: GoogleFonts.redHatDisplay(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        color: AppPalette.primary,
+                      ),
+                    ),
+                  ),
+                  if (_hasSelectedAttempts)
+                    Text(
+                      '${_selectedAttemptIds.length} selected',
+                      style: GoogleFonts.manrope(
+                        color: AppPalette.muted,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -938,21 +953,6 @@ class _PracticeTabState extends State<PracticeTab>
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Column(
                   children: <Widget>[
-                    if (_hasSelectedAttempts)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            '${_selectedAttemptIds.length} selected',
-                            style: GoogleFonts.manrope(
-                              color: AppPalette.muted,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
                     Row(
                       children: <Widget>[
                         Expanded(

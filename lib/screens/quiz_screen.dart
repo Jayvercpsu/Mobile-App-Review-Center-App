@@ -132,6 +132,9 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   void _select(String key) {
+    if (_submitting || _nextLoading) {
+      return;
+    }
     setState(() {
       _answers[_index] = key;
     });
@@ -346,6 +349,7 @@ class _QuizScreenState extends State<QuizScreen> {
                             ...question.choices.entries.map((entry) {
                               final String key = entry.key;
                               final bool selected = _answers[_index] == key;
+                              final bool disabled = _submitting || _nextLoading;
 
                               Color background = Colors.white;
                               Color border = AppPalette.primary.withValues(
@@ -360,53 +364,60 @@ class _QuizScreenState extends State<QuizScreen> {
 
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 10),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(14),
-                                  onTap: () => _select(key),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 220),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 14,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(14),
-                                      color: background,
-                                      border: Border.all(
-                                        color: border,
-                                        width: 1.6,
+                                child: AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 160),
+                                  opacity: disabled ? 0.38 : 1,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(14),
+                                    onTap:
+                                        disabled ? null : () => _select(key),
+                                    child: AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 220),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 14,
                                       ),
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        Text(
-                                          '$key.',
-                                          style: GoogleFonts.manrope(
-                                            color: AppPalette.textDark,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 17,
-                                          ),
+                                      decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(14),
+                                        color: background,
+                                        border: Border.all(
+                                          color: border,
+                                          width: 1.6,
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            entry.value,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          Text(
+                                            '$key.',
                                             style: GoogleFonts.manrope(
                                               color: AppPalette.textDark,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 15,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 17,
                                             ),
                                           ),
-                                        ),
-                                        if (selected)
-                                          const Icon(
-                                            Icons.check_circle_rounded,
-                                            color: AppPalette.primary,
-                                            size: 18,
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              entry.value,
+                                              style: GoogleFonts.manrope(
+                                                color: AppPalette.textDark,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 15,
+                                              ),
+                                            ),
                                           ),
-                                      ],
+                                          if (selected)
+                                            const Icon(
+                                              Icons.check_circle_rounded,
+                                              color: AppPalette.primary,
+                                              size: 18,
+                                            ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),

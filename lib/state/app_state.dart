@@ -1812,7 +1812,20 @@ class AppState extends ChangeNotifier {
       return ApiResult<QuizSubmitPayload>.failure('No quiz answers to submit.');
     }
 
-    return _api.submitQuizAttempt(subjectId: subjectId, answers: payload);
+    int? displaySeed;
+    for (final QuestionItem item in questions) {
+      final int? candidate = item.displaySeed;
+      if (candidate != null && candidate > 0) {
+        displaySeed = candidate;
+        break;
+      }
+    }
+
+    return _api.submitQuizAttempt(
+      subjectId: subjectId,
+      answers: payload,
+      displaySeed: displaySeed,
+    );
   }
 
   SubjectItem _subjectForAttempt(QuizAttemptDetailPayload payload) {

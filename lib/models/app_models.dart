@@ -75,6 +75,7 @@ class SubjectItem {
 class QuestionItem {
   const QuestionItem({
     this.id,
+    this.displaySeed,
     required this.subjectId,
     required this.question,
     required this.choices,
@@ -83,6 +84,7 @@ class QuestionItem {
   });
 
   final int? id;
+  final int? displaySeed;
   final String subjectId;
   final String question;
   final Map<String, String> choices;

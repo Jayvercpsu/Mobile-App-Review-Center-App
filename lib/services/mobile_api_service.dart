@@ -1007,6 +1007,7 @@ class MobileApiService {
   Future<ApiResult<QuizSubmitPayload>> submitQuizAttempt({
     required int subjectId,
     required List<QuizAnswerPayload> answers,
+    int? displaySeed,
   }) async {
     if (_token == null || _token!.isEmpty) {
       return ApiResult<QuizSubmitPayload>.failure(
@@ -1023,6 +1024,8 @@ class MobileApiService {
           'answers': answers
               .map((QuizAnswerPayload item) => item.toJson())
               .toList(),
+          if (displaySeed != null && displaySeed > 0)
+            'display_seed': displaySeed,
         },
       );
       final dynamic decoded = _decodeJson(response.body);
@@ -1924,6 +1927,9 @@ class MobileApiService {
     }
 
     final int? id = _parseInt(raw['id']);
+    final int? displaySeed = _parseInt(
+      raw['display_seed'] ?? raw['displaySeed'],
+    );
     final String question = _firstNonEmpty(<dynamic>[
       raw['question'],
       raw['prompt'],
@@ -1961,6 +1967,7 @@ class MobileApiService {
 
     return QuestionItem(
       id: id,
+      displaySeed: displaySeed,
       subjectId: subjectId,
       question: question,
       choices: choices,

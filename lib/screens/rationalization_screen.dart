@@ -136,7 +136,7 @@ class _RationalizationScreenState extends State<RationalizationScreen> {
               final QuestionItem question = item.value;
               final String? selected = widget.answers[index];
               final bool isCorrect = selected == question.correctKey;
-              final List<String> keys = question.choices.keys.toList()..sort();
+              final List<String> keys = question.choices.keys.toList();
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),

@@ -95,8 +95,7 @@ class _RationalizationScreenState extends State<RationalizationScreen> {
                       Expanded(
                         child: Text(
                           'Subject: $subjectLabel',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
                           style: GoogleFonts.redHatDisplay(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,

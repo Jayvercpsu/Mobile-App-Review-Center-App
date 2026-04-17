@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../models/app_models.dart';
 import '../../state/app_state.dart';
-import '../../widgets/pass_fail_pill.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../home_shell.dart';
 import '../preparing_review_screen.dart';
@@ -1035,6 +1034,9 @@ class _PracticeTabState extends State<PracticeTab>
                 final int percent = item.total == 0
                     ? 0
                     : ((item.score / item.total) * 100).round();
+                final bool passed = percent >= 75;
+                final Color percentColor =
+                    passed ? AppPalette.success : AppPalette.secondary;
 
                 final bool isSelected = _selectedAttemptIds.contains(item.id);
                 return Padding(
@@ -1134,24 +1136,28 @@ class _PracticeTabState extends State<PracticeTab>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: <Widget>[
-                                      Row(
-                                        children: <Widget>[
-                                          Text(
-                                            '${item.score}/${item.total}  $percent%',
-                                            style: GoogleFonts.redHatDisplay(
-                                              color: AppPalette.textDark,
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 20,
+                                      Text.rich(
+                                        TextSpan(
+                                          children: <InlineSpan>[
+                                            TextSpan(
+                                              text:
+                                                  '${item.score}/${item.total}  ',
                                             ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          PassFailPill(
-                                            percent: percent,
-                                            compact: true,
-                                            plain: true,
-                                          ),
-                                          const Spacer(),
-                                        ],
+                                            TextSpan(
+                                              text: '$percent%',
+                                              style: TextStyle(
+                                                color: percentColor,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.redHatDisplay(
+                                          color: AppPalette.textDark,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 20,
+                                        ),
                                       ),
                                       Text(
                                         item.subjectTitle,

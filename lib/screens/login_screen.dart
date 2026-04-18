@@ -317,6 +317,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final TargetPlatform platform = Theme.of(context).platform;
+    final bool manualLoginLoading = _loading;
     final bool showAppleSignin =
         !kIsWeb &&
         (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS);
@@ -404,6 +405,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 28),
                   TextField(
                     controller: _emailController,
+                    enabled: !manualLoginLoading,
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(color: AppPalette.textDark),
                     cursorColor: AppPalette.primary,
@@ -415,6 +417,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 14),
                   TextField(
                     controller: _passwordController,
+                    enabled: !manualLoginLoading,
                     obscureText: _obscure,
                     style: const TextStyle(color: AppPalette.textDark),
                     cursorColor: AppPalette.primary,
@@ -422,11 +425,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline_rounded),
                       suffixIcon: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _obscure = !_obscure;
-                          });
-                        },
+                        onPressed: manualLoginLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _obscure = !_obscure;
+                                });
+                              },
                         icon: Icon(
                           _obscure
                               ? Icons.visibility_outlined
@@ -443,11 +448,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: <Widget>[
                             Checkbox(
                               value: context.watch<AppState>().rememberMe,
-                              onChanged: (bool? value) {
-                                context.read<AppState>().setRememberMe(
-                                  value ?? false,
-                                );
-                              },
+                              onChanged: manualLoginLoading
+                                  ? null
+                                  : (bool? value) {
+                                      context.read<AppState>().setRememberMe(
+                                        value ?? false,
+                                      );
+                                    },
                             ),
                             Expanded(
                               child: Text(
@@ -462,13 +469,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const ForgotPasswordScreen(),
-                            ),
-                          );
-                        },
+                        onPressed: manualLoginLoading
+                            ? null
+                            : () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        const ForgotPasswordScreen(),
+                                  ),
+                                );
+                              },
                         child: Text(
                           'Forgot Password?',
                           style: GoogleFonts.manrope(
@@ -616,13 +626,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     height: 52,
                     child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const RegisterScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: manualLoginLoading
+                          ? null
+                          : () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const RegisterScreen(),
+                                ),
+                              );
+                            },
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
                           color: AppPalette.primary.withValues(alpha: 0.25),

@@ -14,12 +14,8 @@ class ApiConfig {
     defaultValue: '',
   );
   static const List<String> _fallbackBaseUrls = <String>[
-    'http://127.0.0.1:8000/api',
-    'http://localhost:8000/api',
-    'http://10.0.2.2:8000/api',
-    'http://10.0.3.2:8000/api',
-    'http://192.168.0.157:8000/api',
-    'http://10.239.202.119:8000/api',
+    'http://api.boardmasters.local:8080/api',
+    'https://api.boardmasters.com/api',
   ];
 
   static String get baseUrl {

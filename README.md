@@ -24,13 +24,13 @@ copy .env.example .env
 
 Edit `.env` (gitignored) and set `API_BASE_URL`:
 
-- Physical phone on same Wi-Fi: `http://<YOUR_PC_IPV4>:8000/api`
-- Android emulator: `http://10.0.2.2:8000/api`
-- Flutter web on same machine: `http://127.0.0.1:8000/api`
+- Dev (Docker): `http://api.boardmasters.local:8080/api`
+- Prod: `https://api.boardmasters.com/api`
 
 Optional for Terms/Privacy links inside the app:
 
-- `WEBSITE_BASE_URL=https://<YOUR_DOMAIN>` (for example `https://boardmasterreview.com`)
+- Dev: `WEBSITE_BASE_URL=http://boardmasters.local:8080`
+- Prod: `WEBSITE_BASE_URL=https://boardmasters.com`
 
 ## Run Backend + Web + Flutter Together
 
@@ -65,7 +65,7 @@ flutter run -d chrome
 Optional override at run time:
 
 ```bash
-flutter run --dart-define=API_BASE_URL=http://<YOUR_PC_IPV4>:8000/api
+flutter run --dart-define=API_BASE_URL=http://api.boardmasters.local:8080/api
 ```
 
 ## Google Sign-In Setup (Flutter Mobile)
@@ -87,11 +87,9 @@ flutter run
 
 ## Login Troubleshooting (Mobile)
 
-- Make sure phone and computer are on the same Wi-Fi.
-- Use your computer IPv4 in `.env` for physical device (not `127.0.0.1`).
-- Keep Laravel running with `--host=0.0.0.0`.
-- Open `http://<YOUR_PC_IPV4>:8000/api/mobile/plans` on phone browser. It should return JSON.
-- If unreachable, allow `php` through Windows Firewall or open port `8000`.
+- Ensure your device can resolve `api.boardmasters.local` (DNS/hosts entry) in dev.
+- Open `http://api.boardmasters.local:8080/api/mobile/plans`; it should return JSON.
+- API routes are host-restricted, so `boardmasters.local` and `app.boardmasters.local` cannot serve `/api/*`.
 
 ## Build APK
 

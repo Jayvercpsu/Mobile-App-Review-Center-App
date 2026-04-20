@@ -158,8 +158,10 @@ class AppState extends ChangeNotifier {
   bool creatingCheckout = false;
   bool updatingProfile = false;
   bool deletingAccount = false;
+  bool checkingDeviceDate = false;
   bool isOffline = false;
   bool loadingPlans = false;
+  String? deviceDateOutdatedMessage;
   final MobileApiService _api = MobileApiService();
   final InAppPurchaseService _inAppPurchase = InAppPurchaseService();
   final GoogleAuthService _googleAuth = GoogleAuthService();
@@ -260,6 +262,31 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     } catch (_) {
       // Ignore preference load errors.
+    }
+  }
+
+  Future<String?> validateDeviceDate() async {
+    await refreshDeviceDateValidation();
+    return deviceDateOutdatedMessage;
+  }
+
+  Future<void> refreshDeviceDateValidation({bool notify = true}) async {
+    if (checkingDeviceDate) {
+      return;
+    }
+
+    checkingDeviceDate = true;
+    if (notify) {
+      notifyListeners();
+    }
+
+    try {
+      deviceDateOutdatedMessage = await _api.outdatedDeviceDateMessage();
+    } finally {
+      checkingDeviceDate = false;
+      if (notify) {
+        notifyListeners();
+      }
     }
   }
 

@@ -33,6 +33,7 @@ class _SplashScreenState extends State<SplashScreen>
       }
       final AppState appState = context.read<AppState>();
       await appState.restoreSession();
+      await appState.refreshDeviceDateValidation();
       if (!mounted) {
         return;
       }

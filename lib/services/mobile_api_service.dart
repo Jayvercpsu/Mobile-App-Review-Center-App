@@ -20,6 +20,31 @@ class MobileApiService {
     _token = token;
   }
 
+  Future<String?> outdatedDeviceDateMessage({
+    Duration allowedDrift = const Duration(minutes: 10),
+  }) async {
+    final DateTime? serverUtcNow = await _serverUtcNow();
+    if (serverUtcNow == null) {
+      return null;
+    }
+
+    final DateTime deviceUtcNow = DateTime.now().toUtc();
+    final Duration drift = deviceUtcNow.difference(serverUtcNow);
+    final Duration absoluteDrift = drift.isNegative ? -drift : drift;
+    if (absoluteDrift <= allowedDrift) {
+      return null;
+    }
+
+    final String driftLabel = _formatDuration(absoluteDrift);
+    if (drift.isNegative) {
+      return 'Your device date and time appear outdated by about $driftLabel. '
+          'Please enable automatic date & time and try again.';
+    }
+
+    return 'Your device date and time appear advanced by about $driftLabel. '
+        'Please correct your date & time and try again.';
+  }
+
   Future<ApiResult<AuthPayload>> login({
     required String email,
     required String password,
@@ -1388,6 +1413,50 @@ class MobileApiService {
     }
 
     return result;
+  }
+
+  Future<DateTime?> _serverUtcNow() async {
+    for (final String baseUrl in _candidateBaseUrls()) {
+      try {
+        final http.Response response = await _client
+            .get(
+              ApiConfig.uri(ApiConfig.plans, overrideBaseUrl: baseUrl),
+              headers: _headers(),
+            )
+            .timeout(const Duration(seconds: 6));
+
+        if (response.statusCode == 404) {
+          continue;
+        }
+
+        final String? dateHeader = response.headers['date'];
+        if (dateHeader == null || dateHeader.trim().isEmpty) {
+          continue;
+        }
+
+        final DateTime parsed = parseHttpDate(dateHeader).toUtc();
+        _resolvedBaseUrl = baseUrl;
+        return parsed;
+      } catch (_) {}
+    }
+
+    return null;
+  }
+
+  String _formatDuration(Duration value) {
+    final int totalMinutes = value.inMinutes;
+    if (totalMinutes < 60) {
+      return '$totalMinutes minute${totalMinutes == 1 ? '' : 's'}';
+    }
+
+    final int hours = totalMinutes ~/ 60;
+    final int minutes = totalMinutes % 60;
+    if (minutes == 0) {
+      return '$hours hour${hours == 1 ? '' : 's'}';
+    }
+
+    return '$hours hour${hours == 1 ? '' : 's'} '
+        '$minutes minute${minutes == 1 ? '' : 's'}';
   }
 
   MediaType _resolveImageContentType(String? filename, Uint8List bytes) {

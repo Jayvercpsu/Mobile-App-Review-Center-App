@@ -1329,6 +1329,7 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
   Widget build(BuildContext context) {
     final AppState appState = context.watch<AppState>();
     final double dpr = MediaQuery.of(context).devicePixelRatio;
+    final bool fieldsEnabled = !_saving;
     _syncFromState(appState);
 
     return Container(
@@ -1341,283 +1342,303 @@ class _ProfileSettingsCardState extends State<_ProfileSettingsCard> {
       child: Form(
         key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const SizedBox(height: 4),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Stack(
-                  alignment: Alignment.center,
-                  children: <Widget>[
-                    ClipOval(
-                      child: SizedBox.square(
-                        dimension: 68,
-                        child: _avatarBytes != null
-                            ? Image.memory(_avatarBytes!, fit: BoxFit.cover)
-                            : (appState.userAvatarUrl == null
-                                  ? Image.asset(
-                                      'assets/images/boardmaster-square.png',
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Image.network(
-                                      appState.userAvatarUrl!,
-                                      fit: BoxFit.cover,
-                                      cacheWidth: (68 * dpr).round(),
-                                      cacheHeight: (68 * dpr).round(),
-                                      filterQuality: FilterQuality.low,
-                                      errorBuilder: (_, __, ___) => Image.asset(
+        child: AbsorbPointer(
+          absorbing: _saving,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Stack(
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      ClipOval(
+                        child: SizedBox.square(
+                          dimension: 68,
+                          child: _avatarBytes != null
+                              ? Image.memory(_avatarBytes!, fit: BoxFit.cover)
+                              : (appState.userAvatarUrl == null
+                                    ? Image.asset(
                                         'assets/images/boardmaster-square.png',
                                         fit: BoxFit.cover,
-                                      ),
-                                    )),
+                                      )
+                                    : Image.network(
+                                        appState.userAvatarUrl!,
+                                        fit: BoxFit.cover,
+                                        cacheWidth: (68 * dpr).round(),
+                                        cacheHeight: (68 * dpr).round(),
+                                        filterQuality: FilterQuality.low,
+                                        errorBuilder: (_, __, ___) => Image.asset(
+                                          'assets/images/boardmaster-square.png',
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )),
+                        ),
                       ),
-                    ),
-                    if (_avatarBytes != null || appState.userAvatarUrl != null)
-                      Positioned.fill(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(999),
-                            onTap: () => _showAvatarPreview(appState),
-                            child: Container(
-                              alignment: Alignment.center,
+                      if (_avatarBytes != null ||
+                          appState.userAvatarUrl != null)
+                        Positioned.fill(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(999),
+                              onTap: fieldsEnabled
+                                  ? () => _showAvatarPreview(appState)
+                                  : null,
                               child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.visibility_outlined,
-                                  color: Colors.white70,
-                                  size: 20,
+                                alignment: Alignment.center,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.visibility_outlined,
+                                    color: Colors.white70,
+                                    size: 20,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Profile photo',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          color: AppPalette.textDark,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      OutlinedButton(
-                        onPressed: _pickAvatar,
-                        child: const Text('Change Photo'),
-                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _nameController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                prefixIcon: Icon(Icons.person_outline_rounded),
-              ),
-              validator: (String? value) {
-                final String trimmed = value?.trim() ?? '';
-                if (trimmed.length < 2) {
-                  return 'Enter your full name.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.mail_outline_rounded),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: appState.userEmailVerified
-                    ? AppPalette.success.withValues(alpha: 0.12)
-                    : AppPalette.secondary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    appState.userEmailVerified
-                        ? Icons.verified_rounded
-                        : Icons.error_outline_rounded,
-                    size: 16,
-                    color: appState.userEmailVerified
-                        ? AppPalette.success
-                        : AppPalette.secondary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    appState.userEmailVerified
-                        ? 'Email verified'
-                        : 'Email not verified',
-                    style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                      color: appState.userEmailVerified
-                          ? AppPalette.success
-                          : AppPalette.secondary,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'Profile photo',
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w700,
+                            color: AppPalette.textDark,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        OutlinedButton(
+                          onPressed: fieldsEnabled ? _pickAvatar : null,
+                          child: const Text('Change Photo'),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              key: ValueKey<String?>(_gender),
-              initialValue: _gender,
-              decoration: const InputDecoration(
-                labelText: 'Gender',
-                prefixIcon: Icon(Icons.wc_rounded),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameController,
+                textInputAction: TextInputAction.next,
+                enabled: fieldsEnabled,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
+                ),
+                validator: (String? value) {
+                  final String trimmed = value?.trim() ?? '';
+                  if (trimmed.length < 2) {
+                    return 'Enter your full name.';
+                  }
+                  return null;
+                },
               ),
-              items: const <DropdownMenuItem<String>>[
-                DropdownMenuItem(value: 'male', child: Text('Male')),
-                DropdownMenuItem(value: 'female', child: Text('Female')),
-                DropdownMenuItem(value: 'other', child: Text('Other')),
-              ],
-              onChanged: (String? value) {
-                setState(() {
-                  _gender = value;
-                  _dirty = true;
-                });
-              },
-              validator: (String? value) {
-                if (value == null || value.isEmpty) {
-                  return 'Select gender.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _schoolController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'School',
-                prefixIcon: Icon(Icons.school_outlined),
-              ),
-              validator: (String? value) {
-                final String trimmed = value?.trim() ?? '';
-                if (trimmed.isNotEmpty && trimmed.length < 2) {
-                  return 'Enter a valid school name.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _placeController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Place',
-                prefixIcon: Icon(Icons.location_on_outlined),
-              ),
-              validator: (String? value) {
-                final String trimmed = value?.trim() ?? '';
-                if (trimmed.isNotEmpty && trimmed.length < 2) {
-                  return 'Enter a valid place.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: 'Phone Number',
-                prefixIcon: const Icon(Icons.phone_outlined),
-                suffixIcon: IconButton(
-                  onPressed: _saving ? null : _pickPhoneFromContacts,
-                  icon: const Icon(Icons.contact_phone_rounded),
-                  tooltip: 'Pick from contacts',
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                enabled: false,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.mail_outline_rounded),
                 ),
               ),
-              validator: (String? value) {
-                final String trimmed = value?.trim() ?? '';
-                if (trimmed.isNotEmpty && !_isValidPhilippinesPhone(trimmed)) {
-                  return 'Enter a valid Philippine phone number.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _birthdateController,
-              readOnly: true,
-              onTap: () => _pickBirthdate(context),
-              decoration: InputDecoration(
-                labelText: 'Birthdate',
-                prefixIcon: const Icon(Icons.cake_outlined),
-                suffixIcon: _birthdate == null
-                    ? null
-                    : IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _birthdate = null;
-                            _birthdateController.text = '';
-                            _dirty = true;
-                          });
-                        },
-                        icon: const Icon(Icons.close_rounded),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: appState.userEmailVerified
+                      ? AppPalette.success.withValues(alpha: 0.12)
+                      : AppPalette.secondary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      appState.userEmailVerified
+                          ? Icons.verified_rounded
+                          : Icons.error_outline_rounded,
+                      size: 16,
+                      color: appState.userEmailVerified
+                          ? AppPalette.success
+                          : AppPalette.secondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      appState.userEmailVerified
+                          ? 'Email verified'
+                          : 'Email not verified',
+                      style: GoogleFonts.manrope(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        color: appState.userEmailVerified
+                            ? AppPalette.success
+                            : AppPalette.secondary,
                       ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: FilledButton(
-                onPressed: _saving
-                    ? null
-                    : () {
-                        _saveProfile(appState);
-                      },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppPalette.primary,
+                    ),
+                  ],
                 ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey<String?>(_gender),
+                initialValue: _gender,
+                decoration: const InputDecoration(
+                  labelText: 'Gender',
+                  prefixIcon: Icon(Icons.wc_rounded),
+                ),
+                items: const <DropdownMenuItem<String>>[
+                  DropdownMenuItem(value: 'male', child: Text('Male')),
+                  DropdownMenuItem(value: 'female', child: Text('Female')),
+                  DropdownMenuItem(value: 'other', child: Text('Other')),
+                ],
+                onChanged: fieldsEnabled
+                    ? (String? value) {
+                        setState(() {
+                          _gender = value;
+                          _dirty = true;
+                        });
+                      }
+                    : null,
+                validator: (String? value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Select gender.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _schoolController,
+                textInputAction: TextInputAction.next,
+                enabled: fieldsEnabled,
+                decoration: const InputDecoration(
+                  labelText: 'School',
+                  prefixIcon: Icon(Icons.school_outlined),
+                ),
+                validator: (String? value) {
+                  final String trimmed = value?.trim() ?? '';
+                  if (trimmed.isNotEmpty && trimmed.length < 2) {
+                    return 'Enter a valid school name.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _placeController,
+                textInputAction: TextInputAction.next,
+                enabled: fieldsEnabled,
+                decoration: const InputDecoration(
+                  labelText: 'Place',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                ),
+                validator: (String? value) {
+                  final String trimmed = value?.trim() ?? '';
+                  if (trimmed.isNotEmpty && trimmed.length < 2) {
+                    return 'Enter a valid place.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                enabled: fieldsEnabled,
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                  suffixIcon: IconButton(
+                    onPressed: _saving ? null : _pickPhoneFromContacts,
+                    icon: const Icon(Icons.contact_phone_rounded),
+                    tooltip: 'Pick from contacts',
+                  ),
+                ),
+                validator: (String? value) {
+                  final String trimmed = value?.trim() ?? '';
+                  if (trimmed.isNotEmpty &&
+                      !_isValidPhilippinesPhone(trimmed)) {
+                    return 'Enter a valid Philippine phone number.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _birthdateController,
+                readOnly: true,
+                onTap: fieldsEnabled ? () => _pickBirthdate(context) : null,
+                decoration: InputDecoration(
+                  labelText: 'Birthdate',
+                  prefixIcon: const Icon(Icons.cake_outlined),
+                  suffixIcon: _birthdate == null
+                      ? null
+                      : IconButton(
+                          onPressed: fieldsEnabled
+                              ? () {
+                                  setState(() {
+                                    _birthdate = null;
+                                    _birthdateController.text = '';
+                                    _dirty = true;
+                                  });
+                                }
+                              : null,
+                          icon: const Icon(Icons.close_rounded),
                         ),
-                      )
-                    : Text(
-                        _dirty ? 'Save Changes' : 'Save Profile',
-                        style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-                      ),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FilledButton(
+                  onPressed: _saving
+                      ? null
+                      : () {
+                          _saveProfile(appState);
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppPalette.primary,
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          _dirty ? 'Save Changes' : 'Save Profile',
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -25,9 +25,14 @@ class RationalizationScreen extends StatefulWidget {
 }
 
 class _RationalizationScreenState extends State<RationalizationScreen> {
+  final Set<int> _collapsedQuestions = <int>{};
+
   @override
   void initState() {
     super.initState();
+    _collapsedQuestions.addAll(
+      List<int>.generate(widget.questions.length, (int index) => index),
+    );
     unawaited(ScreenSecurity.enable());
   }
 
@@ -137,6 +142,7 @@ class _RationalizationScreenState extends State<RationalizationScreen> {
               final String? selected = widget.answers[index];
               final bool isCorrect = selected == question.correctKey;
               final List<String> keys = question.choices.keys.toList();
+              final bool isExpanded = !_collapsedQuestions.contains(index);
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -234,51 +240,81 @@ class _RationalizationScreenState extends State<RationalizationScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 12),
-                    Text(
-                      'Option Rationalization',
-                      style: GoogleFonts.redHatDisplay(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppPalette.primary,
+                    if (isExpanded) ...<Widget>[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Option Rationalization',
+                        style: GoogleFonts.redHatDisplay(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppPalette.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...keys.map((String key) {
+                        final bool optionIsCorrect = key == question.correctKey;
+                        final bool optionSelected = key == selected;
+
+                        return Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: optionIsCorrect
+                                ? AppPalette.success.withValues(alpha: 0.08)
+                                : AppPalette.primary.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: optionSelected
+                                  ? (optionIsCorrect
+                                        ? AppPalette.success.withValues(
+                                            alpha: 0.35,
+                                          )
+                                        : AppPalette.secondary.withValues(
+                                            alpha: 0.35,
+                                          ))
+                                  : AppPalette.primary.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: Text(
+                            '$key. ${question.choices[key]}\n${question.rationales[key] ?? ''}',
+                            style: GoogleFonts.manrope(
+                              color: AppPalette.textDark,
+                              fontWeight: FontWeight.w600,
+                              height: 1.35,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                    const SizedBox(height: 4),
+                    Center(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: () {
+                          setState(() {
+                            if (isExpanded) {
+                              _collapsedQuestions.add(index);
+                            } else {
+                              _collapsedQuestions.remove(index);
+                            }
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          child: Icon(
+                            isExpanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: AppPalette.primary,
+                            size: 28,
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    ...keys.map((String key) {
-                      final bool optionIsCorrect = key == question.correctKey;
-                      final bool optionSelected = key == selected;
-
-                      return Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: optionIsCorrect
-                              ? AppPalette.success.withValues(alpha: 0.08)
-                              : AppPalette.primary.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: optionSelected
-                                ? (optionIsCorrect
-                                      ? AppPalette.success.withValues(
-                                          alpha: 0.35,
-                                        )
-                                      : AppPalette.secondary.withValues(
-                                          alpha: 0.35,
-                                        ))
-                                : AppPalette.primary.withValues(alpha: 0.08),
-                          ),
-                        ),
-                        child: Text(
-                          '$key. ${question.choices[key]}\n${question.rationales[key] ?? ''}',
-                          style: GoogleFonts.manrope(
-                            color: AppPalette.textDark,
-                            fontWeight: FontWeight.w600,
-                            height: 1.35,
-                          ),
-                        ),
-                      );
-                    }),
                   ],
                 ),
               );

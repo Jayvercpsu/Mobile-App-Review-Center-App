@@ -664,13 +664,59 @@ class _DashboardTabState extends State<DashboardTab> {
     setState(() {
       _previewPlanId = appState.currentPlan.id;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Successfully chose ${plan.groupLabel} - ${plan.subPlanLabel}.',
-        ),
-      ),
-    );
+    _showSubscriptionSuccess(context: context, plan: plan);
+  }
+
+  void _showSubscriptionSuccess({
+    required BuildContext context,
+    required PlanOption plan,
+  }) {
+    final String displayLabel = _subscriptionShortLabel(plan);
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('Subscribed: $displayLabel')));
+  }
+
+  String _subscriptionShortLabel(PlanOption plan) {
+    final String groupRaw = plan.groupLabel.trim().isNotEmpty
+        ? plan.groupLabel.trim()
+        : (plan.title.trim().isNotEmpty ? plan.title.trim() : plan.name);
+    final String group = groupRaw.split(':').first.trim();
+    final String cycle = _billingCycleShortLabel(plan.billingCycle);
+    final String duration = plan.billingLabel.trim();
+
+    if (cycle.isEmpty && duration.isEmpty) {
+      return group;
+    }
+
+    if (cycle.isEmpty) {
+      return '$group ($duration)';
+    }
+
+    if (duration.isEmpty) {
+      return '$group $cycle';
+    }
+
+    return '$group $cycle ($duration)';
+  }
+
+  String _billingCycleShortLabel(String billingCycle) {
+    switch (billingCycle.trim()) {
+      case 'trial':
+        return 'Trial';
+      case 'monthly':
+        return 'Monthly';
+      case 'quarterly':
+        return 'Quarterly';
+      case 'semi_annual':
+        return 'Semi-annual';
+      case 'annual':
+      case 'yearly':
+        return 'Annual';
+      default:
+        return '';
+    }
   }
 
   Future<void> _openPaidCheckout({
@@ -751,29 +797,59 @@ class _DashboardTabState extends State<DashboardTab> {
       return;
     }
 
-    if (result == PaymentResult.success) {
+    if (result == PaymentResult.success ||
+        result == PaymentResult.unknown ||
+        result == null) {
+      if (result == PaymentResult.success) {
+        final String displayLabel = _subscriptionShortLabel(plan);
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('Payment completed. Subscribed: $displayLabel'),
+            ),
+          );
+      }
+
       final String? refreshError = await _refreshAfterSubscriptionChange(
         appState: appState,
       );
       if (!context.mounted) {
         return;
       }
+
       if (refreshError == null) {
         setState(() {
           _previewPlanId = appState.currentPlan.id;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Successfully chose ${plan.groupLabel} - ${plan.subPlanLabel}.',
+
+        if (appState.currentPlan.id == plan.id && appState.hasActivePaidPlan) {
+          _showSubscriptionSuccess(context: context, plan: plan);
+          return;
+        }
+
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Payment received. Subscription will activate shortly.',
+              ),
+              duration: const Duration(seconds: 10),
+              action: SnackBarAction(
+                label: 'Refresh Plan',
+                onPressed: () {
+                  _refreshPlanStatus(context: context, appState: appState);
+                },
+              ),
             ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(refreshError)));
+          );
+        return;
       }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(refreshError)));
       return;
     }
 

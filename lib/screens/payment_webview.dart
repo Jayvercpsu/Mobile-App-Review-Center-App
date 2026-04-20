@@ -4,10 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 enum PaymentResult { success, cancel, unknown }
 
 class PaymentWebView extends StatefulWidget {
-  const PaymentWebView({
-    super.key,
-    required this.initialUrl,
-  });
+  const PaymentWebView({super.key, required this.initialUrl});
 
   final String initialUrl;
 
@@ -18,6 +15,7 @@ class PaymentWebView extends StatefulWidget {
 class _PaymentWebViewState extends State<PaymentWebView> {
   late final WebViewController _controller;
   bool _loading = true;
+  bool _popped = false;
 
   @override
   void initState() {
@@ -31,14 +29,24 @@ class _PaymentWebViewState extends State<PaymentWebView> {
             _setLoading(true);
             final PaymentResult? result = _resolveResult(url);
             if (result != null) {
-              Navigator.of(context).pop(result);
+              _popResult(result);
             }
           },
           onPageFinished: (_) => _setLoading(false),
+          onUrlChange: (UrlChange change) {
+            final String? url = change.url;
+            if (url == null) {
+              return;
+            }
+            final PaymentResult? result = _resolveResult(url);
+            if (result != null) {
+              _popResult(result);
+            }
+          },
           onNavigationRequest: (NavigationRequest request) {
             final PaymentResult? result = _resolveResult(request.url);
             if (result != null) {
-              Navigator.of(context).pop(result);
+              _popResult(result);
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
@@ -46,6 +54,14 @@ class _PaymentWebViewState extends State<PaymentWebView> {
         ),
       )
       ..loadRequest(Uri.parse(widget.initialUrl));
+  }
+
+  void _popResult(PaymentResult result) {
+    if (_popped || !mounted) {
+      return;
+    }
+    _popped = true;
+    Navigator.of(context).pop(result);
   }
 
   void _setLoading(bool value) {
@@ -80,8 +96,7 @@ class _PaymentWebViewState extends State<PaymentWebView> {
       ),
       body: Column(
         children: <Widget>[
-          if (_loading)
-            const LinearProgressIndicator(minHeight: 2),
+          if (_loading) const LinearProgressIndicator(minHeight: 2),
           Expanded(
             child: Stack(
               children: <Widget>[
@@ -90,9 +105,7 @@ class _PaymentWebViewState extends State<PaymentWebView> {
                   const Positioned.fill(
                     child: ColoredBox(
                       color: Color(0x11000000),
-                      child: Center(
-                        child: CircularProgressIndicator(),
-                      ),
+                      child: Center(child: CircularProgressIndicator()),
                     ),
                   ),
               ],

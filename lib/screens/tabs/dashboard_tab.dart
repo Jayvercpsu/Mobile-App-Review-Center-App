@@ -36,6 +36,11 @@ class DashboardTab extends StatefulWidget {
 class _DashboardTabState extends State<DashboardTab> {
   int? _previewPlanId;
   int? _processingPlanId;
+  final ScrollController _exploreScrollController = ScrollController();
+  int _exploreIndicatorIndex = 0;
+
+  static const double _exploreCardWidth = 258;
+  static const double _exploreCardSpacing = 12;
 
   @override
   void initState() {
@@ -43,6 +48,112 @@ class _DashboardTabState extends State<DashboardTab> {
     if (widget.initialPlanId != null) {
       _previewPlanId = widget.initialPlanId;
     }
+    _exploreScrollController.addListener(_handleExploreScroll);
+  }
+
+  @override
+  void dispose() {
+    _exploreScrollController
+      ..removeListener(_handleExploreScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleExploreScroll() {
+    if (!_exploreScrollController.hasClients) {
+      return;
+    }
+
+    final double pageExtent = _exploreCardWidth + _exploreCardSpacing;
+    if (pageExtent <= 0) {
+      return;
+    }
+
+    final int nextIndex = (_exploreScrollController.offset / pageExtent)
+        .round()
+        .clamp(0, 999999);
+    if (nextIndex == _exploreIndicatorIndex) {
+      return;
+    }
+
+    setState(() {
+      _exploreIndicatorIndex = nextIndex;
+    });
+  }
+
+  void _scrollExploreToIndex(int index) {
+    if (!_exploreScrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _scrollExploreToIndex(index);
+      });
+      return;
+    }
+
+    final double pageExtent = _exploreCardWidth + _exploreCardSpacing;
+    final double target = index * pageExtent;
+    final double clampedTarget = target.clamp(
+      _exploreScrollController.position.minScrollExtent,
+      _exploreScrollController.position.maxScrollExtent,
+    );
+
+    _exploreScrollController.animateTo(
+      clampedTarget,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _previewExplorePlan(PlanOption plan, int index) {
+    final int nextIndex = index.clamp(0, 999999);
+    final bool previewChanged = _previewPlanId != plan.id;
+    final bool indexChanged = _exploreIndicatorIndex != nextIndex;
+
+    if (!previewChanged && !indexChanged) {
+      _scrollExploreToIndex(nextIndex);
+      return;
+    }
+
+    setState(() {
+      _previewPlanId = plan.id;
+      _exploreIndicatorIndex = nextIndex;
+    });
+    _scrollExploreToIndex(nextIndex);
+  }
+
+  Widget _buildExploreIndicators({
+    required int count,
+    required int activeIndex,
+  }) {
+    if (count <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    final int safeActive = activeIndex.clamp(0, count - 1);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List<Widget>.generate(count, (int index) {
+          final bool isActive = index == safeActive;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: isActive ? 10 : 8,
+            height: isActive ? 10 : 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActive
+                  ? AppPalette.primary
+                  : AppPalette.primary.withValues(alpha: 0.2),
+            ),
+          );
+        }),
+      ),
+    );
   }
 
   PlanOption _resolvePreviewPlan(AppState appState) {
@@ -55,15 +166,6 @@ class _DashboardTabState extends State<DashboardTab> {
       }
     }
     return appState.currentPlan;
-  }
-
-  void _setPreviewPlan(PlanOption plan) {
-    if (_previewPlanId == plan.id) {
-      return;
-    }
-    setState(() {
-      _previewPlanId = plan.id;
-    });
   }
 
   String _planDisplayTitle(PlanOption plan) {
@@ -1257,230 +1359,248 @@ class _DashboardTabState extends State<DashboardTab> {
               ),
             ),
             SliverToBoxAdapter(
-              child: SizedBox(
-                height: 248,
-                child: plansLoading
-                    ? const _ExplorePlanSkeleton()
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: explorePlans.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 12),
-                        itemBuilder: (BuildContext context, int index) {
-                          final PlanOption plan = explorePlans[index];
-                          final bool selected =
-                              plan.id == appState.currentPlan.id;
-                          final bool previewed = _previewPlanId == plan.id;
-                          final bool isFreePlan = !plan.isPaid;
-                          final bool isTrialPlan =
-                              plan.planGroup == 'free_trial';
-                          final bool trialExpiredForPlan =
-                              isTrialPlan && appState.isFreeTrialExpired;
-                          final String displayTitle =
-                              plan.subPlanLabel.trim().isNotEmpty
-                              ? plan.subPlanLabel
-                              : plan.name;
-                          final String groupTitle = _planDisplayTitle(plan);
-                          final String displayDescription = trialExpiredForPlan
-                              ? 'Free trial expired.'
-                              : _planDisplayDescription(plan);
-                          final bool lockedFreePlan =
-                              lockFreePlan && isFreePlan;
-                          final bool lockedByActivePlan =
-                              hasActivePaidPlan && !selected;
-                          final bool canRenew =
-                              selected &&
-                              plan.isPaid &&
-                              appState.isSubscriptionExpired;
-                          final bool showLoading =
-                              busy && _processingPlanId == plan.id;
-                          final bool disabled =
-                              busy ||
-                              trialExpiredForPlan ||
-                              (selected && !canRenew) ||
-                              lockedFreePlan ||
-                              lockedByActivePlan;
-                          final bool selectedDisabled = selected && !canRenew;
-                          final String buttonLabel = selected
-                              ? (canRenew ? 'Renew Plan' : 'Selected')
-                              : (lockedByActivePlan
-                                    ? 'Cancel current plan first'
-                                    : (lockedFreePlan
-                                          ? 'Unavailable'
-                                          : (trialExpiredForPlan
-                                                ? 'Expired'
-                                                : (plan.isPaid
-                                                      ? 'PAY NOW'
-                                                      : 'Choose Plan'))));
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  SizedBox(
+                    height: 248,
+                    child: plansLoading
+                        ? const _ExplorePlanSkeleton()
+                        : ListView.separated(
+                            controller: _exploreScrollController,
+                            padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: explorePlans.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: _exploreCardSpacing),
+                            itemBuilder: (BuildContext context, int index) {
+                              final PlanOption plan = explorePlans[index];
+                              final bool selected =
+                                  plan.id == appState.currentPlan.id;
+                              final bool previewed = _previewPlanId == plan.id;
+                              final bool isFreePlan = !plan.isPaid;
+                              final bool isTrialPlan =
+                                  plan.planGroup == 'free_trial';
+                              final bool trialExpiredForPlan =
+                                  isTrialPlan && appState.isFreeTrialExpired;
+                              final String displayTitle =
+                                  plan.subPlanLabel.trim().isNotEmpty
+                                  ? plan.subPlanLabel
+                                  : plan.name;
+                              final String groupTitle = _planDisplayTitle(plan);
+                              final String displayDescription =
+                                  trialExpiredForPlan
+                                  ? 'Free trial expired.'
+                                  : _planDisplayDescription(plan);
+                              final bool lockedFreePlan =
+                                  lockFreePlan && isFreePlan;
+                              final bool lockedByActivePlan =
+                                  hasActivePaidPlan && !selected;
+                              final bool canRenew =
+                                  selected &&
+                                  plan.isPaid &&
+                                  appState.isSubscriptionExpired;
+                              final bool showLoading =
+                                  busy && _processingPlanId == plan.id;
+                              final bool disabled =
+                                  busy ||
+                                  trialExpiredForPlan ||
+                                  (selected && !canRenew) ||
+                                  lockedFreePlan ||
+                                  lockedByActivePlan;
+                              final bool selectedDisabled =
+                                  selected && !canRenew;
+                              final String buttonLabel = selected
+                                  ? (canRenew ? 'Renew Plan' : 'Selected')
+                                  : (lockedByActivePlan
+                                        ? 'Cancel current plan first'
+                                        : (lockedFreePlan
+                                              ? 'Unavailable'
+                                              : (trialExpiredForPlan
+                                                    ? 'Expired'
+                                                    : (plan.isPaid
+                                                          ? 'PAY NOW'
+                                                          : 'Choose Plan'))));
 
-                          return GestureDetector(
-                            onTap: lockedFreePlan
-                                ? null
-                                : () => _setPreviewPlan(plan),
-                            child: AnimatedScale(
-                              duration: const Duration(milliseconds: 220),
-                              scale: selected ? 1.02 : 1,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 280),
-                                width: 258,
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  color: Colors.white,
-                                  border: Border.all(
-                                    color: selected
-                                        ? AppPalette.success
-                                        : (previewed
-                                              ? AppPalette.secondary
-                                              : AppPalette.primary.withValues(
-                                                  alpha: 0.1,
-                                                )),
-                                    width: selected || previewed ? 2 : 1,
+                              return GestureDetector(
+                                onTap: lockedFreePlan
+                                    ? null
+                                    : () => _previewExplorePlan(plan, index),
+                                child: AnimatedScale(
+                                  duration: const Duration(milliseconds: 220),
+                                  scale: selected ? 1.02 : 1,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 280),
+                                    width: _exploreCardWidth,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      color: Colors.white,
+                                      border: Border.all(
+                                        color: selected
+                                            ? AppPalette.success
+                                            : (previewed
+                                                  ? AppPalette.secondary
+                                                  : AppPalette.primary
+                                                        .withValues(
+                                                          alpha: 0.1,
+                                                        )),
+                                        width: selected || previewed ? 2 : 1,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        if (trialExpiredForPlan)
+                                          Container(
+                                            margin: const EdgeInsets.only(
+                                              bottom: 6,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFFE3E3),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              'EXPIRED',
+                                              style: GoogleFonts.manrope(
+                                                color: const Color(0xFFB42318),
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 10,
+                                                letterSpacing: 0.3,
+                                              ),
+                                            ),
+                                          ),
+                                        Text(
+                                          displayTitle,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.redHatDisplay(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppPalette.primary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          groupTitle,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.manrope(
+                                            color: AppPalette.muted,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          plan.priceLabel,
+                                          style: GoogleFonts.redHatDisplay(
+                                            fontSize: 26,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppPalette.secondary,
+                                          ),
+                                        ),
+                                        Text(
+                                          plan.billingLabel,
+                                          style: GoogleFonts.manrope(
+                                            color: AppPalette.muted,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          displayDescription,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.manrope(
+                                            color: AppPalette.muted,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        SizedBox(
+                                          height: 42,
+                                          width: double.infinity,
+                                          child: FilledButton(
+                                            onPressed: disabled
+                                                ? null
+                                                : () async {
+                                                    setState(() {
+                                                      _processingPlanId =
+                                                          plan.id;
+                                                    });
+                                                    await _handleChoosePlan(
+                                                      context: context,
+                                                      appState: context
+                                                          .read<AppState>(),
+                                                      plan: plan,
+                                                    );
+                                                  },
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: selectedDisabled
+                                                  ? Colors.black.withValues(
+                                                      alpha: 0.08,
+                                                    )
+                                                  : AppPalette.primary,
+                                              foregroundColor: selectedDisabled
+                                                  ? AppPalette.muted
+                                                  : Colors.white,
+                                              disabledBackgroundColor:
+                                                  selectedDisabled
+                                                  ? Colors.black.withValues(
+                                                      alpha: 0.08,
+                                                    )
+                                                  : AppPalette.primary
+                                                        .withValues(
+                                                          alpha: 0.45,
+                                                        ),
+                                              disabledForegroundColor:
+                                                  selectedDisabled
+                                                  ? AppPalette.muted
+                                                  : Colors.white.withValues(
+                                                      alpha: 0.85,
+                                                    ),
+                                            ),
+                                            child: showLoading
+                                                ? const SizedBox(
+                                                    width: 18,
+                                                    height: 18,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Colors.white,
+                                                        ),
+                                                  )
+                                                : Text(
+                                                    buttonLabel,
+                                                    style: GoogleFonts.manrope(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                                  ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    if (trialExpiredForPlan)
-                                      Container(
-                                        margin: const EdgeInsets.only(
-                                          bottom: 6,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFE3E3),
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'EXPIRED',
-                                          style: GoogleFonts.manrope(
-                                            color: const Color(0xFFB42318),
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 10,
-                                            letterSpacing: 0.3,
-                                          ),
-                                        ),
-                                      ),
-                                    Text(
-                                      displayTitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.redHatDisplay(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppPalette.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      groupTitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.manrope(
-                                        color: AppPalette.muted,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      plan.priceLabel,
-                                      style: GoogleFonts.redHatDisplay(
-                                        fontSize: 26,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppPalette.secondary,
-                                      ),
-                                    ),
-                                    Text(
-                                      plan.billingLabel,
-                                      style: GoogleFonts.manrope(
-                                        color: AppPalette.muted,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      displayDescription,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.manrope(
-                                        color: AppPalette.muted,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    SizedBox(
-                                      height: 42,
-                                      width: double.infinity,
-                                      child: FilledButton(
-                                        onPressed: disabled
-                                            ? null
-                                            : () async {
-                                                setState(() {
-                                                  _processingPlanId = plan.id;
-                                                });
-                                                await _handleChoosePlan(
-                                                  context: context,
-                                                  appState: context
-                                                      .read<AppState>(),
-                                                  plan: plan,
-                                                );
-                                              },
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: selectedDisabled
-                                              ? Colors.black.withValues(
-                                                  alpha: 0.08,
-                                                )
-                                              : AppPalette.primary,
-                                          foregroundColor: selectedDisabled
-                                              ? AppPalette.muted
-                                              : Colors.white,
-                                          disabledBackgroundColor:
-                                              selectedDisabled
-                                              ? Colors.black.withValues(
-                                                  alpha: 0.08,
-                                                )
-                                              : AppPalette.primary.withValues(
-                                                  alpha: 0.45,
-                                                ),
-                                          disabledForegroundColor:
-                                              selectedDisabled
-                                              ? AppPalette.muted
-                                              : Colors.white.withValues(
-                                                  alpha: 0.85,
-                                                ),
-                                        ),
-                                        child: showLoading
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white,
-                                                    ),
-                                              )
-                                            : Text(
-                                                buttonLabel,
-                                                style: GoogleFonts.manrope(
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                              );
+                            },
+                          ),
+                  ),
+                  if (!plansLoading)
+                    _buildExploreIndicators(
+                      count: explorePlans.length,
+                      activeIndex: _exploreIndicatorIndex,
+                    ),
+                ],
               ),
             ),
           ],

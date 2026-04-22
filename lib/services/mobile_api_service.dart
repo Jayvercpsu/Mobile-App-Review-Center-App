@@ -328,6 +328,35 @@ class MobileApiService {
     }
   }
 
+  Future<ApiResult<bool>> logout() async {
+    if (_token == null || _token!.isEmpty) {
+      return ApiResult<bool>.failure(
+        'You are not authenticated.',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final http.Response response = await _postWithFallback(
+        path: ApiConfig.logout,
+        payload: <String, dynamic>{},
+      );
+      final dynamic decoded = _decodeJson(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String message = _extractErrorMessage(decoded);
+        return ApiResult<bool>.failure(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResult<bool>.success(true);
+    } catch (_) {
+      return ApiResult<bool>.failure('Something went wrong. Please try again.');
+    }
+  }
+
   Future<ApiResult<bool>> deleteAccount({String? password}) async {
     if (_token == null || _token!.isEmpty) {
       return ApiResult<bool>.failure(

@@ -1423,7 +1423,12 @@ class AppState extends ChangeNotifier {
     return ApiResult<QuizAttemptDetail>.success(detail);
   }
 
-  void logout() {
+  Future<void> logout() async {
+    // fire logout API so server can record activity; don't block UI
+    try {
+      unawaited(_api.logout());
+    } catch (_) {}
+
     _resetSessionState(notify: true, signOutGoogle: true);
   }
 

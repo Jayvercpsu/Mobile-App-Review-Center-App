@@ -24,11 +24,11 @@ class _InvitedUsersScreenState extends State<InvitedUsersScreen> {
       if (!mounted) {
         return;
       }
-      _loadInitial(context);
+      _loadInitial();
     });
   }
 
-  Future<void> _loadInitial(BuildContext context) async {
+  Future<void> _loadInitial() async {
     if (_loadingPage) {
       return;
     }
@@ -36,16 +36,24 @@ class _InvitedUsersScreenState extends State<InvitedUsersScreen> {
       _loadingPage = true;
     });
     final AppState appState = context.read<AppState>();
-    await appState.loadReferrals(loadMore: false, perPage: 100);
+    final String? error = await appState.loadReferrals(
+      loadMore: false,
+      perPage: 100,
+    );
     if (!mounted) {
       return;
     }
     setState(() {
       _loadingPage = false;
     });
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+    }
   }
 
-  Future<void> _loadMore(BuildContext context) async {
+  Future<void> _loadMore() async {
     if (_loadingPage) {
       return;
     }
@@ -53,13 +61,18 @@ class _InvitedUsersScreenState extends State<InvitedUsersScreen> {
       _loadingPage = true;
     });
     final AppState appState = context.read<AppState>();
-    await appState.loadReferrals(loadMore: true);
+    final String? error = await appState.loadReferrals(loadMore: true);
     if (!mounted) {
       return;
     }
     setState(() {
       _loadingPage = false;
     });
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+    }
   }
 
   @override
@@ -76,7 +89,7 @@ class _InvitedUsersScreenState extends State<InvitedUsersScreen> {
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => _loadInitial(context),
+          onRefresh: _loadInitial,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: <Widget>[
@@ -84,9 +97,7 @@ class _InvitedUsersScreenState extends State<InvitedUsersScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
                   child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppPalette.primary,
-                    ),
+                    child: CircularProgressIndicator(color: AppPalette.primary),
                   ),
                 ),
               if (!_loadingPage && appState.referralEntries.isEmpty)
@@ -159,7 +170,7 @@ class _InvitedUsersScreenState extends State<InvitedUsersScreen> {
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () => _loadMore(context),
+                      onPressed: _loadMore,
                       child: Text(
                         'Show more',
                         style: GoogleFonts.manrope(
@@ -176,9 +187,7 @@ class _InvitedUsersScreenState extends State<InvitedUsersScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppPalette.primary,
-                    ),
+                    child: CircularProgressIndicator(color: AppPalette.primary),
                   ),
                 ),
             ],

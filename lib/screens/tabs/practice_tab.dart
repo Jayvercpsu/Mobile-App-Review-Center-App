@@ -1035,8 +1035,9 @@ class _PracticeTabState extends State<PracticeTab>
                     ? 0
                     : ((item.score / item.total) * 100).round();
                 final bool passed = percent >= 75;
-                final Color percentColor =
-                    passed ? AppPalette.success : AppPalette.secondary;
+                final Color percentColor = passed
+                    ? AppPalette.success
+                    : AppPalette.secondary;
 
                 final bool isSelected = _selectedAttemptIds.contains(item.id);
                 return Padding(
@@ -1201,10 +1202,16 @@ class _PracticeTabState extends State<PracticeTab>
                 child: OutlinedButton(
                   onPressed: appState.loadingQuizAttempts
                       ? null
-                      : () {
-                          context.read<AppState>().loadQuizAttempts(
-                            loadMore: true,
-                          );
+                      : () async {
+                          final String? error = await context
+                              .read<AppState>()
+                              .loadQuizAttempts(loadMore: true);
+                          if (!mounted || error == null) {
+                            return;
+                          }
+                          ScaffoldMessenger.of(
+                            this.context,
+                          ).showSnackBar(SnackBar(content: Text(error)));
                         },
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(

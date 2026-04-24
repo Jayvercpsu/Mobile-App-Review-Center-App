@@ -1144,27 +1144,32 @@ class AppState extends ChangeNotifier {
           ),
         )
         .toList();
+    final List<ReferralEntry> incomingEntries = payload.referrals.map((
+      ReferralEntryPayload item,
+    ) {
+      return ReferralEntry(
+        id: item.id,
+        invitedName: item.invitedName,
+        invitedEmail: item.invitedEmail,
+        createdAt: item.createdAt,
+      );
+    }).toList();
+
     if (loadMore) {
+      final Set<int> seenIds = _referralEntries
+          .map((ReferralEntry entry) => entry.id)
+          .toSet();
       _referralEntries = <ReferralEntry>[
         ..._referralEntries,
-        ...payload.referrals.map(
-          (ReferralEntryPayload item) => ReferralEntry(
-            id: item.id,
-            invitedName: item.invitedName,
-            invitedEmail: item.invitedEmail,
-            createdAt: item.createdAt,
-          ),
+        ...incomingEntries.where(
+          (ReferralEntry entry) => seenIds.add(entry.id),
         ),
       ];
     } else {
-      _referralEntries = payload.referrals.map((ReferralEntryPayload item) {
-        return ReferralEntry(
-          id: item.id,
-          invitedName: item.invitedName,
-          invitedEmail: item.invitedEmail,
-          createdAt: item.createdAt,
-        );
-      }).toList();
+      final Set<int> seenIds = <int>{};
+      _referralEntries = incomingEntries
+          .where((ReferralEntry entry) => seenIds.add(entry.id))
+          .toList();
     }
     _referralsPage = payload.pagination.currentPage;
     hasMoreReferrals = payload.pagination.hasMore;
@@ -1277,12 +1282,18 @@ class AppState extends ChangeNotifier {
     }).toList();
 
     if (loadMore) {
+      final Set<int> seenIds = _subscriptionHistory
+          .map((SubscriptionHistoryItem item) => item.id)
+          .toSet();
       _subscriptionHistory = <SubscriptionHistoryItem>[
         ..._subscriptionHistory,
-        ...mapped,
+        ...mapped.where((SubscriptionHistoryItem item) => seenIds.add(item.id)),
       ];
     } else {
-      _subscriptionHistory = mapped;
+      final Set<int> seenIds = <int>{};
+      _subscriptionHistory = mapped
+          .where((SubscriptionHistoryItem item) => seenIds.add(item.id))
+          .toList();
     }
 
     _subscriptionHistoryPage = payload.pagination.currentPage;
@@ -1313,24 +1324,34 @@ class AppState extends ChangeNotifier {
     }
 
     final QuizAttemptHistoryPayload payload = response.data!;
-    final List<QuizAttemptItem> mapped = payload.attempts.map((
-      QuizAttemptSummaryPayload item,
-    ) {
-      return QuizAttemptItem(
-        id: item.id,
-        subjectId: item.subjectId,
-        subjectCode: item.subjectCode ?? 'SUBJ',
-        subjectTitle: item.subject ?? 'Subject',
-        score: item.score,
-        total: item.totalQuestions,
-        completedAt: item.createdAt ?? DateTime.now(),
-      );
-    }).toList();
+    final List<QuizAttemptItem> mapped = payload.attempts
+        .where((QuizAttemptSummaryPayload item) => item.createdAt != null)
+        .map((QuizAttemptSummaryPayload item) {
+          return QuizAttemptItem(
+            id: item.id,
+            subjectId: item.subjectId,
+            subjectCode: item.subjectCode ?? 'SUBJ',
+            subjectTitle: item.subject ?? 'Subject',
+            score: item.score,
+            total: item.totalQuestions,
+            completedAt: item.createdAt!,
+          );
+        })
+        .toList();
 
     if (loadMore) {
-      _quizAttempts = <QuizAttemptItem>[..._quizAttempts, ...mapped];
+      final Set<int> seenIds = _quizAttempts
+          .map((QuizAttemptItem item) => item.id)
+          .toSet();
+      _quizAttempts = <QuizAttemptItem>[
+        ..._quizAttempts,
+        ...mapped.where((QuizAttemptItem item) => seenIds.add(item.id)),
+      ];
     } else {
-      _quizAttempts = mapped;
+      final Set<int> seenIds = <int>{};
+      _quizAttempts = mapped
+          .where((QuizAttemptItem item) => seenIds.add(item.id))
+          .toList();
     }
 
     _quizAttemptsPage = payload.pagination.currentPage;

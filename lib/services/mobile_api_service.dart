@@ -2647,7 +2647,15 @@ class MobileApiService {
     if (text.isEmpty) {
       return null;
     }
-    return DateTime.tryParse(text);
+
+    final bool isDateOnly = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(text);
+    if (isDateOnly) {
+      return DateTime.tryParse(text);
+    }
+
+    final bool hasOffset = RegExp(r'(Z|[+\-]\d{2}:\d{2})$').hasMatch(text);
+    final String normalized = hasOffset ? text : '${text}Z';
+    return DateTime.tryParse(normalized);
   }
 
   String _extractErrorMessage(dynamic decoded) {

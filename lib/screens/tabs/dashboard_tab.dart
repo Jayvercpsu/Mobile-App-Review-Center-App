@@ -2015,8 +2015,15 @@ class SubscriptionHistoryScreen extends StatelessWidget {
                 appState.hasMoreSubscriptionHistory)
               Center(
                 child: TextButton(
-                  onPressed: () {
-                    appState.loadSubscriptionHistory(loadMore: true);
+                  onPressed: () async {
+                    final String? error = await appState
+                        .loadSubscriptionHistory(loadMore: true);
+                    if (!context.mounted || error == null) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(error)));
                   },
                   child: Text(
                     'Load more',
@@ -2066,8 +2073,16 @@ class ReferralHistoryScreen extends StatelessWidget {
             if (!appState.loadingReferrals && appState.hasMoreReferrals)
               Center(
                 child: TextButton(
-                  onPressed: () {
-                    appState.loadReferrals(loadMore: true);
+                  onPressed: () async {
+                    final String? error = await appState.loadReferrals(
+                      loadMore: true,
+                    );
+                    if (!context.mounted || error == null) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(error)));
                   },
                   child: Text(
                     'Load more',

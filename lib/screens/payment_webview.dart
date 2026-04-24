@@ -91,7 +91,7 @@ class _PaymentWebViewState extends State<PaymentWebView> {
         title: const Text('Complete Payment'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(PaymentResult.unknown),
+          onPressed: () => Navigator.of(context).pop(PaymentResult.cancel),
         ),
       ),
       body: Column(

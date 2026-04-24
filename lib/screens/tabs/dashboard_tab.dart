@@ -797,67 +797,65 @@ class _DashboardTabState extends State<DashboardTab> {
       return;
     }
 
-    if (result == PaymentResult.success ||
-        result == PaymentResult.unknown ||
-        result == null) {
-      if (result == PaymentResult.success) {
-        final String displayLabel = _subscriptionShortLabel(plan);
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text('Payment completed. Subscribed: $displayLabel'),
-            ),
-          );
-      }
+    final bool paymentCompleted = result == PaymentResult.success;
 
-      final String? refreshError = await _refreshAfterSubscriptionChange(
-        appState: appState,
-      );
-      if (!context.mounted) {
-        return;
-      }
+    if (paymentCompleted) {
+      final String displayLabel = _subscriptionShortLabel(plan);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Payment completed. Subscribed: $displayLabel'),
+          ),
+        );
+    }
 
-      if (refreshError == null) {
-        setState(() {
-          _previewPlanId = appState.currentPlan.id;
-        });
+    final String? refreshError = await _refreshAfterSubscriptionChange(
+      appState: appState,
+    );
+    if (!context.mounted) {
+      return;
+    }
 
-        if (appState.currentPlan.id == plan.id && appState.hasActivePaidPlan) {
-          _showSubscriptionSuccess(context: context, plan: plan);
-          return;
-        }
-
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Payment received. Subscription will activate shortly.',
-              ),
-              duration: const Duration(seconds: 10),
-              action: SnackBarAction(
-                label: 'Refresh Plan',
-                onPressed: () {
-                  _refreshPlanStatus(context: context, appState: appState);
-                },
-              ),
-            ),
-          );
-        return;
-      }
-
+    if (refreshError != null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(refreshError)));
       return;
     }
 
-    if (result == PaymentResult.cancel) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Payment cancelled.')));
+    setState(() {
+      _previewPlanId = appState.currentPlan.id;
+    });
+
+    if (appState.currentPlan.id == plan.id && appState.hasActivePaidPlan) {
+      _showSubscriptionSuccess(context: context, plan: plan);
+      return;
     }
+
+    if (!paymentCompleted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Payment cancelled.')));
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Payment received. Subscription will activate shortly.',
+          ),
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(
+            label: 'Refresh Plan',
+            onPressed: () {
+              _refreshPlanStatus(context: context, appState: appState);
+            },
+          ),
+        ),
+      );
   }
 
   Future<void> _refreshPlanStatus({

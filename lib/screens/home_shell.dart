@@ -294,13 +294,6 @@ class _HomeShellState extends State<HomeShell> {
               duration: Duration(seconds: 5),
             ),
           );
-        } else if (!isOffline && previousOffline == true && appState.signedIn) {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Back online.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
         }
       });
     }
@@ -311,12 +304,6 @@ class _HomeShellState extends State<HomeShell> {
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Back online.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
       });
     }
 
